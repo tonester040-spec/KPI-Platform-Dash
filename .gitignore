@@ -1,0 +1,31 @@
+# ── Secrets — NEVER commit these ──────────────────────
+*.json
+!config/**/*.json
+
+# ── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# ── Environment ────────────────────────────────────────
+.env
+.env.*
+
+# ── OS / Editor ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Binaries ────────────────────────────────────────────
+*.exe
+*.msi
+*.dmg

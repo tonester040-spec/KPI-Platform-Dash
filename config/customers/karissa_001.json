@@ -1,0 +1,20 @@
+{
+  "customer_id": "karissa_001",
+  "customer_name": "Karissa's Salon Network",
+  "sheet_id": "1JY6L7H1Pb2JFmNoz2XNkvG0ogrYgagLVDwH01vuWT28",
+  "locations": [
+    {"id": "z001",  "name": "Andover FS",    "platform": "zenoti"},
+    {"id": "z002",  "name": "Blaine",         "platform": "zenoti"},
+    {"id": "z003",  "name": "Crystal FS",     "platform": "zenoti"},
+    {"id": "z004",  "name": "Elk River FS",   "platform": "zenoti"},
+    {"id": "z005",  "name": "Forest Lake",    "platform": "zenoti"},
+    {"id": "z006",  "name": "Prior Lake",     "platform": "zenoti"},
+    {"id": "z007",  "name": "Hudson",         "platform": "zenoti"},
+    {"id": "z008",  "name": "New Richmond",   "platform": "zenoti"},
+    {"id": "z009",  "name": "Roseville",      "platform": "zenoti"},
+    {"id": "z010",  "name": "Apple Valley",   "platform": "zenoti"},
+    {"id": "su001", "name": "Lakeville",      "platform": "salon_ultimate"},
+    {"id": "su002", "name": "Farmington",     "platform": "salon_ultimate"},
+    {"id": "su003", "name": "Woodbury",       "platform": "salon_ultimate"}
+  ]
+}
