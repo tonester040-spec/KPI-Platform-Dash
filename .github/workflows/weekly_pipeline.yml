@@ -4,8 +4,17 @@ on:
   # Every Monday at 7:00 AM Central Time = 12:00 UTC
   schedule:
     - cron: '0 12 * * 1'
-  # Manual trigger for testing
+  # Manual trigger for testing — supports optional DRY_RUN toggle
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip AI calls, writes, email, git push)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write   # Required for git push
@@ -56,6 +65,7 @@ jobs:
           GMAIL_APP_PASSWORD:          ${{ secrets.GMAIL_APP_PASSWORD }}
           GMAIL_SENDER:                ${{ secrets.GMAIL_SENDER }}
           ACTIVE_CUSTOMER_ID:          ${{ secrets.ACTIVE_CUSTOMER_ID || 'karissa_001' }}
+          DRY_RUN:                     ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           python main.py
 
