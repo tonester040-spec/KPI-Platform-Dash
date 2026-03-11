@@ -4,6 +4,13 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>KPI — Karissa Performance Intelligence</title>
+<!-- PWA -->
+<link rel="manifest" href="/KPI-Platform-Dash/manifest.json"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="KPI"/>
+<link rel="apple-touch-icon" href="/KPI-Platform-Dash/icons/icon-192.png"/>
+<meta name="theme-color" content="#0F1117"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -176,9 +183,31 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
   .metric-tiles{grid-template-columns:1fr 1fr}
   .main{padding:16px 12px}
 }
+
+/* ── PWA Install Banner ── */
+#pwa-banner{display:none;background:#1a2035;border-bottom:1px solid #2d3a5a;padding:10px 20px;align-items:center;gap:12px;font-size:13px;color:#CBD5E1;position:relative;z-index:200}
+#pwa-banner .pwa-text{flex:1}
+#pwa-banner .pwa-icon{font-size:20px;flex-shrink:0}
+#pwa-banner .pwa-dismiss{background:none;border:none;color:#8899BB;font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;flex-shrink:0}
+#pwa-banner .pwa-dismiss:hover{color:#fff}
+
+/* ── Live / Stale Badge ── */
+.freshness-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;margin-left:8px;vertical-align:middle}
+.badge-live{background:#D1FAE5;color:#065F46}
+.badge-stale{background:#FEF3C7;color:#92400E}
+.badge-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot-live{background:#10B981}
+.dot-stale{background:#F59E0B}
 </style>
 </head>
 <body>
+
+<!-- PWA Install Banner (iOS Safari only) -->
+<div id="pwa-banner">
+  <span class="pwa-icon">📲</span>
+  <span class="pwa-text">Install KPI on your home screen — tap the <strong>Share</strong> button then <strong>Add to Home Screen</strong></span>
+  <button class="pwa-dismiss" onclick="dismissPwaBanner()" aria-label="Dismiss">✕</button>
+</div>
 
 <!-- Header -->
 <header class="header">
@@ -186,7 +215,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
     <div class="logo">K<span>PI</span></div>
     <div class="subtitle">Karissa Performance Intelligence</div>
   </div>
-  <div class="header-right">Week Ending &nbsp;<strong>2026-03-09</strong></div>
+  <div class="header-right">Week Ending &nbsp;<strong id="week-ending-val">2026-03-09</strong><span id="freshness-badge"></span></div>
 </header>
 
 <!-- Tab Switcher -->
@@ -1110,6 +1139,49 @@ renderLeaderboard();
 renderStylistCards();
 renderStylistLeaderboard();
 buildMainCharts();
+</script>
+
+<script>
+/* ── PWA: Install Banner ── */
+function dismissPwaBanner() {
+  document.getElementById('pwa-banner').style.display = 'none';
+  sessionStorage.setItem('kpi_pwa_dismissed', '1');
+}
+(function() {
+  var isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isSafari  = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  var isStandalone = window.navigator.standalone === true;
+  var dismissed = sessionStorage.getItem('kpi_pwa_dismissed') === '1';
+  if (isIOS && isSafari && !isStandalone && !dismissed) {
+    document.getElementById('pwa-banner').style.display = 'flex';
+  }
+})();
+
+/* ── PWA: Live / Stale Badge ── */
+(function() {
+  var el = document.getElementById('week-ending-val');
+  if (!el) return;
+  var weekStr = el.textContent.trim();
+  var weekDate = new Date(weekStr + 'T00:00:00');
+  var now = new Date();
+  var diffDays = (now - weekDate) / (1000 * 60 * 60 * 24);
+  var badge = document.getElementById('freshness-badge');
+  if (!badge) return;
+  if (diffDays <= 7) {
+    badge.innerHTML = '<span class="freshness-badge badge-live"><span class="badge-dot dot-live"></span>Live</span>';
+  } else {
+    badge.innerHTML = '<span class="freshness-badge badge-stale"><span class="badge-dot dot-stale"></span>Stale</span>';
+  }
+})();
+
+/* ── PWA: Service Worker Registration ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/KPI-Platform-Dash/sw.js')
+      .then(function(reg) { console.log('KPI SW registered', reg.scope); })
+      .catch(function(err) { console.log('KPI SW error:', err); });
+  });
+}
 </script>
 </body>
 </html>

@@ -4,6 +4,13 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>KPI — Jess's Dashboard</title>
+<!-- PWA -->
+<link rel="manifest" href="/KPI-Platform-Dash/manifest.json"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="KPI"/>
+<link rel="apple-touch-icon" href="/KPI-Platform-Dash/icons/icon-192.png"/>
+<meta name="theme-color" content="#0F1117"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -180,17 +187,35 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 /* ── PIN Gate ──────────────────────────────────────────────────── */
 #pin-gate{position:fixed;inset:0;background:#0F1117;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
 #pin-gate.unlocked{display:none}
-.pin-box{background:#1a2035;border-radius:16px;padding:48px 40px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);}
+.pin-box{background:#1a2035;border-radius:16px;padding:48px 40px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);width:min(360px,90vw)}
 .pin-box h2{color:#fff;font-size:22px;margin:0 0 8px}
 .pin-box p{color:#8899BB;margin:0 0 28px;font-size:14px}
-.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:28px}
-.pin-dot{width:14px;height:14px;border-radius:50%;background:#333;border:2px solid #556;}
-.pin-dot.filled{background:#4A90D9;border-color:#4A90D9}
-.pin-keypad{display:grid;grid-template-columns:repeat(3,72px);gap:10px;justify-content:center}
-.pin-key{height:56px;border:none;border-radius:10px;background:#243050;color:#fff;font-size:18px;font-weight:600;cursor:pointer;transition:background .15s}
-.pin-key:hover{background:#2e3d6a}
-.pin-key:active{background:#4A90D9}
-.pin-error{color:#f87171;font-size:13px;min-height:20px;margin-top:8px}
+/* 4-digit input boxes */
+.pin-inputs{display:flex;gap:12px;justify-content:center;margin-bottom:24px}
+.pin-input{width:64px;height:68px;border-radius:12px;border:2px solid #334;background:#243050;color:#fff;font-size:26px;font-weight:700;text-align:center;outline:none;caret-color:transparent;transition:border-color .15s;-webkit-tap-highlight-color:transparent;-webkit-appearance:none}
+.pin-input:focus{border-color:#4A90D9;background:#1e2d4a}
+@keyframes pin-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.pin-shake{animation:pin-shake .4s ease}
+.pin-error{color:#f87171;font-size:13px;min-height:20px;margin-top:4px}
+/* Biometric button */
+.bio-btn{display:none;align-items:center;justify-content:center;gap:8px;background:#243050;border:1px solid #4A90D9;color:#4A90D9;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-bottom:16px;transition:background .15s}
+.bio-btn:hover{background:#1e2d4a}
+.bio-btn.visible{display:flex}
+.pin-alt{font-size:12px;color:#556;cursor:pointer;margin-top:12px}
+.pin-alt:hover{color:#8899BB}
+/* ── PWA Install Banner ── */
+#pwa-banner{display:none;background:#1a2035;border-bottom:1px solid #2d3a5a;padding:10px 20px;align-items:center;gap:12px;font-size:13px;color:#CBD5E1;position:relative;z-index:200}
+#pwa-banner .pwa-text{flex:1}
+#pwa-banner .pwa-icon{font-size:20px;flex-shrink:0}
+#pwa-banner .pwa-dismiss{background:none;border:none;color:#8899BB;font-size:18px;cursor:pointer;padding:4px 8px;line-height:1;flex-shrink:0}
+#pwa-banner .pwa-dismiss:hover{color:#fff}
+/* ── Live / Stale Badge ── */
+.freshness-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;margin-left:8px;vertical-align:middle}
+.badge-live{background:#D1FAE5;color:#065F46}
+.badge-stale{background:#FEF3C7;color:#92400E}
+.badge-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot-live{background:#10B981}
+.dot-stale{background:#F59E0B}
 
 </style>
 </head>
@@ -199,31 +224,28 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 <div id="pin-gate">
   <div class="pin-box">
     <h2>🔒 Jess's Dashboard</h2>
-    <p>Enter your 4-digit PIN to continue</p>
-    <div class="pin-dots">
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-    </div>
-    <div class="pin-keypad">
-      <button class="pin-key" data-digit="1">1</button>
-      <button class="pin-key" data-digit="2">2</button>
-      <button class="pin-key" data-digit="3">3</button>
-      <button class="pin-key" data-digit="4">4</button>
-      <button class="pin-key" data-digit="5">5</button>
-      <button class="pin-key" data-digit="6">6</button>
-      <button class="pin-key" data-digit="7">7</button>
-      <button class="pin-key" data-digit="8">8</button>
-      <button class="pin-key" data-digit="9">9</button>
-      <button class="pin-key" id="pin-clear" style="font-size:13px;color:#8899BB">Clear</button>
-      <button class="pin-key" data-digit="0">0</button>
-      <button class="pin-key" style="background:#4A90D9" onclick="document.querySelectorAll('.pin-dot').forEach(function(d,i){d.classList.toggle('filled',i<(document.querySelectorAll('.pin-dot.filled').length))})">⌫</button>
+    <p id="pin-prompt">Enter your 4-digit PIN to continue</p>
+    <!-- Biometric button — shown if credential is enrolled -->
+    <button class="bio-btn" id="bio-btn" onclick="tryBioAuth()">
+      <span style="font-size:20px">🔑</span> Use Face ID / Touch ID
+    </button>
+    <div class="pin-inputs" id="pin-inputs">
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
     </div>
     <div id="pin-error" class="pin-error"></div>
+    <div class="pin-alt" id="pin-alt" style="display:none" onclick="showPinFallback()">Use PIN instead</div>
   </div>
 </div>
 
+<!-- PWA Install Banner (iOS Safari only) -->
+<div id="pwa-banner">
+  <span class="pwa-icon">📲</span>
+  <span class="pwa-text">Install KPI on your home screen — tap the <strong>Share</strong> button then <strong>Add to Home Screen</strong></span>
+  <button class="pwa-dismiss" onclick="dismissPwaBanner()" aria-label="Dismiss">✕</button>
+</div>
 
 <!-- Header -->
 <header class="header">
@@ -231,7 +253,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
     <div class="logo">K<span>PI</span></div>
     <div class="subtitle">Jess's Dashboard</div>
   </div>
-  <div class="header-right">Week Ending &nbsp;<strong>2026-03-09</strong></div>
+  <div class="header-right">Week Ending &nbsp;<strong id="week-ending-val">2026-03-09</strong><span id="freshness-badge"></span></div>
 </header>
 
 <!-- Tab Switcher -->
@@ -1109,72 +1131,195 @@ renderStylistLeaderboard();
 buildMainCharts();
 </script>
 <script>
-
-/* ── PIN Gate ── */
+/* ── PIN Gate + WebAuthn ── */
 (function() {
-  var CORRECT = '1234';
-  var entered = '';
-  var gate    = document.getElementById('pin-gate');
-  var dots    = document.querySelectorAll('.pin-dot');
-  var errEl   = document.getElementById('pin-error');
+  var CORRECT   = '1234';
+  var CRED_KEY  = 'kpi_cred_jess';
+  var SESS_KEY  = 'kpi_unlocked_jess';
+  var RP_ID     = 'tonester040-spec.github.io';
+  var gate      = document.getElementById('pin-gate');
+  var inputs    = Array.from(document.querySelectorAll('.pin-input'));
+  var errEl     = document.getElementById('pin-error');
+  var bioBtn    = document.getElementById('bio-btn');
+  var altLink   = document.getElementById('pin-alt');
 
-  function updateDots() {
-    dots.forEach(function(d, i) {
-      d.classList.toggle('filled', i < entered.length);
-    });
-  }
-
-  function tryUnlock() {
-    if (entered === CORRECT) {
-      gate.classList.add('unlocked');
-      sessionStorage.setItem('kpi_unlocked_jess', '1');
-    } else {
-      errEl.textContent = 'Incorrect PIN. Try again.';
-      entered = '';
-      updateDots();
-      setTimeout(function(){ errEl.textContent = ''; }, 2000);
-    }
-  }
-
-  // Check session storage
-  if (sessionStorage.getItem('kpi_unlocked_jess') === '1') {
+  /* ── Unlock helper ── */
+  function unlock() {
     gate.classList.add('unlocked');
-    return;
+    sessionStorage.setItem(SESS_KEY, '1');
   }
 
-  // Keyboard support
-  document.addEventListener('keydown', function(e) {
-    if (!gate.classList.contains('unlocked')) {
-      if (e.key >= '0' && e.key <= '9' && entered.length < 4) {
-        entered += e.key;
-        updateDots();
-        if (entered.length === 4) tryUnlock();
-      } else if (e.key === 'Backspace') {
-        entered = entered.slice(0, -1);
-        updateDots();
-        errEl.textContent = '';
-      }
-    }
-  });
+  /* ── Session already open ── */
+  if (sessionStorage.getItem(SESS_KEY) === '1') { unlock(); return; }
 
-  // Button clicks
-  document.querySelectorAll('.pin-key[data-digit]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      if (entered.length < 4) {
-        entered += btn.dataset.digit;
-        updateDots();
-        if (entered.length === 4) tryUnlock();
+  /* ── Shake animation on wrong PIN ── */
+  function shake() {
+    var box = document.querySelector('.pin-inputs');
+    box.classList.add('pin-shake');
+    box.addEventListener('animationend', function() { box.classList.remove('pin-shake'); }, {once:true});
+  }
+
+  /* ── 4-box PIN input logic ── */
+  inputs.forEach(function(inp, idx) {
+    inp.addEventListener('input', function(e) {
+      var val = inp.value.replace(/\D/g, '').slice(-1);
+      inp.value = val;
+      if (val && idx < inputs.length - 1) inputs[idx + 1].focus();
+      if (idx === inputs.length - 1 && val) checkPin();
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !inp.value && idx > 0) {
+        inputs[idx - 1].value = '';
+        inputs[idx - 1].focus();
       }
+      // Prevent non-numeric keys (allow backspace, tab, arrows)
+      if (!/^\d$/.test(e.key) && !['Backspace','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+    inp.addEventListener('paste', function(e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,4);
+      text.split('').forEach(function(ch, i) { if (inputs[i]) inputs[i].value = ch; });
+      if (text.length === 4) checkPin();
+      else if (inputs[text.length]) inputs[text.length].focus();
     });
   });
 
-  document.getElementById('pin-clear').addEventListener('click', function() {
-    entered = '';
-    updateDots();
+  function getEnteredPin() { return inputs.map(function(i){ return i.value; }).join(''); }
+
+  function clearInputs() { inputs.forEach(function(i){ i.value=''; }); inputs[0].focus(); }
+
+  function checkPin() {
+    var entered = getEnteredPin();
+    if (entered.length < 4) return;
     errEl.textContent = '';
+    if (entered === CORRECT) {
+      onCorrectPin();
+    } else {
+      shake();
+      errEl.textContent = 'Incorrect PIN — try again';
+      setTimeout(function() { errEl.textContent = ''; clearInputs(); }, 1500);
+    }
+  }
+
+  /* ── Keyboard support (desktop) ── */
+  document.addEventListener('keydown', function(e) {
+    if (gate.classList.contains('unlocked')) return;
+    if (document.activeElement && inputs.includes(document.activeElement)) return;
+    if (e.key >= '0' && e.key <= '9') { inputs[0].focus(); }
   });
+
+  /* ── WebAuthn: enroll after first correct PIN ── */
+  async function enrollBiometric() {
+    if (!window.PublicKeyCredential) return;
+    if (localStorage.getItem(CRED_KEY)) return;
+    try {
+      var challenge = window.crypto.getRandomValues(new Uint8Array(32));
+      var userId    = new TextEncoder().encode('jess-kpi-dashboard');
+      var cred = await navigator.credentials.create({ publicKey: {
+        challenge,
+        rp:      { name: 'KPI Dashboard', id: RP_ID },
+        user:    { id: userId, name: 'jess', displayName: 'Jess' },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 30000
+      }});
+      var raw = new Uint8Array(cred.rawId);
+      localStorage.setItem(CRED_KEY, btoa(String.fromCharCode.apply(null, raw)));
+      console.log('KPI: biometric enrolled');
+    } catch(e) { /* user declined or unavailable — that's fine */ }
+  }
+
+  function onCorrectPin() {
+    unlock();
+    // Attempt biometric enrollment in background after unlock
+    if (window.PublicKeyCredential && !localStorage.getItem(CRED_KEY)) {
+      setTimeout(enrollBiometric, 800);
+    }
+  }
+
+  /* ── WebAuthn: authenticate on load ── */
+  window.tryBioAuth = async function() {
+    var credB64 = localStorage.getItem(CRED_KEY);
+    if (!credB64 || !window.PublicKeyCredential) return;
+    bioBtn.textContent = '⏳ Waiting for biometric…';
+    try {
+      var rawId = Uint8Array.from(atob(credB64), function(c){ return c.charCodeAt(0); });
+      var challenge = window.crypto.getRandomValues(new Uint8Array(32));
+      await navigator.credentials.get({ publicKey: {
+        challenge,
+        rpId: RP_ID,
+        allowCredentials: [{ type: 'public-key', id: rawId }],
+        userVerification: 'required',
+        timeout: 30000
+      }});
+      unlock();
+    } catch(e) {
+      bioBtn.innerHTML = '<span style="font-size:20px">🔑</span> Use Face ID / Touch ID';
+      showPinFallback();
+    }
+  };
+
+  window.showPinFallback = function() {
+    bioBtn.style.display = 'none';
+    altLink.style.display = 'none';
+    document.getElementById('pin-inputs').style.display = 'flex';
+    inputs[0].focus();
+  };
+
+  /* ── On load: decide what to show ── */
+  var hasCred = !!localStorage.getItem(CRED_KEY);
+  if (hasCred && window.PublicKeyCredential) {
+    // Hide PIN boxes, show biometric button, offer PIN fallback
+    document.getElementById('pin-inputs').style.display = 'none';
+    document.getElementById('pin-prompt').textContent = 'Use biometrics to continue';
+    bioBtn.classList.add('visible');
+    altLink.style.display = 'block';
+    // Auto-trigger biometric
+    setTimeout(window.tryBioAuth, 300);
+  } else {
+    inputs[0].focus();
+  }
+
 })();
 
+/* ── PWA: Install Banner ── */
+function dismissPwaBanner() {
+  document.getElementById('pwa-banner').style.display = 'none';
+  sessionStorage.setItem('kpi_pwa_dismissed', '1');
+}
+(function() {
+  var isIOS        = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isSafari     = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  var isStandalone = window.navigator.standalone === true;
+  var dismissed    = sessionStorage.getItem('kpi_pwa_dismissed') === '1';
+  if (isIOS && isSafari && !isStandalone && !dismissed) {
+    document.getElementById('pwa-banner').style.display = 'flex';
+  }
+})();
+
+/* ── PWA: Live / Stale Badge ── */
+(function() {
+  var el = document.getElementById('week-ending-val');
+  if (!el) return;
+  var weekDate = new Date(el.textContent.trim() + 'T00:00:00');
+  var diffDays = (new Date() - weekDate) / 86400000;
+  var badge = document.getElementById('freshness-badge');
+  if (!badge) return;
+  badge.innerHTML = diffDays <= 7
+    ? '<span class="freshness-badge badge-live"><span class="badge-dot dot-live"></span>Live</span>'
+    : '<span class="freshness-badge badge-stale"><span class="badge-dot dot-stale"></span>Stale</span>';
+})();
+
+/* ── PWA: Service Worker ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/KPI-Platform-Dash/sw.js')
+      .then(function(r){ console.log('KPI SW registered', r.scope); })
+      .catch(function(e){ console.log('KPI SW error:', e); });
+  });
+}
 </script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 # ── Secrets — NEVER commit these ──────────────────────
 *.json
 !config/**/*.json
+!docs/manifest.json
 
 # ── Python ─────────────────────────────────────────────
 __pycache__/

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>KPI — Offline</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0F1117;color:#fff;font-family:-apple-system,'Inter',sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px}
+.icon{font-size:56px;margin-bottom:24px}
+.logo{font-size:28px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:8px}
+.logo span{color:#4A90D9}
+h1{font-size:20px;font-weight:700;color:#fff;margin-bottom:12px}
+p{font-size:15px;color:#8899BB;line-height:1.6;max-width:320px;margin:0 auto 24px}
+.badge{display:inline-block;background:#1a2035;border:1px solid #334;border-radius:20px;padding:8px 18px;font-size:13px;color:#8899BB}
+.badge strong{color:#C8A97E}
+</style>
+</head>
+<body>
+<div>
+  <div class="icon">📡</div>
+  <div class="logo">K<span>PI</span></div>
+  <h1>You're offline</h1>
+  <p>Showing the last data loaded on your device. KPI updates automatically every Monday at 7am CT — it'll refresh as soon as you're back online.</p>
+  <div class="badge">Last update: <strong id="last-update">cached data</strong></div>
+</div>
+<script>
+// Try to pull week_ending from cached page
+caches.open('kpi-v1').then(c => c.match('/KPI-Platform-Dash/')).then(r => {
+  if (!r) return;
+  r.text().then(html => {
+    const m = html.match(/Week Ending.*?<strong>([\d-]+)<\/strong>/);
+    if (m) document.getElementById('last-update').textContent = 'week ending ' + m[1];
+  });
+});
+</script>
+</body>
+</html>

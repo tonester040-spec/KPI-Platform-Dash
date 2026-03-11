@@ -1,0 +1,25 @@
+{
+  "name": "KPI — Karissa Performance Intelligence",
+  "short_name": "KPI",
+  "description": "Salon network performance intelligence for 13 locations",
+  "start_url": "/KPI-Platform-Dash/",
+  "scope": "/KPI-Platform-Dash/",
+  "display": "standalone",
+  "background_color": "#0F1117",
+  "theme_color": "#0F1117",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
