@@ -184,20 +184,19 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
   .main{padding:16px 12px}
 }
 
-/* ── PIN Gate ──────────────────────────────────────────────────── */
+
+/* ── PIN Gate upgrade ──────────────────────────────────────────────────── */
 #pin-gate{position:fixed;inset:0;background:#0F1117;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
 #pin-gate.unlocked{display:none}
 .pin-box{background:#1a2035;border-radius:16px;padding:48px 40px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);width:min(360px,90vw)}
 .pin-box h2{color:#fff;font-size:22px;margin:0 0 8px}
 .pin-box p{color:#8899BB;margin:0 0 28px;font-size:14px}
-/* 4-digit input boxes */
 .pin-inputs{display:flex;gap:12px;justify-content:center;margin-bottom:24px}
 .pin-input{width:64px;height:68px;border-radius:12px;border:2px solid #334;background:#243050;color:#fff;font-size:26px;font-weight:700;text-align:center;outline:none;caret-color:transparent;transition:border-color .15s;-webkit-tap-highlight-color:transparent;-webkit-appearance:none}
 .pin-input:focus{border-color:#4A90D9;background:#1e2d4a}
 @keyframes pin-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
 .pin-shake{animation:pin-shake .4s ease}
 .pin-error{color:#f87171;font-size:13px;min-height:20px;margin-top:4px}
-/* Biometric button */
 .bio-btn{display:none;align-items:center;justify-content:center;gap:8px;background:#243050;border:1px solid #4A90D9;color:#4A90D9;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-bottom:16px;transition:background .15s}
 .bio-btn:hover{background:#1e2d4a}
 .bio-btn.visible{display:flex}
@@ -216,7 +215,6 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 .badge-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 .dot-live{background:#10B981}
 .dot-stale{background:#F59E0B}
-
 </style>
 </head>
 <body>
@@ -225,7 +223,6 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
   <div class="pin-box">
     <h2>🔒 Jess's Dashboard</h2>
     <p id="pin-prompt">Enter your 4-digit PIN to continue</p>
-    <!-- Biometric button — shown if credential is enrolled -->
     <button class="bio-btn" id="bio-btn" onclick="tryBioAuth()">
       <span style="font-size:20px">🔑</span> Use Face ID / Touch ID
     </button>
@@ -345,7 +342,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 ═══════════════════════════════════════════════════════ */
 const CURRENT_WEEK = '2026-03-09';
 // KPI_DATA_START
-// Generated: 2026-03-11T16:53:36Z
+// Generated: 2026-03-11T17:20:15Z
 const WEEKS_12 = [
   '2025-12-22','2025-12-29','2026-01-05','2026-01-12','2026-01-19','2026-01-26','2026-02-02','2026-02-09','2026-02-16','2026-02-23','2026-03-02','2026-03-09'
 ];
@@ -1130,6 +1127,8 @@ renderStylistCards();
 renderStylistLeaderboard();
 buildMainCharts();
 </script>
+
+
 <script>
 /* ── PIN Gate + WebAuthn ── */
 (function() {
@@ -1143,25 +1142,21 @@ buildMainCharts();
   var bioBtn    = document.getElementById('bio-btn');
   var altLink   = document.getElementById('pin-alt');
 
-  /* ── Unlock helper ── */
   function unlock() {
     gate.classList.add('unlocked');
     sessionStorage.setItem(SESS_KEY, '1');
   }
 
-  /* ── Session already open ── */
   if (sessionStorage.getItem(SESS_KEY) === '1') { unlock(); return; }
 
-  /* ── Shake animation on wrong PIN ── */
   function shake() {
     var box = document.querySelector('.pin-inputs');
     box.classList.add('pin-shake');
     box.addEventListener('animationend', function() { box.classList.remove('pin-shake'); }, {once:true});
   }
 
-  /* ── 4-box PIN input logic ── */
   inputs.forEach(function(inp, idx) {
-    inp.addEventListener('input', function(e) {
+    inp.addEventListener('input', function() {
       var val = inp.value.replace(/\D/g, '').slice(-1);
       inp.value = val;
       if (val && idx < inputs.length - 1) inputs[idx + 1].focus();
@@ -1172,7 +1167,6 @@ buildMainCharts();
         inputs[idx - 1].value = '';
         inputs[idx - 1].focus();
       }
-      // Prevent non-numeric keys (allow backspace, tab, arrows)
       if (!/^\d$/.test(e.key) && !['Backspace','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
         e.preventDefault();
       }
@@ -1186,12 +1180,10 @@ buildMainCharts();
     });
   });
 
-  function getEnteredPin() { return inputs.map(function(i){ return i.value; }).join(''); }
-
   function clearInputs() { inputs.forEach(function(i){ i.value=''; }); inputs[0].focus(); }
 
   function checkPin() {
-    var entered = getEnteredPin();
+    var entered = inputs.map(function(i){ return i.value; }).join('');
     if (entered.length < 4) return;
     errEl.textContent = '';
     if (entered === CORRECT) {
@@ -1203,14 +1195,12 @@ buildMainCharts();
     }
   }
 
-  /* ── Keyboard support (desktop) ── */
   document.addEventListener('keydown', function(e) {
     if (gate.classList.contains('unlocked')) return;
     if (document.activeElement && inputs.includes(document.activeElement)) return;
     if (e.key >= '0' && e.key <= '9') { inputs[0].focus(); }
   });
 
-  /* ── WebAuthn: enroll after first correct PIN ── */
   async function enrollBiometric() {
     if (!window.PublicKeyCredential) return;
     if (localStorage.getItem(CRED_KEY)) return;
@@ -1227,19 +1217,16 @@ buildMainCharts();
       }});
       var raw = new Uint8Array(cred.rawId);
       localStorage.setItem(CRED_KEY, btoa(String.fromCharCode.apply(null, raw)));
-      console.log('KPI: biometric enrolled');
-    } catch(e) { /* user declined or unavailable — that's fine */ }
+    } catch(e) { /* user declined */ }
   }
 
   function onCorrectPin() {
     unlock();
-    // Attempt biometric enrollment in background after unlock
     if (window.PublicKeyCredential && !localStorage.getItem(CRED_KEY)) {
       setTimeout(enrollBiometric, 800);
     }
   }
 
-  /* ── WebAuthn: authenticate on load ── */
   window.tryBioAuth = async function() {
     var credB64 = localStorage.getItem(CRED_KEY);
     if (!credB64 || !window.PublicKeyCredential) return;
@@ -1268,20 +1255,16 @@ buildMainCharts();
     inputs[0].focus();
   };
 
-  /* ── On load: decide what to show ── */
   var hasCred = !!localStorage.getItem(CRED_KEY);
   if (hasCred && window.PublicKeyCredential) {
-    // Hide PIN boxes, show biometric button, offer PIN fallback
     document.getElementById('pin-inputs').style.display = 'none';
     document.getElementById('pin-prompt').textContent = 'Use biometrics to continue';
     bioBtn.classList.add('visible');
     altLink.style.display = 'block';
-    // Auto-trigger biometric
     setTimeout(window.tryBioAuth, 300);
   } else {
     inputs[0].focus();
   }
-
 })();
 
 /* ── PWA: Install Banner ── */

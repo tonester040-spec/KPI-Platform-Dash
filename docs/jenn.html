@@ -184,7 +184,8 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
   .main{padding:16px 12px}
 }
 
-/* ── PIN Gate ──────────────────────────────────────────────────── */
+
+/* ── PIN Gate upgrade ──────────────────────────────────────────────────── */
 #pin-gate{position:fixed;inset:0;background:#0F1117;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
 #pin-gate.unlocked{display:none}
 .pin-box{background:#1a2035;border-radius:16px;padding:48px 40px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);width:min(360px,90vw)}
@@ -214,7 +215,6 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 .badge-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 .dot-live{background:#10B981}
 .dot-stale{background:#F59E0B}
-
 </style>
 </head>
 <body>
@@ -342,7 +342,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 ═══════════════════════════════════════════════════════ */
 const CURRENT_WEEK = '2026-03-09';
 // KPI_DATA_START
-// Generated: 2026-03-11T16:53:36Z
+// Generated: 2026-03-11T17:20:15Z
 const WEEKS_12 = [
   '2025-12-22','2025-12-29','2026-01-05','2026-01-12','2026-01-19','2026-01-26','2026-02-02','2026-02-09','2026-02-16','2026-02-23','2026-03-02','2026-03-09'
 ];
@@ -1119,6 +1119,8 @@ renderStylistCards();
 renderStylistLeaderboard();
 buildMainCharts();
 </script>
+
+
 <script>
 /* ── PIN Gate + WebAuthn ── */
 (function() {
