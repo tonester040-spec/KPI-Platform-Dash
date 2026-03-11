@@ -32,10 +32,14 @@ jobs:
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────
+      # IMPORTANT: ref: refs/heads/main ensures the runner always checks out
+      # the current HEAD of main at execution time, NOT the dispatch-time SHA.
+      # Without this, queued runs use stale github.sha and run old code.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0          # Full history needed for rebase
+          ref: refs/heads/main    # Always use latest main, not dispatch-time SHA
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # ── 2. Python setup ──────────────────────────────────────────
