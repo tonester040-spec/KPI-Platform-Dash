@@ -16,5 +16,22 @@
     {"id": "su001", "name": "Lakeville",      "platform": "salon_ultimate"},
     {"id": "su002", "name": "Farmington",     "platform": "salon_ultimate"},
     {"id": "su003", "name": "Woodbury",       "platform": "salon_ultimate"}
+  ],
+  "managers": [
+    {
+      "name": "Jess",
+      "filename": "jess.html",
+      "pin": "1234",
+      "location_ids": ["z001", "z002", "z003", "z004", "z005", "z006", "z007"]
+    },
+    {
+      "name": "Jenn",
+      "filename": "jenn.html",
+      "pin": "5678",
+      "location_ids": ["z008", "z009", "z010", "su001", "su002", "su003"]
+    }
+  ],
+  "email_recipients": [
+    "karissa@example.com"
   ]
 }

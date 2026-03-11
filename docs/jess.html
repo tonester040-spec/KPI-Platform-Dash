@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>KPI — Karissa Performance Intelligence</title>
+<title>KPI — Jess's Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -176,15 +176,60 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
   .metric-tiles{grid-template-columns:1fr 1fr}
   .main{padding:16px 12px}
 }
+
+/* ── PIN Gate ──────────────────────────────────────────────────── */
+#pin-gate{position:fixed;inset:0;background:#0F1117;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+#pin-gate.unlocked{display:none}
+.pin-box{background:#1a2035;border-radius:16px;padding:48px 40px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);}
+.pin-box h2{color:#fff;font-size:22px;margin:0 0 8px}
+.pin-box p{color:#8899BB;margin:0 0 28px;font-size:14px}
+.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:28px}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:#333;border:2px solid #556;}
+.pin-dot.filled{background:#4A90D9;border-color:#4A90D9}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,72px);gap:10px;justify-content:center}
+.pin-key{height:56px;border:none;border-radius:10px;background:#243050;color:#fff;font-size:18px;font-weight:600;cursor:pointer;transition:background .15s}
+.pin-key:hover{background:#2e3d6a}
+.pin-key:active{background:#4A90D9}
+.pin-error{color:#f87171;font-size:13px;min-height:20px;margin-top:8px}
+
 </style>
 </head>
 <body>
+
+<div id="pin-gate">
+  <div class="pin-box">
+    <h2>🔒 Jess's Dashboard</h2>
+    <p>Enter your 4-digit PIN to continue</p>
+    <div class="pin-dots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <div class="pin-keypad">
+      <button class="pin-key" data-digit="1">1</button>
+      <button class="pin-key" data-digit="2">2</button>
+      <button class="pin-key" data-digit="3">3</button>
+      <button class="pin-key" data-digit="4">4</button>
+      <button class="pin-key" data-digit="5">5</button>
+      <button class="pin-key" data-digit="6">6</button>
+      <button class="pin-key" data-digit="7">7</button>
+      <button class="pin-key" data-digit="8">8</button>
+      <button class="pin-key" data-digit="9">9</button>
+      <button class="pin-key" id="pin-clear" style="font-size:13px;color:#8899BB">Clear</button>
+      <button class="pin-key" data-digit="0">0</button>
+      <button class="pin-key" style="background:#4A90D9" onclick="document.querySelectorAll('.pin-dot').forEach(function(d,i){d.classList.toggle('filled',i<(document.querySelectorAll('.pin-dot.filled').length))})">⌫</button>
+    </div>
+    <div id="pin-error" class="pin-error"></div>
+  </div>
+</div>
+
 
 <!-- Header -->
 <header class="header">
   <div class="header-left">
     <div class="logo">K<span>PI</span></div>
-    <div class="subtitle">Karissa Performance Intelligence</div>
+    <div class="subtitle">Jess's Dashboard</div>
   </div>
   <div class="header-right">Week Ending &nbsp;<strong>2026-03-09</strong></div>
 </header>
@@ -1086,6 +1131,74 @@ renderLeaderboard();
 renderStylistCards();
 renderStylistLeaderboard();
 buildMainCharts();
+</script>
+<script>
+
+/* ── PIN Gate ── */
+(function() {
+  var CORRECT = '1234';
+  var entered = '';
+  var gate    = document.getElementById('pin-gate');
+  var dots    = document.querySelectorAll('.pin-dot');
+  var errEl   = document.getElementById('pin-error');
+
+  function updateDots() {
+    dots.forEach(function(d, i) {
+      d.classList.toggle('filled', i < entered.length);
+    });
+  }
+
+  function tryUnlock() {
+    if (entered === CORRECT) {
+      gate.classList.add('unlocked');
+      sessionStorage.setItem('kpi_unlocked_jess', '1');
+    } else {
+      errEl.textContent = 'Incorrect PIN. Try again.';
+      entered = '';
+      updateDots();
+      setTimeout(function(){ errEl.textContent = ''; }, 2000);
+    }
+  }
+
+  // Check session storage
+  if (sessionStorage.getItem('kpi_unlocked_jess') === '1') {
+    gate.classList.add('unlocked');
+    return;
+  }
+
+  // Keyboard support
+  document.addEventListener('keydown', function(e) {
+    if (!gate.classList.contains('unlocked')) {
+      if (e.key >= '0' && e.key <= '9' && entered.length < 4) {
+        entered += e.key;
+        updateDots();
+        if (entered.length === 4) tryUnlock();
+      } else if (e.key === 'Backspace') {
+        entered = entered.slice(0, -1);
+        updateDots();
+        errEl.textContent = '';
+      }
+    }
+  });
+
+  // Button clicks
+  document.querySelectorAll('.pin-key[data-digit]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (entered.length < 4) {
+        entered += btn.dataset.digit;
+        updateDots();
+        if (entered.length === 4) tryUnlock();
+      }
+    });
+  });
+
+  document.getElementById('pin-clear').addEventListener('click', function() {
+    entered = '';
+    updateDots();
+    errEl.textContent = '';
+  });
+})();
+
 </script>
 </body>
 </html>

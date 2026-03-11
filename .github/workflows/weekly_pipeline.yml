@@ -1,0 +1,70 @@
+name: KPI Weekly Pipeline
+
+on:
+  # Every Monday at 7:00 AM Central Time = 12:00 UTC
+  schedule:
+    - cron: '0 12 * * 1'
+  # Manual trigger for testing
+  workflow_dispatch:
+
+permissions:
+  contents: write   # Required for git push
+  pages: write
+  id-token: write
+
+concurrency:
+  group: kpi-pipeline
+  cancel-in-progress: false  # Never cancel a running pipeline
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Python setup ──────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. Install dependencies ──────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 4. Configure git for push ─────────────────────────────────
+      - name: Configure git identity
+        run: |
+          git config user.name  "KPI Pipeline Bot"
+          git config user.email "kpi-bot@users.noreply.github.com"
+
+      # ── 5. Run pipeline ───────────────────────────────────────────
+      - name: Run KPI Pipeline
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          ANTHROPIC_API_KEY:           ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_APP_PASSWORD:          ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_SENDER:                ${{ secrets.GMAIL_SENDER }}
+          ACTIVE_CUSTOMER_ID:          ${{ secrets.ACTIVE_CUSTOMER_ID || 'karissa_001' }}
+        run: |
+          python main.py
+
+      # ── 6. Upload pipeline log as artifact ───────────────────────
+      - name: Upload pipeline log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-log-${{ github.run_id }}
+          path: data/logs/
+          retention-days: 30
+          if-no-files-found: warn
