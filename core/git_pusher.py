@@ -84,6 +84,12 @@ def push_dashboard(
     _run(["git", "commit", "-m", commit_msg], repo_root)
     log.info("Committed: %s", commit_msg)
 
+    # Pull --rebase first in case other workflows pushed since we checked out
+    # (static.yml deploy runs concurrently and can create commits on main)
+    rc, _, stderr = _run(["git", "pull", "--rebase", "origin", "main"], repo_root, check=False)
+    if rc != 0:
+        log.warning("git pull --rebase had issues (rc=%d): %s — attempting push anyway", rc, stderr)
+
     # Push to main
     _run(["git", "push", "origin", "main"], repo_root)
     log.info("Pushed to origin/main")
