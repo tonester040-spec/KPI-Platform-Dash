@@ -84,14 +84,23 @@ def push_dashboard(
     _run(["git", "commit", "-m", commit_msg], repo_root)
     log.info("Committed: %s", commit_msg)
 
-    # Pull --rebase first in case other workflows pushed since we checked out
-    # (static.yml deploy runs concurrently and can create commits on main)
-    rc, _, stderr = _run(["git", "pull", "--rebase", "origin", "main"], repo_root, check=False)
+    # Fetch + rebase onto remote in case other commits landed since we checked out.
+    # -X theirs: if both sides modified the same line, keep OUR new KPI data.
+    _run(["git", "fetch", "origin", "main"], repo_root, check=False)
+    rc, _, stderr = _run(
+        ["git", "rebase", "-X", "theirs", "origin/main"],
+        repo_root,
+        check=False,
+    )
     if rc != 0:
-        log.warning("git pull --rebase had issues (rc=%d): %s — attempting push anyway", rc, stderr)
+        # Rebase left git in a broken state — abort it before we do anything else.
+        log.warning("Rebase failed (rc=%d): %s — aborting rebase, falling back to force-with-lease", rc, stderr)
+        _run(["git", "rebase", "--abort"], repo_root, check=False)
 
-    # Push to main
-    _run(["git", "push", "origin", "main"], repo_root)
-    log.info("Pushed to origin/main")
+    # Push to main — normal push if rebase succeeded, force-with-lease if we aborted.
+    # force-with-lease is safe here: we just fetched, so the lease is current.
+    push_cmd = ["git", "push", "origin", "main"] if rc == 0 else ["git", "push", "--force-with-lease", "origin", "main"]
+    _run(push_cmd, repo_root)
+    log.info("Pushed to origin/main%s", " (force-with-lease)" if rc != 0 else "")
 
     return True
