@@ -69,7 +69,30 @@ jobs:
         run: |
           python main.py
 
-      # ── 6. Upload pipeline log as artifact ───────────────────────
+      # ── 6. Push dashboard to GitHub ──────────────────────────────
+      # Python commits docs/ locally; this step does the actual push.
+      # Fetch first so the lease is current, then rebase our commit
+      # on top of any remote changes (our fresh KPI data wins conflicts).
+      - name: Push dashboard changes
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+          if [ "$AHEAD" -eq 0 ]; then
+            echo "Nothing new to push."
+            exit 0
+          fi
+          echo "Pushing $AHEAD commit(s) to origin/main..."
+          git fetch origin main
+          if git rebase -X theirs origin/main; then
+            git push origin main
+          else
+            echo "Rebase had conflicts — aborting and using force-with-lease"
+            git rebase --abort
+            git push --force-with-lease origin main
+          fi
+          echo "Push complete."
+
+      # ── 7. Upload pipeline log as artifact ───────────────────────
       - name: Upload pipeline log
         if: always()
         uses: actions/upload-artifact@v4

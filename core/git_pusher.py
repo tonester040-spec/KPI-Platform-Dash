@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
 core/git_pusher.py
-KPI Platform — commits and pushes the docs/ folder to GitHub.
+KPI Platform — stages and commits the docs/ folder to git.
+
+NOTE: The actual `git push` is handled by the GitHub Actions workflow
+(weekly_pipeline.yml), not here. This module only commits locally.
+The YAML push step has proper GITHUB_TOKEN credentials and handles
+fetch + rebase + push cleanly.
 
 SAFETY: Only stages files in docs/. Never touches the repo root,
 scripts/, core/, config/, or any file containing credentials.
@@ -45,8 +50,9 @@ def push_dashboard(
     dry_run: bool = False,
 ) -> bool:
     """
-    Stage docs/ only, commit, and push to main.
-    Returns True on success.
+    Stage docs/ only and commit locally.
+    The actual push to GitHub is handled by weekly_pipeline.yml.
+    Returns True on success (including when there is nothing to commit).
     """
     if not week_ending:
         week_ending = datetime.date.today().strftime("%Y-%m-%d")
@@ -80,27 +86,8 @@ def push_dashboard(
             f"Nothing was committed. Review git status and retry."
         )
 
-    # Commit
+    # Commit locally — the workflow YAML handles the push
     _run(["git", "commit", "-m", commit_msg], repo_root)
-    log.info("Committed: %s", commit_msg)
-
-    # Fetch + rebase onto remote in case other commits landed since we checked out.
-    # -X theirs: if both sides modified the same line, keep OUR new KPI data.
-    _run(["git", "fetch", "origin", "main"], repo_root, check=False)
-    rc, _, stderr = _run(
-        ["git", "rebase", "-X", "theirs", "origin/main"],
-        repo_root,
-        check=False,
-    )
-    if rc != 0:
-        # Rebase left git in a broken state — abort it before we do anything else.
-        log.warning("Rebase failed (rc=%d): %s — aborting rebase, falling back to force-with-lease", rc, stderr)
-        _run(["git", "rebase", "--abort"], repo_root, check=False)
-
-    # Push to main — normal push if rebase succeeded, force-with-lease if we aborted.
-    # force-with-lease is safe here: we just fetched, so the lease is current.
-    push_cmd = ["git", "push", "origin", "main"] if rc == 0 else ["git", "push", "--force-with-lease", "origin", "main"]
-    _run(push_cmd, repo_root)
-    log.info("Pushed to origin/main%s", " (force-with-lease)" if rc != 0 else "")
+    log.info("Committed locally: %s  (push handled by GitHub Actions workflow)", commit_msg)
 
     return True

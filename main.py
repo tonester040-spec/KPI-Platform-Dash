@@ -176,12 +176,12 @@ def main():
         log.warning("  ⚠️  Failed to update: %s", failed)
 
     # ── Step 9: Git pusher ────────────────────────────────────────────────────
-    _step(9, "Git pusher — committing and pushing docs/")
+    _step(9, "Git pusher — committing docs/ (push handled by workflow)")
     from core import git_pusher
     week = data["network"].get("week_ending", "")
     pushed = git_pusher.push_dashboard(REPO_ROOT, week_ending=week, dry_run=DRY_RUN)
     if pushed:
-        _ok("Git pusher", "committed and pushed to main" if not DRY_RUN else "DRY RUN — skipped")
+        _ok("Git pusher", "committed docs/ — workflow will push" if not DRY_RUN else "DRY RUN — skipped")
 
     # ── Done ──────────────────────────────────────────────────────────────────
     elapsed = time.time() - start_time
