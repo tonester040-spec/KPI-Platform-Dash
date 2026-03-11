@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: kpi-pipeline
-  cancel-in-progress: false  # Never cancel a running pipeline
+  cancel-in-progress: true   # Kill stale queued runs; flip back to false after pipeline is stable
 
 jobs:
   run-pipeline:
