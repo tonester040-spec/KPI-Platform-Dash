@@ -30,3 +30,10 @@ Thumbs.db
 *.exe
 *.msi
 *.dmg
+
+# ── Email Assistant — private data (never commit) ────────
+voice/samples/
+data/output/
+data/logs/
+config/noise_senders_found.json
+config/noise_dismissed.json

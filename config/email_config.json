@@ -1,0 +1,35 @@
+{
+  "_comment": "KPI Email Assistant — noise filter configuration. Edit to customize for Karissa's inbox.",
+
+  "blocked_senders": [
+    "noreply@zenoti.com",
+    "notifications@salonultimate.com"
+  ],
+
+  "blocked_domains": [
+    "groupon.com",
+    "mailchimp.com",
+    "klaviyo.com",
+    "constantcontact.com",
+    "sendgrid.net",
+    "hubspot.com"
+  ],
+
+  "blocked_subject_patterns": [
+    "your monthly statement is ready",
+    "automated notification",
+    "do not reply",
+    "system notification"
+  ],
+
+  "always_real_senders": [
+    "_comment": "Add email addresses that should NEVER be filtered as noise, even if they look automated",
+    "examples": ["karissa@example.com", "jess@example.com", "jenn@example.com"]
+  ],
+
+  "location_names": [
+    "Andover", "Blaine", "Crystal", "Elk River", "Forest Lake",
+    "Prior Lake", "Hudson", "New Richmond", "Roseville",
+    "Apple Valley", "Lakeville", "Farmington"
+  ]
+}
