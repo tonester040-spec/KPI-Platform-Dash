@@ -479,6 +479,25 @@ html, body {
   .headline { font-size: 20px; }
   .kpi-wordmark { font-size: 50px; }
 }
+
+/* ─── Mute Button ──────────────────────────────────────────── */
+.mute-btn {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 38px; height: 38px;
+  background: var(--card2);
+  border: 1px solid var(--gold-md);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  z-index: 600;
+  transition: background 0.2s, transform 0.12s;
+  font-family: inherit;
+  color: var(--white);
+}
+.mute-btn:hover  { background: rgba(200,169,126,0.15); }
+.mute-btn:active { transform: scale(0.92); }
 </style>
 </head>
 <body>
@@ -803,6 +822,12 @@ html, body {
 <!-- ─── Replay button ─────────────────────────── -->
 <button class="replay-btn" id="replayBtn">↺ &nbsp;Replay</button>
 
+<!-- ─── Background audio ──────────────────────── -->
+<audio id="bgAudio" src="kpi-music.mp3" loop preload="auto"></audio>
+
+<!-- ─── Mute / unmute button ──────────────────── -->
+<button class="mute-btn" id="muteBtn" title="Toggle music" aria-label="Toggle music">🔊</button>
+
 </div><!-- /stage -->
 
 <script>
@@ -997,8 +1022,49 @@ function startDemo() {
   raf = requestAnimationFrame(tick);
 }
 
+/* ──────────────────────────────────────────────
+   Audio — autoplay at 30% volume, loop continuously.
+   Browser autoplay policy blocks audio without a prior
+   user gesture, so we attempt on load and fall back to
+   unlocking on first click/touch.
+────────────────────────────────────────────── */
+const audio = $('bgAudio');
+let audioStarted = false;
+
+function initAudio() {
+  audio.volume = 0.3;
+  audio.play()
+    .then(() => { audioStarted = true; })
+    .catch(() => {
+      // Blocked — unlock on first interaction
+      const unlock = () => {
+        if (!audioStarted) {
+          audio.play()
+            .then(() => {
+              audioStarted = true;
+              document.removeEventListener('click',    unlock);
+              document.removeEventListener('touchend', unlock);
+            })
+            .catch(() => {});
+        }
+      };
+      document.addEventListener('click',    unlock, { passive: true });
+      document.addEventListener('touchend', unlock, { passive: true });
+    });
+}
+
+function toggleMute() {
+  audio.muted = !audio.muted;
+  $('muteBtn').textContent = audio.muted ? '🔇' : '🔊';
+  // If audio never started (user hadn't interacted yet), kick it off now
+  if (!audioStarted && !audio.muted) {
+    audio.play().then(() => { audioStarted = true; }).catch(() => {});
+  }
+}
+
+$('muteBtn').addEventListener('click', toggleMute);
 $('replayBtn').addEventListener('click', startDemo);
-window.addEventListener('load', startDemo);
+window.addEventListener('load', () => { startDemo(); initAudio(); });
 </script>
 </body>
 </html>
