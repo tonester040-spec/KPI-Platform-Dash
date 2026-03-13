@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from email import friday_recap as fr
+from email_assistant import friday_recap as fr
 
 log = logging.getLogger(__name__)
 

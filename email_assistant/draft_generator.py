@@ -12,8 +12,8 @@ import os
 import time
 from typing import Optional
 
-from email import voice_profile as vp
-from email import gmail_connector as gc
+from email_assistant import voice_profile as vp
+from email_assistant import gmail_connector as gc
 
 log = logging.getLogger(__name__)
 

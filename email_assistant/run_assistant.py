@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
+# Ensure repo root is on sys.path so 'email_assistant' is importable
+# regardless of how this script is invoked.
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
 """
-email/run_assistant.py
+email_assistant/run_assistant.py
 KPI Platform — Email Assistant main orchestrator.
 
 Called by .github/workflows/email_assistant.yml every morning at 7:30am CT.
@@ -83,8 +88,8 @@ def main():
     print("╚══════════════════════════════════════════════════════════╝")
     print()
 
-    from email import gmail_connector as gc
-    from email import noise_filter, categorizer, draft_generator, debrief_builder
+    from email_assistant import gmail_connector as gc
+    from email_assistant import noise_filter, categorizer, draft_generator, debrief_builder
 
     result = {
         "total_emails":      0,
@@ -195,7 +200,7 @@ def main():
             # Non-fatal — continue to build debrief
 
     # ── Step 6: Friday recap (if needed) ─────────────────────────────────────
-    from email import friday_recap as fr
+    from email_assistant import friday_recap as fr
     if fr.is_friday():
         _step(6, "Friday — fetching week's emails for recap")
         if DRY_RUN:
@@ -329,7 +334,7 @@ if __name__ == "__main__":
         log.exception("Email assistant failed with unhandled error: %s", exc)
         # Last-resort error page
         try:
-            from email import debrief_builder
+            from email_assistant import debrief_builder
             debrief_builder.build_error_debrief(str(exc))
         except Exception:
             pass
