@@ -1,0 +1,105 @@
+name: KPI Email Assistant
+
+on:
+  # Every weekday at 7:30 AM Central Time = 12:30 UTC
+  # (7:30 CT in winter / CDT adjustment handled by Karissa reviewing at 8am buffer)
+  schedule:
+    - cron: '30 12 * * 1-5'   # Mon–Fri only
+
+  # Manual trigger — supports dry-run for testing
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (mock emails, skip Gmail + writes)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: write   # Needed for git push of docs/karissa-debrief.html
+  pages: write
+  id-token: write
+
+concurrency:
+  group: email-assistant
+  cancel-in-progress: false  # Don't cancel running jobs
+
+jobs:
+  run-email-assistant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: refs/heads/main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Python setup ──────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. Install dependencies ──────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 4. Configure git identity ─────────────────────────────────
+      - name: Configure git identity
+        run: |
+          git config user.name  "KPI Email Bot"
+          git config user.email "kpi-bot@users.noreply.github.com"
+
+      # ── 5. Run Email Assistant ────────────────────────────────────
+      - name: Run Email Assistant
+        env:
+          # Gmail OAuth — set these in GitHub Secrets when ready
+          GMAIL_CLIENT_ID:      ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET:  ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN:  ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          # Existing secrets (already set)
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          DRY_RUN:              ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          python email_assistant/run_assistant.py
+
+      # ── 6. Commit and push debrief page ──────────────────────────
+      - name: Push debrief page
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          # Only commit if karissa-debrief.html changed
+          if git diff --quiet docs/karissa-debrief.html 2>/dev/null; then
+            echo "No changes to debrief page — nothing to push."
+            exit 0
+          fi
+
+          git add docs/karissa-debrief.html
+          git commit -m "chore: update morning debrief $(date +'%Y-%m-%d %H:%M')"
+
+          git fetch origin main
+          if git rebase -X theirs origin/main; then
+            git push origin main
+          else
+            echo "Rebase conflict — using force-with-lease"
+            git rebase --abort
+            git push --force-with-lease origin main
+          fi
+          echo "Debrief page pushed."
+
+      # ── 7. Summary ───────────────────────────────────────────────
+      - name: Post summary
+        if: always()
+        run: |
+          echo "### Email Assistant Run Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Date: $(date +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- Debrief URL: https://tonester040-spec.github.io/KPI-Platform-Dash/karissa-debrief.html" >> $GITHUB_STEP_SUMMARY
