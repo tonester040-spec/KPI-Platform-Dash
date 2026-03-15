@@ -1,0 +1,63 @@
+{
+  "_comment": "Zenoti API — formal schema contract for KPI Platform. This file is the ground truth for expected field names and types. When Zenoti changes its API, update this file FIRST and review all pipeline code before the next run.",
+  "_last_validated": "UNCALIBRATED — update when Zenoti API access is granted",
+  "_version": "1.0",
+
+  "endpoint_appointments": {
+    "description": "Appointment/service records for a given location and date range",
+    "base_path": "/api/v1/centers/{center_id}/appointments",
+    "required_fields": [
+      {"field": "appointment_id",     "type": "string",  "notes": "Unique appointment identifier"},
+      {"field": "center_id",          "type": "string",  "notes": "Maps to KPI location ID via zenoti_center_map.json"},
+      {"field": "invoice_date",       "type": "string",  "format": "YYYY-MM-DD", "notes": "Service date"},
+      {"field": "total_amount",       "type": "number",  "notes": "Gross service revenue for this appointment"},
+      {"field": "service_amount",     "type": "number",  "notes": "Service revenue excluding product"},
+      {"field": "product_amount",     "type": "number",  "notes": "Product revenue from this visit"},
+      {"field": "guest_count",        "type": "integer", "notes": "Number of guests on this appointment"},
+      {"field": "therapist_id",       "type": "string",  "notes": "Stylist identifier — maps to stylist records"},
+      {"field": "duration_minutes",   "type": "integer", "notes": "Total productive hours denominator"},
+      {"field": "appointment_status", "type": "string",  "notes": "e.g., Closed, Cancelled, No-Show — filter to Closed only"}
+    ],
+    "optional_fields": [
+      {"field": "service_type",       "type": "string",  "notes": "e.g., Wax, Color, Treatment — used for service mix"},
+      {"field": "rebooked",           "type": "boolean", "notes": "Whether guest rebooked at checkout"},
+      {"field": "tip_amount",         "type": "number",  "notes": "Not included in revenue calculations"}
+    ],
+    "minimum_expected_records_per_week": 50,
+    "abort_if_below_minimum": true,
+    "_note": "If record count < 50% of prior week's count, abort and alert before any write."
+  },
+
+  "endpoint_stylists": {
+    "description": "Stylist/therapist records for a given center",
+    "base_path": "/api/v1/centers/{center_id}/therapists",
+    "required_fields": [
+      {"field": "therapist_id",    "type": "string",  "notes": "Unique stylist identifier"},
+      {"field": "center_id",       "type": "string",  "notes": "Which location this stylist belongs to"},
+      {"field": "first_name",      "type": "string",  "notes": ""},
+      {"field": "last_name",       "type": "string",  "notes": ""},
+      {"field": "employment_type", "type": "string",  "notes": "Full-time, Part-time, etc."},
+      {"field": "is_active",       "type": "boolean", "notes": "Filter inactive stylists from KPI calculations"}
+    ],
+    "optional_fields": [
+      {"field": "hire_date",       "type": "string",  "format": "YYYY-MM-DD", "notes": "Used to calculate tenure"},
+      {"field": "specializations", "type": "array",   "notes": "Service specialties"}
+    ]
+  },
+
+  "authentication": {
+    "method": "API Key",
+    "header": "Authorization: apikey {ZENOTI_API_KEY}",
+    "secret_name": "ZENOTI_API_KEY",
+    "token_expiry": "non-expiring (API key)",
+    "rate_limit_header": "X-RateLimit-Remaining",
+    "retry_on_codes": [429, 500, 502, 503]
+  },
+
+  "validation_rules": {
+    "on_schema_change": "Log specific field discrepancy and abort pipeline — do not process malformed data",
+    "required_field_missing": "ABORT — raise SchemaValidationError with field name",
+    "type_mismatch": "WARN and attempt safe cast — if cast fails, ABORT",
+    "record_count_below_50pct_of_prior_week": "ABORT — never overwrite good data with partial data"
+  }
+}

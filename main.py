@@ -220,4 +220,15 @@ if __name__ == "__main__":
         sys.exit(0)
     except Exception as exc:
         log.exception("Pipeline failed with unhandled error: %s", exc)
+        # Fire alert BEFORE exiting — silent failures are not acceptable
+        try:
+            from core import alerter
+            alerter.send(
+                severity="CRITICAL",
+                module="main",
+                error_message=str(exc),
+                diagnostic="Check the GitHub Actions log for the full traceback above.",
+            )
+        except Exception:
+            pass  # Never let alerter failure mask the original error
         sys.exit(1)

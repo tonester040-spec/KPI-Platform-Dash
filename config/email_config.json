@@ -23,8 +23,7 @@
   ],
 
   "always_real_senders": [
-    "_comment": "Add email addresses that should NEVER be filtered as noise, even if they look automated",
-    "examples": ["karissa@example.com", "jess@example.com", "jenn@example.com"]
+    "_comment_placeholder_remove_when_adding_real_senders"
   ],
 
   "location_names": [

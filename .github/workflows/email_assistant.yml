@@ -21,7 +21,7 @@ on:
 permissions:
   contents: write   # Needed for git push of docs/karissa-debrief.html
   pages: write
-  id-token: write
+  # id-token: write removed — not used (OIDC federation not configured)
 
 concurrency:
   group: email-assistant
