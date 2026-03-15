@@ -1,0 +1,64 @@
+{
+  "_comment": "Salon Ultimate API — formal schema contract for KPI Platform. This file is the ground truth for expected field names and types. When Salon Ultimate changes its API, update this file FIRST and review all pipeline code before the next run.",
+  "_last_validated": "UNCALIBRATED — update when Salon Ultimate API access is granted",
+  "_version": "1.0",
+  "_affected_locations": ["z010 (Apple Valley)", "su001 (Lakeville)", "su002 (Farmington)"],
+
+  "endpoint_transactions": {
+    "description": "Service and retail transaction records for a given location and date range",
+    "base_path": "/api/transactions",
+    "required_fields": [
+      {"field": "transaction_id",     "type": "string",  "notes": "Unique transaction identifier"},
+      {"field": "location_id",        "type": "string",  "notes": "Maps to KPI location ID via su_location_map config"},
+      {"field": "transaction_date",   "type": "string",  "format": "YYYY-MM-DD", "notes": "Service date"},
+      {"field": "service_revenue",    "type": "number",  "notes": "Revenue from services (excluding product)"},
+      {"field": "product_revenue",    "type": "number",  "notes": "Revenue from retail product sales"},
+      {"field": "total_revenue",      "type": "number",  "notes": "Gross revenue — must equal service + product"},
+      {"field": "guest_id",           "type": "string",  "notes": "Guest identifier — used for guest count"},
+      {"field": "stylist_id",         "type": "string",  "notes": "Stylist who performed the service"},
+      {"field": "service_minutes",    "type": "integer", "notes": "Productive minutes — denominator for PPH"}
+    ],
+    "optional_fields": [
+      {"field": "service_category",   "type": "string",  "notes": "Wax, Color, Treatment, Other"},
+      {"field": "rebook_flag",        "type": "boolean", "notes": "Whether guest rebooked"},
+      {"field": "ticket_status",      "type": "string",  "notes": "Closed/Void/Open — filter to Closed only"},
+      {"field": "discount_amount",    "type": "number",  "notes": "Subtract from revenue if applicable per Karissa's definition"}
+    ],
+    "minimum_expected_records_per_week": 30,
+    "abort_if_below_minimum": true,
+    "_note": "If record count < 50% of prior week's count, abort and alert before any write."
+  },
+
+  "endpoint_staff": {
+    "description": "Staff/stylist records for a given location",
+    "base_path": "/api/staff",
+    "required_fields": [
+      {"field": "staff_id",           "type": "string",  "notes": "Unique stylist identifier"},
+      {"field": "location_id",        "type": "string",  "notes": "Which location this stylist belongs to"},
+      {"field": "full_name",          "type": "string",  "notes": "Display name used in KPI reports"},
+      {"field": "active",             "type": "boolean", "notes": "Filter to active only for KPI calculations"}
+    ],
+    "optional_fields": [
+      {"field": "start_date",         "type": "string",  "format": "YYYY-MM-DD", "notes": "Hire date for tenure"},
+      {"field": "employment_type",    "type": "string",  "notes": "Full-time, Part-time"}
+    ]
+  },
+
+  "authentication": {
+    "method": "Bearer token",
+    "header": "Authorization: Bearer {SALON_ULTIMATE_TOKEN}",
+    "secret_name": "SALON_ULTIMATE_TOKEN",
+    "token_expiry": "unknown — verify on first integration",
+    "token_refresh": "unknown — document when API access is granted",
+    "rate_limit_header": "unknown — document when API access is granted",
+    "retry_on_codes": [429, 500, 502, 503]
+  },
+
+  "validation_rules": {
+    "on_schema_change": "Log specific field discrepancy and abort pipeline — do not process malformed data",
+    "required_field_missing": "ABORT — raise SchemaValidationError with field name and location ID",
+    "type_mismatch": "WARN and attempt safe cast — if cast fails, ABORT",
+    "revenue_integrity_check": "If service + product != total (allowing $0.01 rounding), log WARNING",
+    "record_count_below_50pct_of_prior_week": "ABORT — never overwrite good data with partial data"
+  }
+}

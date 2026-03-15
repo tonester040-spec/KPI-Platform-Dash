@@ -77,6 +77,15 @@ def _is_noise(email: dict, config: dict) -> tuple[bool, str]:
     subject      = email.get("subject", "").lower()
     sender_name  = email.get("sender", "").lower()
 
+    # Always-real senders bypass ALL noise checks (checked first).
+    # Add trusted addresses to config/email_config.json → always_real_senders.
+    always_real = [
+        s.lower() for s in config.get("always_real_senders", [])
+        if s and not s.startswith("_comment")
+    ]
+    if sender_email in always_real:
+        return False, ""
+
     # Gmail-header-based signals (most reliable)
     if email.get("has_unsubscribe"):
         return True, "has List-Unsubscribe header"

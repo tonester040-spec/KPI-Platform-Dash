@@ -101,6 +101,56 @@ Source of truth: `config/customers/karissa_001.json`
 - **Correct fix:** All permanent additions (PWA meta tags, PIN gate, WebAuthn JS, install banner) must be baked INTO `core/dashboard_builder.py` — not hand-edited into docs/*.html.
 - **Concurrency:** `cancel-in-progress: false` (changed from true after stability — flip back if queued runs pile up)
 - **Dry run available:** `DRY_RUN=true python main.py` skips all writes, API calls, email, git push
+- **Sandbox validation:** `python scripts/sandbox_run.py` — runs ALL modules against mock data, zero real API calls. Run this before deploying new credentials or after any schema/code change. Must show 8/8 PASS.
+
+---
+
+## Sandbox mode
+
+Full end-to-end validation without touching any real service:
+
+```bash
+python scripts/sandbox_run.py
+```
+
+What the sandbox does:
+- Mocks 12 realistic location rows and 3 stylist rows
+- Runs data_processor, drift_checker, ai_cards (DRY_RUN), sheets_writer (DRY_RUN), report_builder (DRY_RUN), email_sender (DRY_RUN), dashboard_builder (DRY_RUN), alerter test
+- Confirms all 8 modules pass before any real API credential is connected
+- Fires a deliberate test alert so the alerter path is confirmed working
+
+**Sandbox must show 8/8 PASS before this audit is considered done.** ✓ (confirmed 2026-03-15)
+
+---
+
+## Drift monitoring
+
+`config/drift_config.json` holds per-location KPI thresholds. `core/drift_checker.py` validates computed KPIs against these thresholds after processing but before dashboard update.
+
+**UNCALIBRATED** — placeholder ranges ship with the repo. After 4 weeks of real Zenoti + Salon Ultimate data:
+1. Tony reviews actual weekly revenue, appointments, product %, and rebook rates per location
+2. Updates `drift_config.json` with real observed ranges
+3. Sets `"_calibration_status": "CALIBRATED"` and notes the date
+
+Drift fires WARNINGs for out-of-range values (dashboard still updates).
+Drift fires ERRORS and blocks the dashboard update for physically impossible values (negative revenue, zero appointments across all stylists).
+
+---
+
+## Alerting
+
+`core/alerter.py` handles CRITICAL/HIGH failure notifications. Call before pipeline exits:
+
+```python
+from core import alerter
+alerter.send(severity="CRITICAL", module="my_module", error_message="...", diagnostic="...")
+```
+
+Alert routing (in order):
+1. GitHub Actions Job Summary (always available in CI)
+2. Gmail SMTP email (requires `GMAIL_APP_PASSWORD` + `GMAIL_SENDER` set)
+
+Optional: set `KPI_ALERT_EMAIL` secret to route alerts to a different address than the sender.
 
 ---
 

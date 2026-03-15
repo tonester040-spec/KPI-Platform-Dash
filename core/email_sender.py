@@ -201,7 +201,7 @@ def send_report(
             smtp.starttls()
             smtp.login(sender_email, app_password)
             smtp.sendmail(sender_email, recipients, msg.as_string())
-        log.info("Email sent to: %s", recipients)
+        log.info("Email sent to %d recipient(s)", len(recipients))
     except smtplib.SMTPAuthenticationError:
         log.error(
             "Gmail authentication failed. Check GMAIL_APP_PASSWORD and GMAIL_SENDER. "

@@ -1,0 +1,243 @@
+{
+  "_comment": "KPI Platform — Per-location drift monitoring thresholds. UNCALIBRATED ranges ship with this file. After 4 weeks of real data, Tony reviews actual ranges and replaces placeholder values. See SECURITY_AUDIT.md for calibration workflow.",
+  "_calibration_status": "UNCALIBRATED",
+  "_calibration_review_target": "4 weeks after first live pipeline run with real Zenoti + Salon Ultimate data",
+  "_version": "1.0",
+
+  "_threshold_guide": {
+    "weekly_revenue_min": "Lowest plausible week (bad weather, holiday short week)",
+    "weekly_revenue_max": "Highest plausible week (holiday rush, special event)",
+    "appointments_per_stylist_min": "Minimum expected services per active stylist per week",
+    "appointments_per_stylist_max": "Maximum expected (would indicate double-booking data error if exceeded)",
+    "product_attachment_rate_min": "Minimum expected product % (would flag a data error if lower)",
+    "product_attachment_rate_max": "Maximum realistically achievable",
+    "rebooking_rate_min": "Minimum expected rebook rate (below this = data issue or real crisis)",
+    "rebooking_rate_max": "Maximum expected rebook rate"
+  },
+
+  "_impossible_value_rules": {
+    "weekly_revenue": "< 0 is HARD STOP — negative revenue is physically impossible",
+    "appointments_per_stylist": "= 0 across ALL stylists for a full week is HARD STOP",
+    "product_attachment_rate": "< 0 or > 1.0 is HARD STOP",
+    "rebooking_rate": "< 0 or > 1.0 is HARD STOP"
+  },
+
+  "locations": [
+    {
+      "location_id": "z001",
+      "location_name": "Andover FS",
+      "platform": "zenoti",
+      "manager": "Jenn",
+      "stylist_count_estimate": 8,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 8000,
+        "weekly_revenue_max": 40000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z002",
+      "location_name": "Blaine",
+      "platform": "zenoti",
+      "manager": "Jenn",
+      "stylist_count_estimate": 7,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 7000,
+        "weekly_revenue_max": 38000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z003",
+      "location_name": "Crystal FS",
+      "platform": "zenoti",
+      "manager": "Jenn",
+      "stylist_count_estimate": 6,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 6000,
+        "weekly_revenue_max": 35000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z004",
+      "location_name": "Elk River FS",
+      "platform": "zenoti",
+      "manager": "Jenn",
+      "stylist_count_estimate": 7,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 7000,
+        "weekly_revenue_max": 38000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z005",
+      "location_name": "Forest Lake",
+      "platform": "zenoti",
+      "manager": "Karissa",
+      "stylist_count_estimate": 5,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 5000,
+        "weekly_revenue_max": 30000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z006",
+      "location_name": "Prior Lake",
+      "platform": "zenoti",
+      "manager": "Jess",
+      "stylist_count_estimate": 6,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 6000,
+        "weekly_revenue_max": 35000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z007",
+      "location_name": "Hudson",
+      "platform": "zenoti",
+      "manager": "Karissa",
+      "stylist_count_estimate": 5,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 5000,
+        "weekly_revenue_max": 30000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z008",
+      "location_name": "New Richmond",
+      "platform": "zenoti",
+      "manager": "Karissa",
+      "stylist_count_estimate": 4,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 4000,
+        "weekly_revenue_max": 25000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z009",
+      "location_name": "Roseville",
+      "platform": "zenoti",
+      "manager": "Jenn",
+      "stylist_count_estimate": 8,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 8000,
+        "weekly_revenue_max": 42000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "z010",
+      "location_name": "Apple Valley",
+      "platform": "salon_ultimate",
+      "manager": "Jess",
+      "stylist_count_estimate": 6,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 6000,
+        "weekly_revenue_max": 35000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "su001",
+      "location_name": "Lakeville",
+      "platform": "salon_ultimate",
+      "manager": "Jess",
+      "stylist_count_estimate": 5,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 5000,
+        "weekly_revenue_max": 30000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    },
+    {
+      "location_id": "su002",
+      "location_name": "Farmington",
+      "platform": "salon_ultimate",
+      "manager": "Jess",
+      "stylist_count_estimate": 4,
+      "_calibration_note": "UNCALIBRATED — replace thresholds after 4 weeks of real data",
+      "thresholds": {
+        "weekly_revenue_min": 4000,
+        "weekly_revenue_max": 25000,
+        "appointments_per_stylist_min": 10,
+        "appointments_per_stylist_max": 65,
+        "product_attachment_rate_min": 0.05,
+        "product_attachment_rate_max": 0.85,
+        "rebooking_rate_min": 0.20,
+        "rebooking_rate_max": 0.95
+      }
+    }
+  ]
+}
