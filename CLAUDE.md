@@ -75,6 +75,17 @@ Source of truth: `config/customers/karissa_001.json`
 - Jenn: `CRED_KEY = 'kpi_cred_jenn'`
 **⚠️ DO NOT change `rpId = 'tonester040-spec.github.io'`** — this is locked to the domain.
 
+## Owner dashboard (private)
+
+| Owner      | HTML file     | PIN    | Sees                                      |
+|------------|--------------|--------|-------------------------------------------|
+| John/Patti | owners.html  | `7291` | Money + risk only — network-level owner view |
+
+**owners.html — private owner dashboard, PIN 7291, do not link publicly.**
+**Phase 3 features (Ghost Hunter, Win-Back, Command Bar) show as PREVIEW.**
+**Never link owners.html from index.html, jess.html, jenn.html, or any public page.**
+**Weekly pipeline does NOT regenerate owners.html — manual file, safe from Monday overwrites.**
+
 ---
 
 ## Google Sheets tab structure

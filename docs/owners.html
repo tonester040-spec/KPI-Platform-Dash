@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>KPI — Owner Intelligence</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0F1117;
+  --navy-card:#171D2D;
+  --navy-mid:#1E2740;
+  --navy-border:#2A3450;
+  --gold:#C8A97E;
+  --gold-dim:rgba(200,169,126,.18);
+  --gold-glow:0 0 24px rgba(200,169,126,.4);
+  --white:#FFFFFF;
+  --text-primary:#F0F4FF;
+  --text-muted:#7A8BA0;
+  --text-dim:#4A5568;
+  --green:#22C55E;
+  --green-bg:rgba(34,197,94,.12);
+  --amber:#F59E0B;
+  --amber-bg:rgba(245,158,11,.12);
+  --red:#EF4444;
+  --red-bg:rgba(239,68,68,.12);
+  --radius:12px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--navy);color:var(--text-primary);font-size:14px;line-height:1.5;min-height:100vh}
+
+/* ── PIN GATE ── */
+#pin-gate{position:fixed;inset:0;background:var(--navy);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .4s}
+#pin-gate.unlocked{opacity:0;pointer-events:none}
+.pin-box{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:18px;padding:48px 40px;text-align:center;box-shadow:var(--shadow),var(--gold-glow);width:min(380px,90vw)}
+.pin-logo{font-size:28px;font-weight:800;color:var(--gold);letter-spacing:-.5px;margin-bottom:6px}
+.pin-logo span{color:var(--text-primary)}
+.pin-subtitle{font-size:13px;color:var(--text-muted);margin-bottom:8px}
+.pin-private-badge{display:inline-block;background:var(--gold-dim);color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:20px;border:1px solid rgba(200,169,126,.3);margin-bottom:28px}
+.pin-inputs{display:flex;gap:12px;justify-content:center;margin-bottom:20px}
+.pin-input{width:64px;height:68px;border-radius:12px;border:2px solid var(--navy-border);background:var(--navy-mid);color:var(--white);font-size:28px;font-weight:700;text-align:center;outline:none;caret-color:transparent;transition:border-color .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent;-webkit-appearance:none}
+.pin-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,169,126,.2)}
+@keyframes pin-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.pin-shake{animation:pin-shake .4s ease}
+.pin-error{color:#f87171;font-size:13px;min-height:20px;margin-top:4px;margin-bottom:8px}
+.pin-hint{font-size:11px;color:var(--text-dim);margin-top:16px}
+
+/* ── LOADING SPINNER ── */
+#loading-overlay{position:fixed;inset:0;background:var(--navy);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .5s}
+#loading-overlay.hidden{opacity:0;pointer-events:none}
+.gold-spinner{width:44px;height:44px;border:3px solid var(--navy-border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:var(--gold);font-size:15px;font-weight:600}
+
+/* ── STICKY BANNER ── */
+#money-pulse{position:sticky;top:0;z-index:100;background:rgba(15,17,23,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--navy-border);padding:0 20px}
+.pulse-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;gap:16px;height:62px;flex-wrap:wrap}
+.pulse-badge{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.status-dot{width:12px;height:12px;border-radius:50%;background:var(--green);flex-shrink:0}
+.status-dot.green{background:var(--green);box-shadow:0 0 0 4px rgba(34,197,94,.2),0 0 0 8px rgba(34,197,94,.08);animation:pulse-green 2s ease-in-out infinite}
+.status-dot.amber{background:var(--amber);box-shadow:0 0 0 4px rgba(245,158,11,.2),0 0 0 8px rgba(245,158,11,.08);animation:pulse-amber 2s ease-in-out infinite}
+.status-dot.red{background:var(--red);box-shadow:0 0 0 4px rgba(239,68,68,.2);animation:pulse-red 2s ease-in-out infinite}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 4px rgba(34,197,94,.2),0 0 0 8px rgba(34,197,94,.08)}50%{box-shadow:0 0 0 6px rgba(34,197,94,.3),0 0 0 12px rgba(34,197,94,.12)}}
+@keyframes pulse-amber{0%,100%{box-shadow:0 0 0 4px rgba(245,158,11,.2)}50%{box-shadow:0 0 0 6px rgba(245,158,11,.3)}}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 4px rgba(239,68,68,.2)}50%{box-shadow:0 0 0 8px rgba(239,68,68,.3)}}
+.pulse-status-text{font-size:13px;font-weight:700;color:var(--green)}
+.pulse-status-text.amber{color:var(--amber)}
+.pulse-status-text.red{color:var(--red)}
+.pulse-divider{width:1px;height:30px;background:var(--navy-border);flex-shrink:0}
+.pulse-projection{display:flex;flex-direction:column;gap:1px}
+.pulse-proj-main{font-size:15px;font-weight:800;color:var(--text-primary)}
+.pulse-proj-sub{font-size:11px;color:var(--text-muted)}
+.pulse-divider-right{margin-left:auto;font-size:11px;color:var(--text-dim);text-align:right;flex-shrink:0}
+.pulse-week{font-size:11px;color:var(--text-muted);flex-shrink:0}
+
+/* ── MAIN LAYOUT ── */
+.main{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+
+/* ── SECTION HEADERS ── */
+.section-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--navy-border)}
+
+/* ── CARDS GRID ── */
+.leak-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px}
+@media(max-width:640px){.leak-grid{grid-template-columns:1fr}}
+
+/* ── BASE CARD ── */
+.card{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:var(--radius);padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.3);position:relative;overflow:hidden}
+.card.alert-glow{border-color:rgba(200,169,126,.4);box-shadow:var(--gold-glow),0 2px 12px rgba(0,0,0,.3)}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:8px}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+.card-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.badge-red{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.badge-amber{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(245,158,11,.25)}
+.badge-green{background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.hero-number{font-size:36px;font-weight:800;color:var(--gold);letter-spacing:-1px;line-height:1;margin-bottom:4px}
+.hero-sub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
+.card-divider{height:1px;background:var(--navy-border);margin:14px 0}
+.context-line{font-style:italic;font-size:12px;color:rgba(200,169,126,.7);margin:10px 0 0}
+.card-footer-preview{font-size:11px;color:rgba(200,169,126,.5);font-style:italic;margin-top:14px;padding-top:12px;border-top:1px solid var(--navy-border)}
+
+/* ── STATUS DOTS INLINE ── */
+.dot-red{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:4px}
+.dot-amber{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-right:4px}
+.dot-green{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:4px}
+
+/* ── RISK TABLE ── */
+.risk-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:12px -4px 0}
+.risk-table{width:100%;border-collapse:collapse;min-width:340px}
+.risk-table th{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border-bottom:1px solid var(--navy-border)}
+.risk-table td{padding:10px 8px;font-size:12px;color:var(--text-primary);border-bottom:1px solid rgba(42,52,80,.5)}
+.risk-table tr:last-child td{border-bottom:none}
+.risk-table .stylist-name{font-weight:700;color:var(--white)}
+.risk-table .loc-cell{color:var(--text-muted);font-size:11px}
+.risk-table .loss-cell{font-weight:700;color:var(--gold)}
+.ghost-btn{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(200,169,126,.35);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s;font-family:inherit}
+.ghost-btn:hover{background:rgba(200,169,126,.3);box-shadow:var(--gold-glow)}
+
+/* ── ROI STATS ROW ── */
+.roi-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.roi-stat{background:var(--navy-mid);border-radius:8px;padding:10px 8px;text-align:center;border:1px solid var(--navy-border)}
+.roi-stat-val{font-size:18px;font-weight:800;color:var(--gold)}
+.roi-stat-lbl{font-size:10px;color:var(--text-muted);margin-top:2px}
+
+/* ── ROI TABLE ── */
+.roi-breakdown{width:100%;border-collapse:collapse;margin:10px 0}
+.roi-breakdown th{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;padding:5px 8px;text-align:left;border-bottom:1px solid var(--navy-border)}
+.roi-breakdown td{padding:8px 8px;font-size:12px;color:var(--text-primary);border-bottom:1px solid rgba(42,52,80,.5)}
+.roi-breakdown tr:last-child td{border-bottom:none}
+.roi-multiple{font-weight:800;color:var(--green)}
+.roi-multiple.low{color:var(--amber)}
+.roi-multiple.bad{color:var(--red)}
+
+/* ── SPARKLINE ── */
+.sparkline-row{display:flex;align-items:center;gap:10px;background:var(--navy-mid);border-radius:8px;padding:9px 12px;margin:10px 0;border:1px solid var(--navy-border)}
+.sparkline-label{font-size:12px;color:var(--text-primary)}
+.sparkline-label span{color:var(--green);font-weight:700}
+
+/* ── PERFORMERS ── */
+.performers-row{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap}
+.perf-block{flex:1;min-width:120px}
+.perf-header{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.perf-item{font-size:11px;color:var(--text-muted);padding:3px 0;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.perf-item .name{color:var(--text-primary);font-weight:600;flex:1}
+.perf-item .roi-val{font-weight:700;font-size:12px}
+.perf-item .roi-val.good{color:var(--green)}
+.perf-item .roi-val.warn{color:var(--amber)}
+.perf-item .roi-val.bad{color:var(--red)}
+
+/* ── BUDGET SLIDERS ── */
+.budget-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--navy-border)}
+.budget-section-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.slider-name{font-size:12px;color:var(--text-primary);width:90px;flex-shrink:0}
+.slider-val{font-size:12px;font-weight:700;color:var(--gold);width:54px;text-align:right;flex-shrink:0}
+.budget-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;background:var(--navy-border);border-radius:2px;outline:none;cursor:pointer}
+.budget-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold);border:2px solid var(--navy-card);cursor:pointer;box-shadow:0 0 0 3px rgba(200,169,126,.2)}
+.budget-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold);border:2px solid var(--navy-card);cursor:pointer}
+.btn-gold{display:block;width:100%;padding:13px;background:var(--gold);color:var(--navy);font-size:14px;font-weight:800;border:none;border-radius:9px;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:opacity .15s,transform .1s,box-shadow .2s;margin-top:14px}
+.btn-gold:hover{opacity:.92;box-shadow:var(--gold-glow)}
+.btn-gold:active{transform:scale(.98)}
+.btn-gold.secondary{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(200,169,126,.35)}
+.btn-gold.secondary:hover{background:rgba(200,169,126,.28)}
+
+/* ── INVENTORY TABLE ── */
+.inv-table{width:100%;border-collapse:collapse;margin:10px 0;min-width:340px}
+.inv-table th{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border-bottom:1px solid var(--navy-border)}
+.inv-table td{padding:9px 8px;font-size:12px;color:var(--text-primary);border-bottom:1px solid rgba(42,52,80,.5)}
+.inv-table tr:last-child td{border-bottom:none}
+.inv-val{font-weight:700;color:var(--gold)}
+.reason-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+
+/* ── WIN-BACK SEGMENTS ── */
+.segment-list{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.segment-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--navy-border);background:var(--navy-mid)}
+.seg-count{font-size:20px;font-weight:800;min-width:38px}
+.seg-count.green{color:var(--green)}
+.seg-count.amber{color:var(--amber)}
+.seg-count.red{color:var(--red)}
+.seg-info{flex:1}
+.seg-label{font-size:13px;font-weight:700;color:var(--text-primary)}
+.seg-ltv{font-size:11px;color:var(--text-muted);margin-top:1px}
+.seg-total{font-weight:800;font-size:13px;color:var(--gold);text-align:right;white-space:nowrap}
+
+/* ── COMMAND BAR ── */
+.command-card{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.command-input-wrap{position:relative;margin:12px 0}
+.command-input{width:100%;background:var(--navy-mid);border:1.5px solid var(--navy-border);border-radius:10px;padding:14px 16px;color:var(--text-primary);font-size:14px;font-family:inherit;outline:none;resize:none;transition:border-color .2s,box-shadow .2s;line-height:1.5}
+.command-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,169,126,.12)}
+.command-input::placeholder{color:var(--text-dim)}
+.suggested-cmds{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.suggest-btn{background:var(--navy-mid);border:1px solid var(--navy-border);border-radius:8px;padding:9px 12px;color:var(--text-muted);font-size:12px;text-align:left;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s,color .15s;display:flex;align-items:center;gap:8px}
+.suggest-btn:hover{background:var(--gold-dim);border-color:rgba(200,169,126,.35);color:var(--text-primary)}
+.suggest-btn .arrow{color:var(--gold);flex-shrink:0;font-size:11px}
+.cmd-response-area{background:var(--navy-mid);border:1px solid var(--navy-border);border-radius:10px;padding:16px;min-height:80px;margin-top:12px;position:relative}
+.cmd-response-text{font-size:13px;color:var(--text-primary);line-height:1.65;white-space:pre-line}
+.preview-watermark{position:absolute;top:8px;right:10px;font-size:10px;font-style:italic;color:rgba(200,169,126,.45);font-weight:500;pointer-events:none}
+.phase-badge{display:inline-block;background:rgba(200,169,126,.12);color:var(--gold);font-size:10px;font-weight:700;letter-spacing:.05em;padding:2px 8px;border-radius:10px;border:1px solid rgba(200,169,126,.3);vertical-align:middle;margin-left:6px}
+
+/* ── WHATSAPP BUBBLE ── */
+.monday-card{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.wa-phone{background:#111b21;border-radius:14px;padding:16px;margin:12px 0}
+.wa-header{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid #222d35;margin-bottom:10px}
+.wa-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#128c7e,#25d366);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.wa-contact{font-size:13px;font-weight:700;color:#e9edef}
+.wa-online{font-size:11px;color:#8696a0}
+.wa-bubble{background:#005c4b;border-radius:8px 8px 8px 2px;padding:10px 14px;max-width:90%;display:inline-block;margin-top:4px}
+.wa-bubble-text{font-size:13px;color:#e9edef;line-height:1.6;white-space:pre-line}
+.wa-time{font-size:11px;color:#8696a0;text-align:right;margin-top:6px;display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.wa-check{color:#53bdeb;font-size:13px}
+.pdf-note{font-size:12px;color:var(--text-muted);font-style:italic;padding:10px 12px;background:var(--navy-mid);border-radius:8px;border:1px solid var(--navy-border);margin-top:8px;text-align:center}
+
+/* ── MODALS ── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+@media(min-width:480px){.modal-backdrop{align-items:center}}
+.modal-backdrop.open{opacity:1;pointer-events:all}
+.modal{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.6);transform:translateY(40px);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+@media(min-width:480px){.modal{border-radius:16px;transform:translateY(16px)}}
+.modal-backdrop.open .modal{transform:translateY(0)}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.modal-title{font-size:15px;font-weight:800;color:var(--gold)}
+.modal-close{background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;transition:background .15s}
+.modal-close:hover{background:var(--navy-border)}
+.modal-body{font-size:13px;color:var(--text-primary);line-height:1.65}
+.modal-risk-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--navy-border)}
+.modal-risk-row:last-of-type{border-bottom:none}
+.modal-risk-label{color:var(--text-muted);font-size:12px}
+.modal-risk-val{font-weight:700;color:var(--text-primary);font-size:12px}
+.modal-risk-val.gold{color:var(--gold)}
+.modal-risk-val.red{color:var(--red)}
+.chemistry-row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.chemistry-badge{background:var(--navy-mid);border:1px solid var(--navy-border);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--text-primary)}
+.chemistry-pct{color:var(--green);margin-left:4px}
+.modal-btns{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.btn-confirm{padding:13px;background:var(--gold);color:var(--navy);font-size:14px;font-weight:800;border:none;border-radius:9px;cursor:pointer;font-family:inherit;transition:opacity .15s,box-shadow .15s}
+.btn-confirm:hover{opacity:.9;box-shadow:var(--gold-glow)}
+.btn-cancel{padding:13px;background:var(--navy-mid);color:var(--text-muted);font-size:14px;font-weight:600;border:1px solid var(--navy-border);border-radius:9px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-cancel:hover{background:var(--navy-border)}
+
+/* ── CONFETTI ── */
+#confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:7000;opacity:0;transition:opacity .3s}
+#confetti-canvas.active{opacity:1}
+
+/* ── BUDGET SAVE TOAST ── */
+#save-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--gold);color:var(--navy);font-size:13px;font-weight:800;padding:12px 24px;border-radius:30px;z-index:6000;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap}
+#save-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── PREVIEW WATERMARK MODAL ── */
+#preview-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
+#preview-modal.open{opacity:1;pointer-events:all}
+.preview-modal-box{background:var(--navy-card);border:1px solid var(--navy-border);border-radius:14px;padding:28px 24px;max-width:380px;width:100%;text-align:center;box-shadow:var(--shadow),var(--gold-glow)}
+.preview-modal-icon{font-size:32px;margin-bottom:12px}
+.preview-modal-title{font-size:17px;font-weight:800;color:var(--gold);margin-bottom:8px}
+.preview-modal-body{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px}
+.preview-modal-btn{padding:12px 28px;background:var(--gold);color:var(--navy);font-size:14px;font-weight:800;border:none;border-radius:9px;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.preview-modal-btn:hover{opacity:.9}
+
+/* ── UTILITY ── */
+.mt-10{margin-top:10px}
+.mt-14{margin-top:14px}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.flex-gap{display:flex;align-items:center;gap:8px}
+.cash-rescue{background:rgba(200,169,126,.08);border:1px solid rgba(200,169,126,.2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--gold);font-weight:600;margin:10px 0;display:flex;align-items:center;gap:8px}
+.industry-ctx{font-size:12px;color:var(--amber);background:var(--amber-bg);border-radius:7px;padding:8px 12px;margin:8px 0;border:1px solid rgba(245,158,11,.2)}
+.recovery-proj{background:var(--green-bg);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);font-weight:700;margin:10px 0}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+.action-btns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.btn-outline{padding:10px;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;border:1px solid var(--navy-border);border-radius:8px;cursor:pointer;font-family:inherit;transition:background .15s,color .15s,border-color .15s;width:100%}
+.btn-outline:hover{background:var(--gold-dim);border-color:rgba(200,169,126,.4);color:var(--gold)}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="gold-spinner"></div>
+  <div class="loading-text">Loading your money snapshot…</div>
+</div>
+
+<!-- PIN GATE -->
+<div id="pin-gate">
+  <div class="pin-box">
+    <div class="pin-logo">KPI<span> Owners</span></div>
+    <div class="pin-subtitle">Karissa Performance Intelligence</div>
+    <div class="pin-private-badge">🔒 Private — Owner Access Only</div>
+    <div class="pin-inputs" id="pin-inputs">
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+      <input class="pin-input" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="off"/>
+    </div>
+    <div id="pin-error" class="pin-error"></div>
+    <div class="pin-hint">Enter your 4-digit owner PIN</div>
+  </div>
+</div>
+
+<!-- STICKY BANNER — SECTION 1: THE MONEY PULSE -->
+<div id="money-pulse" style="display:none">
+  <div class="pulse-inner">
+    <span class="pulse-week" id="banner-week">Week ending —</span>
+    <div class="pulse-divider"></div>
+    <div class="pulse-badge">
+      <div class="status-dot green" id="banner-dot"></div>
+      <span class="pulse-status-text green" id="banner-status">+$184k ahead of pace</span>
+    </div>
+    <div class="pulse-divider"></div>
+    <div class="pulse-projection">
+      <div class="pulse-proj-main" id="banner-proj">On pace for $7.28M in 2026</div>
+      <div class="pulse-proj-sub" id="banner-yoy">+6.4% vs 2025 run-rate</div>
+    </div>
+    <div class="pulse-divider-right" id="banner-updated">Updated Mon 7:02am<br>Next update in 6 days</div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main" id="main-content" style="display:none">
+
+  <!-- SECTION 2: FOUR MONEY LEAK CARDS -->
+  <div class="section-label">Money Leaks — This Week</div>
+  <div class="leak-grid">
+
+    <!-- CARD 1: STYLIST RETENTION RISK RADAR -->
+    <div class="card alert-glow" id="card-retention">
+      <div class="card-header">
+        <span class="card-title">Retention Risk</span>
+        <span class="card-badge badge-red" id="retention-badge">3 HIGH RISK THIS WEEK</span>
+      </div>
+      <div class="hero-number" id="retention-hero">$47,200</div>
+      <div class="hero-sub">Projected revenue exposure — next 90 days</div>
+
+      <div class="table-wrap">
+        <table class="risk-table" id="risk-table">
+          <thead>
+            <tr>
+              <th>Stylist</th>
+              <th>Location</th>
+              <th>Risk</th>
+              <th>90d</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="risk-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="context-line" id="retention-context"></div>
+      <div class="card-footer-preview">PREVIEW — Chemistry Score + churn model connect in Phase 3</div>
+    </div>
+
+    <!-- CARD 2: FLEX PRICING ROI GUARDIAN -->
+    <div class="card" id="card-roi">
+      <div class="card-header">
+        <span class="card-title">Discount ROI</span>
+        <span class="card-badge badge-green">LAST 30 DAYS</span>
+      </div>
+
+      <div class="roi-stats">
+        <div class="roi-stat">
+          <div class="roi-stat-val" id="roi-spent">$2,840</div>
+          <div class="roi-stat-lbl">Spent</div>
+        </div>
+        <div class="roi-stat">
+          <div class="roi-stat-val" id="roi-multiple">7.6×</div>
+          <div class="roi-stat-lbl">ROI</div>
+        </div>
+        <div class="roi-stat">
+          <div class="roi-stat-val" id="roi-recovered">$21,600</div>
+          <div class="roi-stat-lbl">Recovered</div>
+        </div>
+      </div>
+
+      <div class="sparkline-row">
+        <svg width="80" height="28" viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,24 16,20 32,18 48,13 64,9 80,4" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="80" cy="4" r="3" fill="#22C55E"/>
+        </svg>
+        <span class="sparkline-label">📈 Trend: ROI improving month-over-month <span id="roi-trend">(+1.2× since January)</span></span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="roi-breakdown" id="roi-table">
+          <thead><tr><th>Tier</th><th>Spent</th><th>Recovered</th><th>ROI</th></tr></thead>
+          <tbody id="roi-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="performers-row" id="performers-row">
+        <div class="perf-block">
+          <div class="perf-header">🏆 Top ROI</div>
+          <div id="top-performers"></div>
+        </div>
+        <div class="perf-block">
+          <div class="perf-header">⚠️ Needs Review</div>
+          <div id="review-performers"></div>
+        </div>
+      </div>
+
+      <div class="budget-section">
+        <div class="budget-section-title">Owner Budget Controls</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Adjust monthly discount authority by location. Changes apply instantly.</div>
+        <div id="slider-list"></div>
+        <button class="btn-gold" onclick="applyBudgetChanges()">Apply Budget Changes</button>
+      </div>
+    </div>
+
+    <!-- CARD 3: INVENTORY CASH TRAP -->
+    <div class="card" id="card-inventory">
+      <div class="card-header">
+        <span class="card-title">Inventory Risk</span>
+        <span class="card-badge badge-amber">ACTION RECOMMENDED</span>
+      </div>
+      <div class="hero-number" id="inv-hero">$21,400</div>
+      <div class="hero-sub">Sitting in slow-moving stock across the network</div>
+
+      <div class="industry-ctx" id="inv-ctx"></div>
+      <div class="cash-rescue" id="inv-rescue">💡 Acting this week could free <strong id="inv-free">$9,800</strong></div>
+
+      <div class="table-wrap">
+        <table class="inv-table" id="inv-table">
+          <thead><tr><th>Product</th><th>Locs</th><th>Units</th><th>Risk</th><th>Value</th></tr></thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="action-btns">
+        <button class="btn-gold secondary" onclick="alert('Auto-Rebalance queued for Karissa approval.')">Approve Auto-Rebalance</button>
+        <button class="btn-gold secondary" onclick="alert('Clearance Pricing approved. Karissa notified.')">Approve Clearance Pricing</button>
+        <button class="btn-gold secondary" onclick="alert('Inventory report sent to Karissa.')">Export to Karissa</button>
+      </div>
+
+      <div class="card-footer-preview">PREVIEW — Connects when Zenoti inventory API is confirmed</div>
+    </div>
+
+    <!-- CARD 4: CLIENT WIN-BACK -->
+    <div class="card" id="card-winback">
+      <div class="card-header">
+        <span class="card-title">Revenue Recovery</span>
+        <span class="card-badge badge-amber" id="winback-badge">142 LAPSED CHAMPIONS</span>
+      </div>
+      <div class="hero-number" id="winback-hero">$170,400</div>
+      <div class="hero-sub">Combined lifetime value — lapsed Champion-tier guests</div>
+
+      <div class="recovery-proj" id="winback-proj"></div>
+      <div class="context-line" style="margin-bottom:10px" id="winback-ctx"></div>
+
+      <div class="segment-list" id="segment-list"></div>
+
+      <button class="btn-gold mt-10" onclick="openWinbackModal()">Launch Win-Back for RAW-Open Guests</button>
+    </div>
+
+  </div><!-- /leak-grid -->
+
+  <!-- SECTION 3: OWNER COMMAND BAR -->
+  <div class="section-label">Owner Intelligence</div>
+  <div class="command-card">
+    <div class="flex-between">
+      <div>
+        <div style="font-size:16px;font-weight:800;color:var(--text-primary)">Owner Command</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Ask anything about your business</div>
+      </div>
+      <span style="font-size:10px;font-style:italic;color:rgba(200,169,126,.5);font-weight:600">PREVIEW MODE</span>
+    </div>
+    <div class="command-input-wrap">
+      <textarea class="command-input" id="command-input" rows="2" placeholder="Try: 'How much would we lose if Megan at Apple Valley quits?'"></textarea>
+    </div>
+    <div class="suggested-cmds" id="suggested-cmds"></div>
+    <button class="btn-gold" onclick="handleCommandAsk()">Ask KPI</button>
+    <div class="cmd-response-area mt-10" id="cmd-response-area">
+      <span class="preview-watermark">Preview Mode</span>
+      <div class="cmd-response-text" id="cmd-response-text" style="color:var(--text-dim);font-style:italic">Your answer will appear here…</div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: MONDAY DELIVERY PREVIEW -->
+  <div class="section-label">Monday Briefing</div>
+  <div class="monday-card">
+    <div style="font-size:16px;font-weight:800;color:var(--text-primary);margin-bottom:4px">Your Monday Briefing</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">How your weekly snapshot reaches you</div>
+
+    <div class="wa-phone">
+      <div class="wa-header">
+        <div class="wa-avatar">K</div>
+        <div>
+          <div class="wa-contact">KPI Platform</div>
+          <div class="wa-online">Weekly intelligence report</div>
+        </div>
+      </div>
+      <div class="wa-bubble">
+        <div class="wa-bubble-text" id="wa-text"></div>
+        <div class="wa-time">
+          <span id="wa-timestamp">7:02 AM</span>
+          <span class="wa-check">✓✓</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-gold secondary" onclick="showPdfNote()">Generate PDF Summary</button>
+    <div class="pdf-note" id="pdf-note" style="display:none">📄 PDF export available after 4 weeks of live data — your snapshot is building now.</div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- GHOST HUNTER MODAL -->
+<div class="modal-backdrop" id="ghost-modal-backdrop" onclick="closeGhostModal(event)">
+  <div class="modal" id="ghost-modal">
+    <div class="modal-header">
+      <div class="modal-title" id="ghost-modal-title">⚠️ Stylist at Risk</div>
+      <button class="modal-close" onclick="closeGhostModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="ghost-modal-body"></div>
+      <div class="chemistry-row" id="ghost-chemistry-row"></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px" id="ghost-protect-line"></div>
+      <div class="modal-btns">
+        <button class="btn-confirm" onclick="launchGhostHunter()">Confirm — Launch Ghost Hunter</button>
+        <button class="btn-cancel" onclick="closeGhostModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN-BACK MODAL -->
+<div class="modal-backdrop" id="winback-modal-backdrop" onclick="closeWinbackModal(event)">
+  <div class="modal" id="winback-modal">
+    <div class="modal-header">
+      <div class="modal-title">🎯 Launch Win-Back</div>
+      <button class="modal-close" onclick="closeWinbackModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-primary);line-height:1.65;margin-bottom:14px">
+        Generate <strong>42 personalized messages</strong> matched to each guest's top chemistry stylist with a margin-intelligent offer.
+        <br><br>
+        Combined lifetime value: <strong style="color:var(--gold)">$77,280</strong><br>
+        Estimated recovery at 30%: <strong style="color:var(--green)">~$23,184</strong>
+        <br><br>
+        Queue for Karissa approval?
+      </div>
+      <div class="modal-btns">
+        <button class="btn-confirm" onclick="confirmWinback()">Confirm — Queue for Karissa</button>
+        <button class="btn-confirm" style="background:var(--navy-mid);color:var(--gold);border:1px solid rgba(200,169,126,.35);" onclick="alert('Preview: Showing sample message draft…\n\n\"Hi Sarah, we miss you at Eden Prairie! Jordan has a special offer for your next visit — mention this message to save 20%.\"')">Preview First</button>
+        <button class="btn-cancel" onclick="closeWinbackModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW WATERMARK MODAL -->
+<div id="preview-modal">
+  <div class="preview-modal-box">
+    <div class="preview-modal-icon">🔮</div>
+    <div class="preview-modal-title">You're viewing live mock data</div>
+    <div class="preview-modal-body">
+      All numbers are realistic simulations. Ghost Hunter, Win-Back, and Command features are in <strong style="color:var(--gold)">Phase 3 preview</strong> — they'll connect to live Zenoti data once the pipeline is fully calibrated.
+      <br><br>
+      Your weekly money snapshot and Budget Controls are <strong style="color:var(--green)">live now</strong>.
+    </div>
+    <button class="preview-modal-btn" onclick="dismissPreviewModal()">Got it — show live when connected</button>
+  </div>
+</div>
+
+<!-- CONFETTI CANVAS -->
+<canvas id="confetti-canvas"></canvas>
+<!-- SAVE TOAST -->
+<div id="save-toast">✅ Updated. Karissa and coaches notified.</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   MOCK DATA — change values here to update all UI
+   ══════════════════════════════════════════════ */
+const MOCK_DATA = {
+  week_ending: "March 14, 2026",
+  network_projection_2026: 7280000,
+  projection_label: "$7.28M",
+  yoy_variance_pct: 6.4,
+  yoy_variance_dollars: 184000,
+  yoy_variance_label: "+$184k ahead of pace",
+  status: "green",
+  last_updated: "Monday 7:02am",
+  retention: {
+    high_risk_count: 3,
+    total_exposure_90d: 47200,
+    historical_loss: 112000,
+    ghost_hunter_protect_pct: 78,
+    stylists: [
+      {
+        name: "Megan T.",
+        location: "Apple Valley",
+        risk: "critical",
+        loss_90d: 18400,
+        annual_revenue: 184000,
+        active_guests: 94,
+        chemistry_match_1: "Jordan",
+        chemistry_score_1: 82,
+        chemistry_match_2: "Aisha",
+        chemistry_score_2: 79,
+        ghost_protected: 115000
+      },
+      {
+        name: "Jordan K.",
+        location: "Maple Grove",
+        risk: "elevated",
+        loss_90d: 16200,
+        annual_revenue: 158000,
+        active_guests: 81,
+        chemistry_match_1: "Leila",
+        chemistry_score_1: 77,
+        chemistry_match_2: "Marcus",
+        chemistry_score_2: 71,
+        ghost_protected: 94000
+      },
+      {
+        name: "Aisha M.",
+        location: "Eden Prairie",
+        risk: "elevated",
+        loss_90d: 12600,
+        annual_revenue: 142000,
+        active_guests: 72,
+        chemistry_match_1: "Sarah",
+        chemistry_score_1: 88,
+        chemistry_match_2: "Devon",
+        chemistry_score_2: 74,
+        ghost_protected: 87000
+      }
+    ]
+  },
+  flex_roi: {
+    total_discounts: 2840,
+    total_recovered: 21600,
+    roi_multiple: 7.6,
+    mom_roi_improvement: 1.2,
+    tiers: [
+      { name: "Senior Stylists", spent: 1240, recovered: 11800, roi: 9.5 },
+      { name: "Junior Stylists", spent: 890, recovered: 6200, roi: 7.0 },
+      { name: "Managers", spent: 710, recovered: 3600, roi: 5.1 }
+    ],
+    top_performers: [
+      { name: "Sarah C.", location: "Eden Prairie", roi: 14.2 },
+      { name: "Marcus T.", location: "Maple Grove", roi: 11.8 },
+      { name: "Leila R.", location: "Plymouth", roi: 10.1 }
+    ],
+    needs_review: [
+      { name: "Devon K.", location: "Burnsville", roi: 1.8 },
+      { name: "Tanya M.", location: "Woodbury", roi: 2.1 },
+      { name: "Chris B.", location: "Apple Valley", roi: 2.4 }
+    ],
+    location_budgets: [
+      { id: "z001", name: "Eden Prairie", budget: 620 },
+      { id: "z002", name: "Maple Grove", budget: 580 },
+      { id: "z003", name: "Apple Valley", budget: 540 },
+      { id: "z004", name: "Plymouth", budget: 500 },
+      { id: "z005", name: "Burnsville", budget: 460 }
+    ]
+  },
+  inventory: {
+    total_slow_moving: 21400,
+    waste_risk_pct: 15,
+    cash_freeable: 9800,
+    industry_benchmark_low: 15,
+    industry_benchmark_high: 25,
+    products: [
+      { name: "Wella Color Touch 6/0", locations: 4, units: 84, risk: "critical", value: 3200, reason: "Expiring soon" },
+      { name: "Redken All Soft Shampoo", locations: 6, units: 142, risk: "elevated", value: 2840, reason: "Over-ordered" },
+      { name: "Olaplex No.3 Liter", locations: 3, units: 28, risk: "elevated", value: 2100, reason: "Slow-moving" },
+      { name: "Schwarzkopf BC Oil", locations: 5, units: 96, risk: "elevated", value: 1920, reason: "Over-ordered" },
+      { name: "L'Oréal Serie Expert", locations: 2, units: 34, risk: "critical", value: 680, reason: "Near-expiry" }
+    ]
+  },
+  winback: {
+    total_lapsed: 142,
+    total_ltv: 170400,
+    reactivation_rate: 0.30,
+    recoverable: 51120,
+    industry_recovery_low: 25,
+    industry_recovery_high: 40,
+    segments: [
+      { label: "RAW Open Now", count: 42, color: "green", avg_ltv: 1840, total: 77280 },
+      { label: "RAW Opens in 2–4 Weeks", count: 61, color: "amber", avg_ltv: 980, total: 59780 },
+      { label: "Critical Loss Risk", count: 39, color: "red", avg_ltv: 855, total: 33345 }
+    ]
+  }
+};
+
+/* ══════════════════════════════════════════════
+   UTILS
+   ══════════════════════════════════════════════ */
+const fmt$ = n => '$' + n.toLocaleString('en-US');
+const fmtK = n => n >= 1000 ? '$' + (n/1000).toFixed(0) + 'k' : fmt$(n);
+
+/* ══════════════════════════════════════════════
+   RENDER FUNCTIONS
+   ══════════════════════════════════════════════ */
+
+function renderBanner() {
+  const d = MOCK_DATA;
+  document.getElementById('banner-week').textContent = 'Week ending ' + d.week_ending;
+  document.getElementById('banner-proj').textContent = 'On pace for ' + d.projection_label + ' in 2026';
+  document.getElementById('banner-yoy').textContent = '+' + d.yoy_variance_pct + '% vs 2025 run-rate';
+  const dot = document.getElementById('banner-dot');
+  const status = document.getElementById('banner-status');
+  dot.className = 'status-dot ' + d.status;
+  status.className = 'pulse-status-text ' + d.status;
+  status.textContent = d.yoy_variance_label;
+  document.getElementById('banner-updated').innerHTML = 'Updated ' + d.last_updated + '<br>Next update in 6 days';
+}
+
+function renderRetention() {
+  const r = MOCK_DATA.retention;
+  document.getElementById('retention-badge').textContent = r.high_risk_count + ' HIGH RISK THIS WEEK';
+  document.getElementById('retention-hero').textContent = fmt$(r.total_exposure_90d);
+  document.getElementById('retention-context').textContent =
+    'Historical: Last departure cost ' + fmtK(r.historical_loss) +
+    ' before recovery — Ghost Hunter could have protected ' + r.ghost_hunter_protect_pct + '%.';
+
+  const tbody = document.getElementById('risk-tbody');
+  tbody.innerHTML = '';
+  r.stylists.forEach((s, i) => {
+    const riskDot = s.risk === 'critical'
+      ? '<span class="dot-red"></span><span style="color:var(--red);font-weight:700;font-size:11px">Critical</span>'
+      : '<span class="dot-amber"></span><span style="color:var(--amber);font-weight:700;font-size:11px">Elevated</span>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="stylist-name">${s.name}</span></td>
+      <td class="loc-cell">${s.location}</td>
+      <td>${riskDot}</td>
+      <td class="loss-cell">${fmtK(s.loss_90d)}</td>
+      <td><button class="ghost-btn" onclick="openGhostModal(${i})">Ghost Hunt</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderROI() {
+  const f = MOCK_DATA.flex_roi;
+  document.getElementById('roi-spent').textContent = fmt$(f.total_discounts);
+  document.getElementById('roi-multiple').textContent = f.roi_multiple + '×';
+  document.getElementById('roi-recovered').textContent = fmt$(f.total_recovered);
+  document.getElementById('roi-trend').textContent = '(+' + f.mom_roi_improvement + '× since January)';
+
+  const tbody = document.getElementById('roi-tbody');
+  tbody.innerHTML = '';
+  f.tiers.forEach(t => {
+    const tr = document.createElement('tr');
+    const cls = t.roi >= 8 ? 'roi-multiple' : t.roi >= 5 ? 'roi-multiple low' : 'roi-multiple bad';
+    tr.innerHTML = `<td>${t.name}</td><td>${fmt$(t.spent)}</td><td>${fmt$(t.recovered)}</td><td class="${cls}">${t.roi}×</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const topEl = document.getElementById('top-performers');
+  topEl.innerHTML = '';
+  f.top_performers.forEach((p, i) => {
+    topEl.innerHTML += `<div class="perf-item"><span class="name">${i+1}. ${p.name}</span><span class="roi-val good">${p.roi}×</span></div>`;
+  });
+
+  const revEl = document.getElementById('review-performers');
+  revEl.innerHTML = '';
+  f.needs_review.forEach((p, i) => {
+    const cls = p.roi < 2 ? 'bad' : 'warn';
+    revEl.innerHTML += `<div class="perf-item"><span class="name">${i+1}. ${p.name}</span><span class="roi-val ${cls}">${p.roi}×</span></div>`;
+  });
+
+  const sliderList = document.getElementById('slider-list');
+  sliderList.innerHTML = '';
+  f.location_budgets.forEach(loc => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <span class="slider-name">${loc.name}</span>
+      <input type="range" class="budget-slider" min="0" max="800" value="${loc.budget}" step="20"
+        oninput="updateSliderVal(this, '${loc.id}')"/>
+      <span class="slider-val" id="val-${loc.id}">${fmt$(loc.budget)}/mo</span>
+    `;
+    sliderList.appendChild(row);
+  });
+}
+
+function updateSliderVal(el, id) {
+  document.getElementById('val-' + id).textContent = fmt$(parseInt(el.value)) + '/mo';
+}
+
+function renderInventory() {
+  const inv = MOCK_DATA.inventory;
+  document.getElementById('inv-hero').textContent = fmt$(inv.total_slow_moving);
+  document.getElementById('inv-ctx').textContent =
+    'Industry benchmark: ' + inv.industry_benchmark_low + '–' + inv.industry_benchmark_high +
+    '% waste typical — you\'re at the low end, but still leaking ' + fmtK(inv.total_slow_moving) + '.';
+  document.getElementById('inv-free').textContent = fmt$(inv.cash_freeable);
+
+  const tbody = document.getElementById('inv-tbody');
+  tbody.innerHTML = '';
+  inv.products.forEach(p => {
+    const isCrit = p.risk === 'critical';
+    const tagCls = isCrit ? 'reason-tag badge-red' : 'reason-tag badge-amber';
+    const dotHtml = isCrit
+      ? '<span class="dot-red"></span>'
+      : '<span class="dot-amber"></span>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-size:11px;max-width:130px;word-break:break-word">${p.name}</td>
+      <td style="text-align:center">${p.locations}</td>
+      <td style="text-align:center">${p.units}</td>
+      <td>${dotHtml}<span class="${tagCls}">${p.reason}</span></td>
+      <td class="inv-val">${fmt$(p.value)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderWinback() {
+  const wb = MOCK_DATA.winback;
+  document.getElementById('winback-badge').textContent = wb.total_lapsed + ' LAPSED CHAMPIONS';
+  document.getElementById('winback-hero').textContent = fmt$(wb.total_ltv);
+  document.getElementById('winback-proj').textContent =
+    'At ' + Math.round(wb.reactivation_rate * 100) + '% reactivation: +' + fmt$(wb.recoverable) + ' recoverable this month';
+  document.getElementById('winback-ctx').textContent =
+    'Similar networks recover ' + wb.industry_recovery_low + '–' + wb.industry_recovery_high + '% of lapsed value with targeted outreach.';
+
+  const segList = document.getElementById('segment-list');
+  segList.innerHTML = '';
+  wb.segments.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'segment-item';
+    div.innerHTML = `
+      <div class="seg-count ${s.color}">${s.count}</div>
+      <div class="seg-info">
+        <div class="seg-label">${s.label}</div>
+        <div class="seg-ltv">Avg LTV: ${fmt$(s.avg_ltv)}</div>
+      </div>
+      <div class="seg-total">${fmt$(s.total)}</div>
+    `;
+    segList.appendChild(div);
+  });
+}
+
+function renderCommandBar() {
+  const cmds = [
+    "Show me the worst-performing location financially",
+    "What's our projected Q2 revenue if current trends hold?",
+    "How much would we lose if Megan at Apple Valley quits?",
+    "Run win-back for all lapsed clients who used to see Sarah",
+    "Approve $5k marketing budget for March",
+    "What would our data be worth to Wella right now?"
+  ];
+  const el = document.getElementById('suggested-cmds');
+  el.innerHTML = '';
+  cmds.forEach(cmd => {
+    const btn = document.createElement('button');
+    btn.className = 'suggest-btn';
+    btn.innerHTML = `<span class="arrow">›</span><span>${cmd}</span>`;
+    btn.onclick = () => {
+      document.getElementById('command-input').value = cmd;
+      handleCommandAsk();
+    };
+    el.appendChild(btn);
+  });
+}
+
+function renderWABubble() {
+  const d = MOCK_DATA;
+  const wb = d.winback;
+  const r = d.retention;
+  const inv = d.inventory;
+  document.getElementById('wa-text').textContent =
+    '📊 KPI Weekly | ' + d.week_ending + '\n' +
+    'Your money snapshot is ready.\n\n' +
+    '✅ On pace for ' + d.projection_label + ' (+' + d.yoy_variance_pct + '%)\n' +
+    '⚠️ ' + r.high_risk_count + ' retention risks (' + fmtK(r.total_exposure_90d) + ' exposure)\n' +
+    '💡 ' + fmtK(inv.total_slow_moving) + ' inventory trap detected\n' +
+    '🎯 ' + fmtK(wb.recoverable) + ' win-back opportunity open\n\n' +
+    '→ owners.kpi-platform.com';
+  document.getElementById('wa-timestamp').textContent = '7:02 AM';
+}
+
+/* ══════════════════════════════════════════════
+   COMMAND BAR
+   ══════════════════════════════════════════════ */
+const SCRIPTED_RESPONSES = {
+  'worst': '📍 Burnsville is your weakest performer this quarter.\n\nRevenue down 14% vs prior year. Stylist retention at 71% (network avg: 84%). Product attachment at 18% (network avg: 31%).\n\nRecommend: coaching review with Jess this week — estimated revenue at risk: $68k annually if trend continues.',
+  'q2': '📈 At current trajectory, Q2 projects to $1.84M — +7.1% vs Q2 2025.\n\nEden Prairie and Maple Grove driving the outperformance. Burnsville is the only location tracking below plan (-14%). Overall: on pace for a strong first half.',
+  'megan': '⚠️ Megan T. at Apple Valley: ~$184k annual revenue at risk (94 active guests). Projected net loss after churn: $147k if unaddressed.\n\nTop chemistry matches: Jordan (82%), Aisha (79%). Ghost Hunter could protect ~$115k.\n\nLaunch now?',
+  'wella': '🔮 Phase 5 Preview: 13 locations, ~18,000 active guests, 3 years of purchase history.\n\nComparable beauty industry data licensing deals range $150K–$3M annually per brand. Wella, Redken, Olaplex, and L\'Oréal Professional are likely targets.\n\nThis feature unlocks in Phase 5.',
+  'default': '🤔 I\'m running in preview mode right now — my live analysis connects to Zenoti data in Phase 3. Based on this week\'s mock snapshot, I\'d start by looking at retention and win-back: that\'s where your $98k in recoverable revenue is sitting.'
+};
+
+function handleCommandAsk() {
+  const input = document.getElementById('command-input').value.toLowerCase();
+  const responseEl = document.getElementById('cmd-response-text');
+  responseEl.style.color = 'var(--text-dim)';
+  responseEl.style.fontStyle = 'italic';
+  responseEl.textContent = 'Analyzing your network…';
+
+  setTimeout(() => {
+    let response;
+    if (input.includes('worst') || input.includes('performing') || input.includes('burnsville')) {
+      response = SCRIPTED_RESPONSES['worst'];
+    } else if (input.includes('q2') || input.includes('projected') || input.includes('revenue') || input.includes('trends')) {
+      response = SCRIPTED_RESPONSES['q2'];
+    } else if (input.includes('megan') || input.includes('quit') || input.includes('apple valley')) {
+      response = SCRIPTED_RESPONSES['megan'];
+    } else if (input.includes('wella') || input.includes('data') || input.includes('worth')) {
+      response = SCRIPTED_RESPONSES['wella'];
+    } else {
+      response = SCRIPTED_RESPONSES['default'];
+    }
+    responseEl.style.color = 'var(--text-primary)';
+    responseEl.style.fontStyle = 'normal';
+    if (input.includes('wella') || input.includes('data') || input.includes('worth')) {
+      responseEl.innerHTML = response.replace('Phase 5', 'Phase 5 <span class="phase-badge">Coming Soon</span>');
+    } else {
+      responseEl.textContent = response;
+    }
+  }, 900);
+}
+
+/* ══════════════════════════════════════════════
+   GHOST HUNTER MODAL
+   ══════════════════════════════════════════════ */
+let activeGhostIdx = 0;
+function openGhostModal(idx) {
+  activeGhostIdx = idx;
+  const s = MOCK_DATA.retention.stylists[idx];
+  document.getElementById('ghost-modal-title').textContent = '⚠️ ' + s.name + ' at ' + s.location;
+  document.getElementById('ghost-modal-body').innerHTML = `
+    <div class="modal-risk-row"><span class="modal-risk-label">Annual revenue at risk</span><span class="modal-risk-val gold">${fmt$(s.annual_revenue)}</span></div>
+    <div class="modal-risk-row"><span class="modal-risk-label">Active guests</span><span class="modal-risk-val">${s.active_guests}</span></div>
+    <div class="modal-risk-row"><span class="modal-risk-label">Projected net loss (unaddressed)</span><span class="modal-risk-val red">${fmt$(Math.round(s.annual_revenue * 0.8))}</span></div>
+    <div style="font-size:12px;color:var(--text-muted);margin:10px 0 6px;">Top chemistry matches:</div>
+  `;
+  document.getElementById('ghost-chemistry-row').innerHTML =
+    `<span class="chemistry-badge">${s.chemistry_match_1}<span class="chemistry-pct"> ${s.chemistry_score_1}%</span></span>` +
+    `<span class="chemistry-badge">${s.chemistry_match_2}<span class="chemistry-pct"> ${s.chemistry_score_2}%</span></span>`;
+  document.getElementById('ghost-protect-line').textContent =
+    'Ghost Hunter could protect ~' + fmt$(s.ghost_protected) + ' of this revenue.';
+  document.getElementById('ghost-modal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeGhostModal(e) {
+  if (e && e.target !== document.getElementById('ghost-modal-backdrop')) return;
+  document.getElementById('ghost-modal-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function launchGhostHunter() {
+  const s = MOCK_DATA.retention.stylists[activeGhostIdx];
+  closeGhostModal();
+  setTimeout(() => alert('✅ Ghost Hunter launched for ' + s.name + '.\n\nKarissa and team coaches have been notified. Chemistry-matched outreach will begin within 24 hours.'), 200);
+}
+
+/* ══════════════════════════════════════════════
+   WIN-BACK MODAL
+   ══════════════════════════════════════════════ */
+function openWinbackModal() {
+  document.getElementById('winback-modal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeWinbackModal(e) {
+  if (e && e.target !== document.getElementById('winback-modal-backdrop')) return;
+  document.getElementById('winback-modal-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function confirmWinback() {
+  closeWinbackModal();
+  setTimeout(() => alert('✅ Win-Back queued for Karissa approval.\n\n42 personalized messages ready for review. Karissa will see these in her dashboard.'), 200);
+}
+
+/* ══════════════════════════════════════════════
+   BUDGET CONTROLS — CONFETTI + TOAST
+   ══════════════════════════════════════════════ */
+function applyBudgetChanges() {
+  fireConfetti();
+  const toast = document.getElementById('save-toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function fireConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.classList.add('active');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const pieces = Array.from({length: 80}, () => ({
+    x: Math.random() * canvas.width,
+    y: -10 - Math.random() * 40,
+    w: 6 + Math.random() * 8,
+    h: 4 + Math.random() * 6,
+    r: Math.random() * Math.PI * 2,
+    vx: (Math.random() - 0.5) * 4,
+    vy: 3 + Math.random() * 4,
+    vr: (Math.random() - 0.5) * 0.2,
+    color: ['#C8A97E','#F5D89A','#E8C87A','#F0E040','#22C55E','#FFF'][Math.floor(Math.random()*6)]
+  }));
+
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+      p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      p.vy += 0.08;
+    });
+    frame++;
+    if (frame < 90) requestAnimationFrame(draw);
+    else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.classList.remove('active');
+    }
+  }
+  requestAnimationFrame(draw);
+}
+
+/* ══════════════════════════════════════════════
+   MISC
+   ══════════════════════════════════════════════ */
+function showPdfNote() {
+  const el = document.getElementById('pdf-note');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function dismissPreviewModal() {
+  localStorage.setItem('kpi_owners_preview_dismissed', '1');
+  document.getElementById('preview-modal').classList.remove('open');
+}
+
+/* ══════════════════════════════════════════════
+   PIN GATE
+   ══════════════════════════════════════════════ */
+(function() {
+  const CORRECT_PIN = '7291';
+  const STORAGE_KEY = 'kpi_owners_authed';
+  const gate = document.getElementById('pin-gate');
+  const inputs = Array.from(document.querySelectorAll('.pin-input'));
+  const errEl = document.getElementById('pin-error');
+
+  function unlock() {
+    sessionStorage.setItem(STORAGE_KEY, '1');
+    gate.classList.add('unlocked');
+    setTimeout(() => { gate.style.display = 'none'; }, 450);
+    showDashboard();
+  }
+
+  function shakePins() {
+    const box = document.querySelector('.pin-inputs');
+    box.classList.add('pin-shake');
+    box.addEventListener('animationend', () => box.classList.remove('pin-shake'), {once:true});
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+  }
+
+  function checkPin() {
+    const entered = inputs.map(i => i.value).join('');
+    if (entered === CORRECT_PIN) {
+      unlock();
+    } else {
+      errEl.textContent = 'Incorrect PIN — try again';
+      shakePins();
+      setTimeout(() => { errEl.textContent = ''; }, 3000);
+    }
+  }
+
+  inputs.forEach((input, idx) => {
+    input.addEventListener('input', e => {
+      const val = e.target.value.replace(/\D/g, '');
+      e.target.value = val ? val[0] : '';
+      if (val && idx < inputs.length - 1) inputs[idx + 1].focus();
+      if (inputs.every(i => i.value)) checkPin();
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !input.value && idx > 0) inputs[idx - 1].focus();
+      if (e.key === 'Enter') {
+        const entered = inputs.map(i => i.value).join('');
+        if (entered.length === 4) checkPin();
+      }
+    });
+    // Handle paste
+    input.addEventListener('paste', e => {
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,4);
+      if (pasted.length === 4) {
+        e.preventDefault();
+        inputs.forEach((inp, i) => inp.value = pasted[i] || '');
+        checkPin();
+      }
+    });
+  });
+
+  // Check if already authed this session
+  if (sessionStorage.getItem(STORAGE_KEY)) {
+    gate.style.display = 'none';
+    showDashboard();
+  } else {
+    inputs[0].focus();
+  }
+})();
+
+/* ══════════════════════════════════════════════
+   SHOW DASHBOARD
+   ══════════════════════════════════════════════ */
+function showDashboard() {
+  // Show loading briefly
+  const loader = document.getElementById('loading-overlay');
+  setTimeout(() => {
+    loader.classList.add('hidden');
+    setTimeout(() => { loader.style.display = 'none'; }, 600);
+    document.getElementById('money-pulse').style.display = '';
+    document.getElementById('main-content').style.display = '';
+
+    // Render all sections
+    renderBanner();
+    renderRetention();
+    renderROI();
+    renderInventory();
+    renderWinback();
+    renderCommandBar();
+    renderWABubble();
+
+    // Show preview modal if not dismissed
+    if (!localStorage.getItem('kpi_owners_preview_dismissed')) {
+      setTimeout(() => document.getElementById('preview-modal').classList.add('open'), 1200);
+    }
+  }, 900);
+}
+</script>
+</body>
+</html>
