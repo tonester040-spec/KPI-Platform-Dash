@@ -154,7 +154,7 @@ def main():
     print("Go to: https://github.com/[your-repo]/settings/secrets/actions")
     print()
     print(f"  GMAIL_CLIENT_ID       →  {client_id}")
-    print(f"  GMAIL_CLIENT_SECRET   →  {client_secret}")
+    print("  GMAIL_CLIENT_SECRET   →  (use your existing client secret; do NOT paste it here)")
     print(f"  GMAIL_REFRESH_TOKEN   →  {refresh_token}")
     print()
     print("Once those are saved, the Email Assistant workflow is ready to run.")
