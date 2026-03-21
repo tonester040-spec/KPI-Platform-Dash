@@ -96,3 +96,307 @@ canvas{max-height:300px}
 .cards-grid{grid-template-columns:1fr}
 .lb-search{width:100%}
 }
+</style>
+</head>
+<body>
+<div class="header">
+<div class="header-left">
+<div class="logo">KPI <span>Dashboard</span></div>
+<div class="subtitle">13 Locations</div>
+</div>
+<div class="header-right">
+Week of <strong id="week-date">Mar 17, 2026</strong>
+</div>
+</div>
+
+<div class="tab-switcher">
+<button class="tab-btn active" onclick="switchTab(this, 'overview')">Overview</button>
+<button class="tab-btn" onclick="switchTab(this, 'leaderboard')">Leaderboard</button>
+<button class="tab-btn" onclick="switchTab(this, 'details')">Details</button>
+</div>
+
+<div class="main">
+<!-- Overview Tab -->
+<div id="overview" class="tab-panel active">
+<div class="section-title">Key Metrics</div>
+<div class="cards-grid">
+<div class="summary-card" onclick="selectMetric(this, 'revenue')">
+<div class="card-label">Total Revenue</div>
+<div class="card-value">$2.14M</div>
+<div class="card-trend trend-up">+8.3% vs last week</div>
+</div>
+<div class="summary-card" onclick="selectMetric(this, 'growth')">
+<div class="card-label">YoY Growth</div>
+<div class="card-value">+15.2%</div>
+<div class="card-trend trend-up">+2.1% vs target</div>
+</div>
+<div class="summary-card" onclick="selectMetric(this, 'locations')">
+<div class="card-label">Locations Trending Up</div>
+<div class="card-value">9 / 13</div>
+<div class="card-trend trend-up">Green status</div>
+</div>
+<div class="summary-card" onclick="selectMetric(this, 'alert')">
+<div class="card-label">Alerts</div>
+<div class="card-value">2</div>
+<div class="card-trend trend-down">2 Red Status</div>
+</div>
+</div>
+
+<div class="section-title">Location Cards (Focus View)</div>
+<div class="location-cards-container" id="location-cards"></div>
+</div>
+
+<!-- Leaderboard Tab -->
+<div id="leaderboard" class="tab-panel">
+<div class="section-title">Revenue Ranking</div>
+<div class="leaderboard-section">
+<div class="lb-toolbar">
+<input type="text" class="lb-search" id="lb-search" placeholder="Search locations..." onkeyup="filterLeaderboard(this.value)">
+<span id="lb-sort-label" style="font-size:12px;color:#7A8BA0">Sorted by Revenue (Descending)</span>
+</div>
+<table id="leaderboard-table">
+<thead>
+<tr>
+<th onclick="sortTable(this, 'rank')" style="cursor:pointer">#</th>
+<th onclick="sortTable(this, 'location')">Location</th>
+<th onclick="sortTable(this, 'revenue')">Revenue</th>
+<th onclick="sortTable(this, 'delta')">Δ vs Last Week</th>
+<th onclick="sortTable(this, 'status')">Status</th>
+</tr>
+</thead>
+<tbody id="leaderboard-tbody"></tbody>
+</table>
+</div>
+</div>
+
+<!-- Details Tab -->
+<div id="details" class="tab-panel">
+<div class="section-title">Performance Charts</div>
+<div class="chart-grid">
+<div class="chart-card">
+<div class="chart-card-title">Weekly Revenue Trend</div>
+<canvas id="revenueChart"></canvas>
+</div>
+<div class="chart-card">
+<div class="chart-card-title">Growth Rate Distribution</div>
+<canvas id="growthChart"></canvas>
+</div>
+</div>
+</div>
+</div>
+
+<div class="footer">
+<p>KPI Dashboard v1.0 | Last Updated: <span id="update-time">12:34 PM</span> | Data Refreshes Every 5 Minutes</p>
+</div>
+
+<script>
+// Data structure for 13 locations
+var locationsData = [
+  {id:1,name:'Downtown HQ',sales:285000,ps:248000,delta_s:37000,delta_h:8500,delta_g:2100,delta_p:950,pat:98,avg_tick:112},
+  {id:2,name:'Midtown Market',sales:198000,ps:182000,delta_s:16000,delta_h:4200,delta_g:1800,delta_p:650,pat:76,avg_tick:94},
+  {id:3,name:'Westside Plaza',sales:156000,ps:159000,delta_s:-3000,delta_h:1200,delta_g:-450,delta_p:200,pat:82,avg_tick:88},
+  {id:4,name:'East Park Center',sales:224000,ps:206000,delta_s:18000,delta_h:5100,delta_g:2200,delta_p:780,pat:71,avg_tick:105},
+  {id:5,name:'North Bay Station',sales:142000,ps:138000,delta_s:4000,delta_h:950,delta_g:350,delta_p:120,pat:68,avg_tick:79},
+  {id:6,name:'South Ridge Mall',sales:318000,ps:285000,delta_s:33000,delta_h:9200,delta_g:2800,delta_p:1100,pat:119,avg_tick:128},
+  {id:7,name:'Central District',sales:201000,ps:198000,delta_s:3000,delta_h:800,delta_g:280,delta_p:95,pat:74,avg_tick:91},
+  {id:8,name:'Harbor Front',sales:267000,ps:244000,delta_s:23000,delta_h:6100,delta_g:1900,delta_p:850,pat:105,avg_tick:115},
+  {id:9,name:'City Gate',sales:189000,ps:175000,delta_s:14000,delta_h:3800,delta_g:1500,delta_p:520,pat:81,avg_tick:87},
+  {id:10,name:'West Valley',sales:134000,ps:141000,delta_s:-7000,delta_h:1100,delta_g:-650,delta_p:180,pat:62,avg_tick:72},
+  {id:11,name:'Oak Park',sales:276000,ps:248000,delta_s:28000,delta_h:7200,delta_g:2100,delta_p:920,pat:108,avg_tick:118},
+  {id:12,name:'River Commons',sales:212000,ps:201000,delta_s:11000,delta_h:2900,delta_g:800,delta_p:350,pat:79,avg_tick:96},
+  {id:13,name:'Summit Ridge',sales:165000,ps:148000,delta_s:17000,delta_h:4500,delta_g:1600,delta_p:620,pat:73,avg_tick:85}
+];
+
+// Initialize the app
+function initApp() {
+  // Set week date
+  var now = new Date();
+  var dayOfWeek = now.getDay();
+  var diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  var monday = new Date(now.setDate(diffToMonday));
+  var friday = new Date(monday);
+  friday.setDate(friday.getDate() + 4);
+  
+  var monthDay = function(d) { return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate(); };
+  document.getElementById('week-date').textContent = monthDay(monday) + ' - ' + monthDay(friday);
+  document.getElementById('update-time').textContent = now.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
+  
+  renderLocationCards();
+  renderLeaderboard();
+  renderCharts();
+}
+
+function renderLocationCards() {
+  var container = document.getElementById('location-cards');
+  container.innerHTML = '';
+  var topAlertLoc = null, topAlertStatus = '';
+  
+  locationsData.forEach(function(loc) {
+    var deltaS   = loc.delta_s;
+    var deltaPct = loc.ps ? ((loc.sales - loc.ps) / loc.ps * 100) : 0;
+    var deltaDir = deltaS > 50 ? 'up' : deltaS < -50 ? 'down' : 'flat';
+    var deltaTxt = (deltaS >= 0 ? '+' : '') + deltaPct.toFixed(1) + '% vs last wk';
+    
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border:1px solid #E8ECF0;border-radius:8px;padding:16px;margin-bottom:12px;cursor:pointer;transition:all .2s';
+    card.onmouseover = function() { this.style.borderColor = '#4A90D9'; this.style.boxShadow = '0 2px 8px rgba(74,144,217,.1)'; };
+    card.onmouseout = function() { this.style.borderColor = '#E8ECF0'; this.style.boxShadow = 'none'; };
+    card.onclick = function() { toggleCardExpand(this, loc); };
+    
+    // Determine indicator color (green/amber/red)
+    var indicator = 'green';
+    var indicatorBg = '#10B981';
+    if (Math.abs(deltaPct) > 10) indicator = 'red', indicatorBg = '#EF4444';
+    else if (Math.abs(deltaPct) > 5) indicator = 'amber', indicatorBg = '#F59E0B';
+    
+    if (!topAlertLoc && indicator === 'red') {
+      topAlertLoc = loc;
+      topAlertStatus = 'red';
+    } else if (!topAlertLoc && indicator === 'amber') {
+      topAlertLoc = loc;
+      topAlertStatus = 'amber';
+    }
+    
+    card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600;color:#1E3A5F;margin-bottom:4px">' + loc.name + '</div><div style="font-size:18px;font-weight:800;color:#1E3A5F;margin-bottom:4px">$' + (loc.sales/1000).toFixed(0) + 'K</div><div style="font-size:12px;color:#7A8BA0">' + deltaTxt + '</div></div><div style="width:12px;height:12px;border-radius:50%;background:' + indicatorBg + '"></div></div>';
+    
+    container.appendChild(card);
+  });
+}
+
+function toggleCardExpand(cardEl, loc) {
+  if (cardEl.classList.contains('expanded')) {
+    cardEl.classList.remove('expanded');
+    cardEl.innerHTML = '';
+    renderLocationCards();
+  } else {
+    cardEl.classList.add('expanded');
+    var deltaS   = loc.delta_s;
+    var deltaPct = loc.ps ? ((loc.sales - loc.ps) / loc.ps * 100) : 0;
+    var deltaDir = deltaS > 50 ? 'up' : deltaS < -50 ? 'down' : 'flat';
+    var deltaTxt = (deltaS >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%';
+    
+    cardEl.innerHTML = '<div><div style="font-weight:700;color:#1E3A5F;margin-bottom:12px;font-size:14px">' + loc.name + '</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"><div><div style="font-size:11px;color:#7A8BA0;text-transform:uppercase;font-weight:600">Revenue</div><div style="font-size:24px;font-weight:800;color:#1E3A5F">$' + (loc.sales/1000).toFixed(0) + 'K</div></div><div><div style="font-size:11px;color:#7A8BA0;text-transform:uppercase;font-weight:600">vs Last Week</div><div style="font-size:24px;font-weight:800;color:' + (deltaS > 0 ? '#10B981' : '#EF4444') + '">' + deltaTxt + '</div></div><div><div style="font-size:11px;color:#7A8BA0;text-transform:uppercase;font-weight:600">Hourly Avg</div><div style="font-size:24px;font-weight:800;color:#1E3A5F">$' + loc.delta_h + '</div></div><div><div style="font-size:11px;color:#7A8BA0;text-transform:uppercase;font-weight:600">Guest Count</div><div style="font-size:24px;font-weight:800;color:#1E3A5F">' + (Math.round(loc.delta_g / 100) * 100) + '</div></div></div><div style="height:60px;background:#F5F7FA;border-radius:4px;position:relative" id="sparkline-' + loc.id + '"></div></div>';
+    
+    // Render mini sparkline
+    renderSparkline(loc.id, loc);
+  }
+}
+
+function renderSparkline(locId, loc) {
+  // Simulate 12-week data
+  var weekData = [];
+  for (var i = 0; i < 12; i++) {
+    weekData.push(Math.max(50, loc.sales / 1000 + Math.random() * 40 - 20));
+  }
+  var max = Math.max.apply(null, weekData);
+  var min = Math.min.apply(null, weekData);
+  var range = max - min || 1;
+  
+  var sparkEl = document.getElementById('sparkline-' + locId);
+  var svg = '<svg style="width:100%;height:100%;display:block" viewBox="0 0 240 60" preserveAspectRatio="none"><polyline points="';
+  var pts = weekData.map(function(v, i) { return (i * 20) + ',' + (60 - ((v - min) / range * 60)); }).join(' ');
+  svg += pts + '" style="fill:none;stroke:#4A90D9;stroke-width:2"/></svg>';
+  sparkEl.innerHTML = svg;
+}
+
+function renderLeaderboard() {
+  var tbody = document.getElementById('leaderboard-tbody');
+  tbody.innerHTML = '';
+  
+  var sorted = locationsData.slice().sort(function(a, b) { return b.sales - a.sales; });
+  
+  sorted.forEach(function(loc, idx) {
+    var deltaS = loc.delta_s;
+    var deltaPct = loc.ps ? ((loc.sales - loc.ps) / loc.ps * 100) : 0;
+    var trendClass = deltaS > 0 ? 'delta-pos' : 'delta-neg';
+    var statusColor = Math.abs(deltaPct) > 10 ? '#EF4444' : Math.abs(deltaPct) > 5 ? '#F59E0B' : '#10B981';
+    
+    var row = document.createElement('tr');
+    if (idx === 0) row.classList.add('row-top');
+    if (idx === sorted.length - 1) row.classList.add('row-bottom');
+    
+    row.innerHTML = '<td class="rank-cell">' + (idx+1) + '</td><td class="loc-name">' + loc.name + '</td><td>$' + (loc.sales/1000).toFixed(0) + 'K</td><td class="' + trendClass + '">' + (deltaS >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%</td><td><div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';margin:0 auto"></div></td>';
+    tbody.appendChild(row);
+  });
+}
+
+function renderCharts() {
+  var ctx1 = document.getElementById('revenueChart').getContext('2d');
+  new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: ['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6','Week 7','Week 8','Week 9','Week 10','Week 11','Week 12'],
+      datasets: [{
+        label: 'Total Revenue',
+        data: [1900, 1980, 2050, 2100, 2140, 2200, 2180, 2250, 2290, 2310, 2340, 2360],
+        borderColor: '#4A90D9',
+        backgroundColor: 'rgba(74, 144, 217, 0.1)',
+        tension: 0.4
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+  
+  var ctx2 = document.getElementById('growthChart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Green (9)','Amber (2)','Red (2)'],
+      datasets: [{
+        data: [69, 15, 16],
+        backgroundColor: ['#10B981', '#F59E0B', '#EF4444']
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+function selectMetric(card, metric) {
+  document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+  card.classList.add('active');
+}
+
+function sortTable(th, field) {
+  var tbody = document.getElementById('leaderboard-tbody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {
+    var aVal, bVal;
+    if (field === 'rank') { aVal = a.cells[0].innerText; bVal = b.cells[0].innerText; }
+    else if (field === 'location') { aVal = a.cells[1].innerText; bVal = b.cells[1].innerText; }
+    else if (field === 'revenue') { aVal = parseInt(a.cells[2].innerText); bVal = parseInt(b.cells[2].innerText); }
+    else if (field === 'delta') { aVal = parseFloat(a.cells[3].innerText); bVal = parseFloat(b.cells[3].innerText); }
+    return typeof aVal === 'number' ? bVal - aVal : aVal.localeCompare(bVal);
+  });
+  tbody.innerHTML = '';
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+function filterLeaderboard(query) {
+  var tbody = document.getElementById('leaderboard-tbody');
+  tbody.querySelectorAll('tr').forEach(function(row) {
+    var locName = row.cells[1].innerText.toLowerCase();
+    row.style.display = locName.includes(query.toLowerCase()) ? '' : 'none';
+  });
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  console.log('KPI Dashboard initialized');
+  initApp();
+  
+  // Register service worker for PWA capability
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/KPI-Platform-Dash/sw.js')
+      .then(function(r){ console.log('KPI SW registered', r.scope); })
+      .catch(function(e){ console.log('KPI SW error:', e); });
+  }
+});
+</script>
+</body>
+</html>
