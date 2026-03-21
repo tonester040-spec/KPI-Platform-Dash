@@ -248,9 +248,24 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 .loc-fc-status-line.amber{color:#B45309}
 .loc-fc-status-line.red  {color:#DC2626}
 
-/* Card expanded body */
-.loc-fc-expanded-body{display:none;margin-top:14px;padding-top:14px;border-top:1px solid #F0F3F6}
-.loc-fc.expanded .loc-fc-expanded-body{display:block}
+/* Card expanded body — animated */
+.loc-fc-expanded-body{
+  display:grid;
+  grid-template-rows:0fr;
+  opacity:0;
+  margin-top:0;
+  padding-top:0;
+  border-top:1px solid transparent;
+  transition:grid-template-rows .3s ease, opacity .25s ease, margin-top .3s ease, padding-top .3s ease, border-color .3s ease;
+}
+.loc-fc-expanded-body > .loc-fc-expanded-inner{overflow:hidden}
+.loc-fc.expanded .loc-fc-expanded-body{
+  grid-template-rows:1fr;
+  opacity:1;
+  margin-top:14px;
+  padding-top:14px;
+  border-top-color:#F0F3F6;
+}
 
 /* Expanded metric mini-grid */
 .loc-fc-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
@@ -277,9 +292,60 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 
 @media(max-width:900px){.loc-focus-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.loc-focus-grid{grid-template-columns:1fr}.morning-brief-strip{padding:8px 16px}}
+
+/* ══════════════════════════════════════════════════
+   DAD JOKE SPLASH — Owner / Karissa view only
+   Phase 2: gate behind login/persona detection
+══════════════════════════════════════════════════ */
+#joke-splash{position:fixed;inset:0;background:#F5F7FA;z-index:500;display:flex;align-items:center;justify-content:center;transition:opacity .3s ease}
+#joke-splash.hiding{opacity:0;pointer-events:none}
+.joke-skip{position:absolute;top:18px;right:24px;font-size:12px;font-weight:500;color:#A0AEC0;cursor:pointer;text-decoration:none;transition:color .15s;letter-spacing:.01em}
+.joke-skip:hover{color:#7A8BA0}
+.joke-card{background:#fff;border:1px solid #E8ECF0;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.06);padding:44px 52px 40px;max-width:500px;width:calc(100% - 48px);text-align:center}
+.joke-logo{font-size:22px;font-weight:800;color:#1E3A5F;letter-spacing:-.5px;margin-bottom:20px}
+.joke-logo span{color:#4A90D9}
+.joke-greeting{font-size:11px;font-weight:700;color:#A0AEC0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:22px}
+.joke-setup{font-size:17px;font-weight:700;color:#1E3A5F;line-height:1.55;letter-spacing:-.2px;margin-bottom:28px}
+.joke-show-btn{background:#EEF4FB;border:1.5px solid #4A90D9;color:#1E3A5F;font-family:'Inter',-apple-system,sans-serif;font-size:13px;font-weight:700;padding:9px 22px;border-radius:8px;cursor:pointer;transition:background .15s;margin-bottom:0}
+.joke-show-btn:hover{background:#DBEAFE}
+.joke-punchline{font-size:16px;color:#7A8BA0;font-style:italic;line-height:1.55;margin-top:22px;margin-bottom:0;opacity:0;transition:opacity .4s ease}
+.joke-punchline.visible{opacity:1}
+.joke-reactions{display:flex;gap:10px;justify-content:center;margin-top:22px;opacity:0;transition:opacity .3s ease .15s}
+.joke-reactions.visible{opacity:1}
+.joke-reaction-btn{background:#F8FAFC;border:1.5px solid #E8ECF0;border-radius:999px;padding:8px 18px;font-size:18px;cursor:pointer;transition:border-color .15s,background .15s;line-height:1;font-family:inherit}
+.joke-reaction-btn:hover{border-color:#C8D8EA;background:#EEF4FB}
+.joke-reaction-btn.selected{border-color:#4A90D9;background:#EEF4FB}
+.joke-reaction-text{font-size:12px;color:#7A8BA0;font-weight:500;min-height:16px;margin-top:14px;opacity:0;transition:opacity .25s ease}
+.joke-reaction-text.visible{opacity:1}
+.joke-enter{display:none;font-size:14px;font-weight:600;color:#4A90D9;cursor:pointer;text-decoration:none;background:none;border:none;font-family:'Inter',-apple-system,sans-serif;padding:0;margin-top:22px;transition:color .15s}
+.joke-enter:hover{color:#1E3A5F}
+.joke-enter.visible{display:inline-block}
+@media(max-width:540px){.joke-card{padding:32px 24px 28px}.joke-setup{font-size:15px}}
 </style>
 </head>
 <body>
+
+<!-- ════════════════════════════════════════════════════
+     DAD JOKE SPLASH — Owner / Karissa view only
+     Phase 2: gate behind persona/login detection
+════════════════════════════════════════════════════ -->
+<div id="joke-splash">
+  <a class="joke-skip" onclick="dismissJokeSplash()" href="javascript:void(0)">Skip to dashboard →</a>
+  <div class="joke-card">
+    <div class="joke-logo">K<span>PI</span></div>
+    <div class="joke-greeting" id="jokeGreeting"></div>
+    <div class="joke-setup" id="jokeSetup"></div>
+    <button class="joke-show-btn" id="jokeShowBtn" onclick="revealPunchline()">Show punchline 👀</button>
+    <div class="joke-punchline" id="jokePunchline"></div>
+    <div class="joke-reactions" id="jokeReactions">
+      <button class="joke-reaction-btn" id="react-groan" onclick="reactToJoke('groan')" title="Groan">😩</button>
+      <button class="joke-reaction-btn" id="react-meh"   onclick="reactToJoke('meh')"   title="Meh">😐</button>
+      <button class="joke-reaction-btn" id="react-laugh" onclick="reactToJoke('laugh')" title="Actually funny">😂</button>
+    </div>
+    <div class="joke-reaction-text" id="jokeReactionText"></div>
+    <button class="joke-enter" id="jokeEnterBtn" onclick="dismissJokeSplash()">Enter dashboard →</button>
+  </div>
+</div>
 
 <!-- PWA Install Banner (iOS Safari only) -->
 <div id="pwa-banner">
@@ -294,7 +360,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
     <div class="logo">K<span>PI</span></div>
     <div class="subtitle">Karissa Performance Intelligence</div>
   </div>
-  <div class="header-right" style="display:flex;align-items:center;gap:14px;"><span>Week Ending &nbsp;<strong id="week-ending-val">2026-03-09</strong><span id="freshness-badge"></span></span><button class="view-toggle-btn" id="viewToggleBtn" onclick="toggleViewMode()">⤡ Deep Dive</button></div>
+  <div class="header-right" style="display:flex;align-items:center;gap:14px;"><span>Week Ending &nbsp;<strong id="week-ending-val">2026-03-09</strong><span id="freshness-badge"></span></span><button class="view-toggle-btn" id="viewToggleBtn" onclick="toggleViewMode()" aria-controls="locCardsGrid" aria-expanded="false">⤡ Deep Dive</button></div>
 </header>
 
 <!-- Morning Brief Strip -->
@@ -1330,9 +1396,11 @@ function updateViewToggleBtn() {
   if (viewMode === 'deep') {
     btn.textContent = '↑ Focus View';
     btn.classList.add('deep-active');
+    btn.setAttribute('aria-expanded', 'true');
   } else {
     btn.innerHTML = '⤡&nbsp;Deep Dive';
     btn.classList.remove('deep-active');
+    btn.setAttribute('aria-expanded', 'false');
   }
   const ctx = document.getElementById('locCardsContext');
   if (ctx) ctx.textContent = viewMode === 'deep' ? 'Deep Dive' : 'Focus View';
@@ -1422,7 +1490,7 @@ function renderLocCards() {
     var deltaTxt = (deltaS >= 0 ? '+' : '') + deltaPct.toFixed(1) + '% vs last wk';
 
     var expandedHtml = '';
-    if (isExpanded) {
+    {
       var deltaH  = loc.delta_h;
       var deltaG  = loc.delta_g;
       var deltaP  = loc.delta_p;
@@ -1443,11 +1511,11 @@ function renderLocCards() {
         + '<div class="loc-fc-spark-label">12-week sales trend</div>';
     }
 
-    return '<div class="loc-fc status-' + indicator + (isExpanded ? ' expanded' : '') + '" data-locname="' + loc.name.replace(/"/g, '&quot;') + '" onclick="toggleLocCard(this.dataset.locname)">'
-      + '<div class="loc-fc-head"><div><div class="loc-fc-name">' + loc.name + '</div><div class="loc-fc-plat">' + loc.plat.replace('_',' ') + '</div></div><span class="loc-fc-chevron">▼</span></div>'
+    return '<div class="loc-fc status-' + indicator + (isExpanded ? ' expanded' : '') + '" data-locname="' + loc.name.replace(/"/g, '&quot;') + '" onclick="toggleLocCard(this.dataset.locname)" aria-expanded="' + isExpanded + '">'
+      + '<div class="loc-fc-head"><div><div class="loc-fc-name">' + loc.name + '</div><div class="loc-fc-plat">' + loc.plat.replace('_',' ') + '</div></div><span class="loc-fc-chevron" aria-hidden="true">▼</span></div>'
       + '<div class="loc-fc-rev"><span class="loc-fc-rev-val">$' + Math.round(loc.sales).toLocaleString() + '</span><span class="loc-fc-rev-delta ' + deltaDir + '">' + deltaTxt + '</span></div>'
       + '<div class="loc-fc-status-line ' + status.color + '">' + status.text + '</div>'
-      + '<div class="loc-fc-expanded-body">' + expandedHtml + '</div>'
+      + '<div class="loc-fc-expanded-body"><div class="loc-fc-expanded-inner">' + expandedHtml + '</div></div>'
       + '</div>';
   }).join('');
 
@@ -1492,10 +1560,85 @@ function dismissPwaBanner() {
   var diffDays = (new Date() - weekDate) / 86400000;
   var badge = document.getElementById('freshness-badge');
   if (!badge) return;
+  var weekDateStr = el.textContent.trim();
   badge.innerHTML = diffDays <= 7
-    ? '<span class="freshness-badge badge-live"><span class="badge-dot dot-live"></span>Live</span>'
-    : '<span class="freshness-badge badge-stale"><span class="badge-dot dot-stale"></span>Stale</span>';
+    ? '<span class="freshness-badge badge-live" title="Data is current"><span class="badge-dot dot-live"></span>Live</span>'
+    : '<span class="freshness-badge badge-stale" title="Last refreshed ' + weekDateStr + '. Auto-refresh coming soon." style="cursor:help"><span class="badge-dot dot-stale"></span>Stale</span>';
 })();
+/* ══════════════════════════════════════════════════════
+   DAD JOKE SPLASH — Owner / Karissa view only
+   Phase 2: gate this behind persona/login detection.
+   Currently shows on every dashboard load (first session visit only).
+   Jess / Jenn / Manager views will suppress via persona flag.
+══════════════════════════════════════════════════════ */
+(function initJokeSplash() {
+  var splash = document.getElementById('joke-splash');
+  if (!splash) return;
+
+  // Skip if already seen this session
+  if (sessionStorage.getItem('kpi_joke_seen')) {
+    splash.style.display = 'none';
+    return;
+  }
+
+  var JOKES = [
+    { setup: "Why did the salon owner bring a spreadsheet to the barber?",   punchline: "She wanted to cut costs." },
+    { setup: "What did the stylist say when she hit her weekly revenue goal?", punchline: "I'm having a great hair day." },
+    { setup: "What do you call a stylist who always hits her targets?",        punchline: "A cut above." },
+    { setup: "Why don't salon managers ever get lost?",                        punchline: "They always follow the highlights." },
+    { setup: "Why do salon managers make great poker players?",                punchline: "They always know when to fold." },
+    { setup: "What's a salon owner's favorite kind of data?",                  punchline: "The kind that doesn't need a trim." },
+    { setup: "Why did the coach cancel the Monday call?",                      punchline: "The numbers already said everything." },
+  ];
+
+  var REACTIONS = {
+    groan: "Classic. We'll keep trying.",
+    meh:   "Fair. Monday bar is low.",
+    laugh: "We'll take it. Have a great week."
+  };
+
+  // Day-of-week joke
+  var joke = JOKES[new Date().getDay() % 7];
+  document.getElementById('jokeSetup').textContent     = joke.setup;
+  document.getElementById('jokePunchline').textContent = joke.punchline;
+
+  // Time-aware greeting
+  var hour = new Date().getHours();
+  var salutation = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('jokeGreeting').textContent = salutation + ', Karissa.';
+
+  // Reveal punchline
+  window.revealPunchline = function() {
+    document.getElementById('jokeShowBtn').style.display = 'none';
+    requestAnimationFrame(function() {
+      document.getElementById('jokePunchline').classList.add('visible');
+      setTimeout(function() {
+        document.getElementById('jokeReactions').classList.add('visible');
+        document.getElementById('jokeEnterBtn').classList.add('visible');
+      }, 200);
+    });
+  };
+
+  // Reaction buttons
+  window.reactToJoke = function(type) {
+    ['groan','meh','laugh'].forEach(function(t) {
+      document.getElementById('react-' + t).classList.remove('selected');
+    });
+    document.getElementById('react-' + type).classList.add('selected');
+    var txt = document.getElementById('jokeReactionText');
+    txt.textContent = REACTIONS[type];
+    txt.classList.add('visible');
+  };
+
+  // Dismiss — works for both Skip and Enter
+  window.dismissJokeSplash = function() {
+    sessionStorage.setItem('kpi_joke_seen', 'true');
+    var el = document.getElementById('joke-splash');
+    el.classList.add('hiding');
+    setTimeout(function() { el.style.display = 'none'; }, 310);
+  };
+})();
+
 /* ── PWA: Service Worker ── */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
