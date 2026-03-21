@@ -1,4 +1,3 @@
-<html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -322,6 +321,72 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 .joke-skip{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:#B0BEC5;cursor:pointer;line-height:1}
 .joke-skip:hover{color:#7A8BA0}
 .joke-footer{font-size:11px;color:#B0BEC5;margin-top:4px}
+.joke-divider{height:1px;background:#E8ECF0;margin:16px 0;display:none}
+#joke-affirmation-wrap{transition:opacity .4s ease;opacity:0}
+.joke-affirmation{font-size:15px;font-weight:600;color:#1E3A5F;line-height:1.5;margin-bottom:14px;font-style:italic}
+.joke-enter-btn{background:#4A90D9;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+.joke-enter-btn:hover{background:#357abd}
+
+/* ═══ STYLIST INTELLIGENCE — COACHING PAGE ═══ */
+#tab-coaching .main{padding:20px}
+.si-coaching-list-header{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7A8BA0;margin-bottom:10px}
+.si-coaching-list-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+.si-cl-item{display:flex;flex-direction:column;align-items:center;gap:3px;background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:12px 16px;min-width:90px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.si-cl-item:hover{border-color:#4A90D9;box-shadow:0 2px 8px rgba(74,144,217,.15)}
+.si-cl-item.active{border-color:#1E3A5F;background:#EBF2FF}
+.si-cl-icon{font-size:18px;line-height:1}
+.si-cl-count{font-size:22px;font-weight:700;color:#1E3A5F;line-height:1}
+.si-cl-label{font-size:11px;font-weight:600;color:#7A8BA0;text-align:center;line-height:1.3}
+.si-filter-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+.si-filter-group{display:flex;flex-direction:column;gap:4px}
+.si-filter-label{font-size:11px;font-weight:600;color:#7A8BA0;text-transform:uppercase;letter-spacing:.4px}
+.si-filter-select{border:1px solid #E2E8F0;border-radius:6px;padding:7px 10px;font-size:13px;color:#1E3A5F;background:#fff;cursor:pointer;min-width:160px}
+.si-filter-select:focus{outline:none;border-color:#4A90D9}
+.si-clear-btn{background:none;border:1px solid #E2E8F0;border-radius:6px;padding:7px 12px;font-size:12px;color:#7A8BA0;cursor:pointer;transition:color .15s,border-color .15s;align-self:flex-end}
+.si-clear-btn:hover{color:#E53E3E;border-color:#E53E3E}
+.si-sort-row{display:flex;gap:8px;margin-bottom:16px}
+.si-sort-pill{background:#F7F9FC;border:1px solid #E2E8F0;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#7A8BA0;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.si-sort-pill:hover{background:#EBF2FF;border-color:#4A90D9;color:#1E3A5F}
+.si-sort-pill.active{background:#1E3A5F;border-color:#1E3A5F;color:#fff}
+.si-chips-row{display:flex;gap:8px;flex-wrap:wrap;min-height:0;margin-bottom:8px}
+.si-chip{display:inline-flex;align-items:center;gap:5px;background:#EBF2FF;border:1px solid #4A90D9;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:#1E3A5F;cursor:pointer;transition:background .15s}
+.si-chip:hover{background:#DBEAFE}
+.si-cap-notice{background:#FFF3CD;border:1px solid #FBBF24;border-radius:6px;padding:8px 14px;font-size:12px;color:#92400E;margin-bottom:12px}
+.si-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.si-card{background:#fff;border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;transition:box-shadow .15s}
+.si-card:hover{box-shadow:0 4px 16px rgba(30,58,95,.08)}
+.si-card-highlight{box-shadow:0 0 0 3px #4A90D9!important;animation:siPulse .6s ease}
+@keyframes siPulse{0%,100%{box-shadow:0 0 0 3px #4A90D9}50%{box-shadow:0 0 0 6px rgba(74,144,217,.4)}}
+.si-card-header{display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;background:#F7F9FC;border-bottom:1px solid #E2E8F0;flex-wrap:wrap}
+.si-card-name{font-size:14px;font-weight:700;color:#1E3A5F;flex:1;min-width:100px}
+.si-card-loc{font-size:11px;color:#7A8BA0;white-space:nowrap}
+.si-focus-badge{font-size:11px;font-weight:600;border-radius:20px;padding:3px 8px;white-space:nowrap}
+.si-card-chevron{font-size:10px;color:#7A8BA0;margin-left:4px;transition:transform .2s}
+.si-card-metrics{display:flex;gap:0;padding:12px 16px;border-bottom:1px solid #E2E8F0;align-items:center}
+.si-metric{display:flex;flex-direction:column;gap:2px;flex:1}
+.si-metric-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#7A8BA0}
+.si-metric-value{font-size:16px;font-weight:700;color:#1E3A5F}
+.si-metric-trend{font-size:11px;font-weight:600}
+.si-trend-up{color:#38A169}
+.si-trend-down{color:#E53E3E}
+.si-sparkline-cell{flex:0 0 auto;align-items:center;justify-content:flex-end}
+.si-card-expand{padding:14px 16px;background:#FAFBFF;transition:opacity .25s ease}
+.si-intel-row{margin-bottom:10px}
+.si-intel-row:last-child{margin-bottom:0}
+.si-intel-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7A8BA0;margin-bottom:3px}
+.si-intel-text{font-size:13px;color:#2D3748;line-height:1.5}
+.si-empty-state{text-align:center;padding:48px 24px;color:#7A8BA0;font-size:14px}
+.si-clear-btn-inline{background:none;border:none;color:#4A90D9;cursor:pointer;font-size:14px;text-decoration:underline}
+.si-show-more{text-align:center;padding:16px;color:#4A90D9;cursor:pointer;font-size:13px;font-weight:600;border:1px dashed #E2E8F0;border-radius:6px;margin-top:8px;background:none;width:100%}
+.si-show-more:hover{background:#EBF2FF}
+.si-plt-badge{font-size:10px;font-weight:600;border-radius:4px;padding:2px 6px;background:#F7F9FC;color:#7A8BA0;border:1px solid #E2E8F0}
+@media(max-width:600px){
+  .si-cl-item{min-width:70px;padding:10px 12px}
+  .si-cl-count{font-size:18px}
+  .si-grid{grid-template-columns:1fr}
+  .si-filter-row{flex-direction:column}
+  .si-filter-select{min-width:100%}
+}
 </style>
 </head>
 <body>
@@ -336,6 +401,11 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
     <div class="joke-punchline" id="joke-punchline"></div>
     <div class="joke-reactions" id="joke-reactions"></div>
     <div class="joke-footer" id="joke-footer"></div>
+    <div class="joke-divider" id="joke-divider"></div>
+    <div id="joke-affirmation-wrap" style="display:none;opacity:0">
+      <div class="joke-affirmation" id="joke-affirmation"></div>
+      <button class="joke-enter-btn" onclick="dismissJokeSplash()">Let's go 💪</button>
+    </div>
   </div>
 </div>
 
@@ -365,6 +435,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 <div class="tab-switcher">
   <button class="tab-btn active" id="tab-btn-locations" onclick="switchTab('locations')">📍 Locations</button>
   <button class="tab-btn" id="tab-btn-stylists" onclick="switchTab('stylists')">✂️ Stylists</button>
+  <button class="tab-btn" id="tab-btn-coaching" onclick="switchTab('coaching')">🎯 Coaching</button>
 </div>
 
 <!-- ═══ LOCATIONS TAB ═══ -->
@@ -438,6 +509,16 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
       <div class="chart-container"><canvas id="rebookLocChart"></canvas></div>
     </div>
   </div>
+</main>
+
+<!-- ═══ COACHING TAB ═══ -->
+<div class="tab-panel" id="tab-coaching">
+<main class="main">
+  <div class="si-coaching-list" id="siCoachingList"></div>
+  <div class="si-filter-bar" id="siFilterBar"></div>
+  <div class="si-chips-row" id="siChipsRow"></div>
+  <div class="si-cap-notice" id="siCapNotice" style="display:none"></div>
+  <div class="si-grid" id="siGrid"></div>
 </main>
 </div>
 
@@ -768,6 +849,16 @@ function switchTab(tab) {
   }
   if (tab === 'locations' && !chartRegistry['main_sales']) {
     setTimeout(buildMainCharts, 50);
+  }
+  if (tab === 'coaching') {
+    setTimeout(function() {
+      if (typeof renderCoachingPage === 'function') {
+        renderCoachingPage();
+      } else {
+        var grid = document.getElementById('siGrid');
+        if (grid) grid.innerHTML = '<div style="padding:24px;color:#c0392b;font-size:13px">renderCoachingPage not loaded — check browser console</div>';
+      }
+    }, 50);
   }
 }
 
@@ -1736,6 +1827,16 @@ function dismissPwaBanner() {
     { day: 6, label: 'Saturday Special',  setup: "What do you call cheese that isn't yours?",           punchline: 'Nacho cheese.' },
   ];
   var REACTIONS = { '\uD83D\uDE02': 'LOL', '\uD83D\uDE44': 'Rough', '\uD83D\uDC4F': 'Nice', '\uD83E\uDD26': 'Dad...' };
+  var AFFIRMATIONS = [
+    "You don't manage people — you develop them. That's the difference.",
+    "Data tells you what. Your leadership tells them why it matters.",
+    "Every stylist at their best is because someone believed in them first.",
+    "The standard you set on Monday sets the tone for the whole week.",
+    "Consistency compounds. Keep showing up for your team.",
+    "Numbers on a screen don't build trust — your presence does.",
+    "Great coaches don't have all the answers. They ask better questions."
+  ];
+  var todaysAffirmation = AFFIRMATIONS[new Date().getDay() % AFFIRMATIONS.length];
 
   if (sessionStorage.getItem('kpi_joke_seen')) return;
 
@@ -1770,8 +1871,19 @@ function dismissPwaBanner() {
     document.querySelectorAll('.joke-reaction-btn').forEach(function(b) { b.classList.remove('selected'); });
     var sel = document.querySelector('.joke-reaction-btn[data-emoji="' + emoji + '"]');
     if (sel) sel.classList.add('selected');
-    document.getElementById('joke-footer').textContent = 'Nice taste. Loading your dashboard\u2026';
-    setTimeout(function() { dismissJokeSplash(); }, 900);
+    document.getElementById('joke-footer').textContent = '';
+    // Reveal affirmation
+    var divider = document.getElementById('joke-divider');
+    var affWrap = document.getElementById('joke-affirmation-wrap');
+    var affText = document.getElementById('joke-affirmation');
+    if (affText) affText.textContent = '\u201C' + todaysAffirmation + '\u201D';
+    if (divider) divider.style.display = 'block';
+    if (affWrap) {
+      affWrap.style.display = 'block';
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { affWrap.style.opacity = '1'; });
+      });
+    }
   };
 
   window.dismissJokeSplash = function() {
@@ -1780,6 +1892,533 @@ function dismissPwaBanner() {
     sessionStorage.setItem('kpi_joke_seen', '1');
   };
 })();
+
+/* ═══════════════════════════════════════════════════════
+   STYLIST INTELLIGENCE — DATA
+═══════════════════════════════════════════════════════ */
+const COACH_DATA = [{"id":"z001_01","fn":"Katelyn","ln":"Moore","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2025-07-18","tm":7.7,"pph":[39.5,41.3,39.5,36.5,40.5,39.2,39.3,40.0,40.3,42.3,41.2,40.0],"rb":[0.18,0.17,0.21,0.24,0.2,0.2,0.22,0.16,0.19,0.21,0.23,0.19],"pp":[17.7,17.5,18.2,15.8,17.9,15.2,13.8,16.4,16.0,18.3,18.1,15.6]},{"id":"z001_02","fn":"Tiffany","ln":"Gonzalez","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2024-08-17","tm":18.7,"pph":[42.7,41.1,40.7,33.4,42.5,36.3,38.0,41.4,40.4,38.6,37.7,42.3],"rb":[0.19,0.16,0.24,0.22,0.18,0.2,0.18,0.21,0.24,0.18,0.21,0.23],"pp":[17.3,16.8,18.2,15.1,16.8,17.5,18.6,16.3,17.0,16.3,14.5,17.2]},{"id":"z001_03","fn":"Cassidy","ln":"Wright","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2024-11-26","tm":15.4,"pph":[42.1,42.5,36.2,38.9,37.1,41.0,34.9,45.5,41.4,41.7,39.9,35.4],"rb":[0.21,0.21,0.18,0.16,0.17,0.23,0.18,0.2,0.13,0.18,0.19,0.19],"pp":[18.8,15.8,17.3,16.0,17.0,17.9,19.3,17.2,16.5,13.8,17.3,15.7]},{"id":"z001_04","fn":"Morgan","ln":"Ross","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2023-01-17","tm":37.7,"pph":[49.7,49.4,53.8,54.7,48.0,50.7,51.6,51.7,51.5,52.1,55.8,49.7],"rb":[0.26,0.23,0.31,0.27,0.26,0.25,0.24,0.25,0.25,0.2,0.27,0.27],"pp":[18.6,19.3,20.6,18.6,20.0,21.2,19.5,18.7,18.0,23.5,18.8,18.5]},{"id":"z001_05","fn":"Courtney","ln":"King","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2024-11-29","tm":15.3,"pph":[44.7,46.3,43.0,43.5,44.5,45.2,43.3,41.1,43.8,35.6,37.4,34.5],"rb":[0.19,0.18,0.25,0.25,0.17,0.19,0.21,0.15,0.19,0.18,0.12,0.14],"pp":[15.1,17.6,15.5,13.9,18.3,18.0,15.8,19.4,17.2,18.0,15.9,17.6]},{"id":"z001_06","fn":"Hannah","ln":"Wright","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2025-03-09","tm":12.0,"pph":[33.9,30.7,33.6,29.7,39.8,34.4,34.8,26.8,35.6,29.9,33.1,34.0],"rb":[0.15,0.17,0.17,0.15,0.17,0.14,0.15,0.11,0.1,0.18,0.18,0.14],"pp":[14.6,14.1,13.8,18.1,13.4,14.0,14.8,14.3,13.5,14.0,15.2,14.2]},{"id":"z001_07","fn":"Vanessa","ln":"Miller","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2023-08-03","tm":31.2,"pph":[32.6,32.1,33.2,30.1,34.5,30.8,31.2,31.5,34.6,33.4,30.0,31.0],"rb":[0.14,0.19,0.13,0.17,0.17,0.18,0.1,0.16,0.15,0.14,0.12,0.12],"pp":[16.1,15.7,14.1,14.8,14.5,15.2,14.8,15.9,13.3,15.4,13.6,18.3]},{"id":"z001_08","fn":"Cassidy","ln":"Green","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2026-02-22","tm":0.5,"pph":[31.0,28.5,27.5,25.8,30.9,31.0,32.4,31.9,29.8,35.0,33.5,34.2],"rb":[0.14,0.13,0.1,0.16,0.16,0.14,0.13,0.16,0.2,0.15,0.14,0.13],"pp":[17.1,15.6,17.0,17.3,19.6,18.4,18.5,16.3,18.1,15.7,17.6,17.7]},{"id":"z001_09","fn":"Nicole","ln":"Walker","lc":"z001","loc":"Andover FS","plt":"zenoti","hd":"2022-07-09","tm":44.0,"pph":[37.4,32.0,37.4,35.3,36.2,37.2,37.0,31.7,35.5,41.7,44.7,48.0],"rb":[0.25,0.14,0.22,0.14,0.25,0.21,0.17,0.26,0.22,0.14,0.21,0.18],"pp":[17.3,16.6,19.0,15.3,17.6,19.6,16.1,17.5,17.5,16.3,18.0,17.3]},{"id":"z002_01","fn":"Lauren","ln":"Martinez","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2020-12-08","tm":63.0,"pph":[36.6,34.5,33.5,33.1,37.6,34.5,35.9,34.5,36.2,34.6,36.6,34.5],"rb":[0.42,0.42,0.4,0.37,0.37,0.38,0.37,0.43,0.4,0.45,0.47,0.4],"pp":[12.9,14.4,14.8,13.0,14.6,15.3,14.3,13.9,13.9,17.2,14.7,13.8]},{"id":"z002_02","fn":"Nicole","ln":"Reed","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2023-06-09","tm":33.0,"pph":[33.4,35.9,36.5,36.5,37.9,33.7,37.4,33.1,34.0,37.5,36.7,34.9],"rb":[0.36,0.42,0.38,0.37,0.38,0.41,0.34,0.41,0.41,0.38,0.43,0.42],"pp":[14.1,14.0,15.8,12.9,14.5,14.1,15.0,15.2,14.9,16.4,15.2,14.5]},{"id":"z002_03","fn":"Amber","ln":"Ross","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2022-07-09","tm":44.0,"pph":[34.4,32.7,33.9,35.6,33.1,30.6,37.8,31.3,35.1,33.3,36.0,31.7],"rb":[0.36,0.41,0.41,0.39,0.42,0.42,0.36,0.39,0.38,0.45,0.35,0.42],"pp":[16.0,14.0,16.1,14.1,16.3,17.1,12.8,15.6,15.5,14.0,15.2,13.4]},{"id":"z002_04","fn":"Megan","ln":"Martinez","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2022-04-09","tm":47.0,"pph":[45.0,43.8,42.9,49.3,46.4,45.9,44.4,46.2,45.8,47.6,44.1,47.5],"rb":[0.55,0.52,0.46,0.53,0.51,0.5,0.53,0.47,0.43,0.51,0.49,0.53],"pp":[18.9,15.4,14.9,16.5,17.8,14.3,16.0,17.1,15.7,17.1,15.9,15.0]},{"id":"z002_05","fn":"Haley","ln":"Thomas","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2022-04-09","tm":47.0,"pph":[44.7,36.3,34.6,38.2,36.5,37.5,41.3,38.3,36.0,31.9,30.7,30.7],"rb":[0.37,0.41,0.42,0.38,0.43,0.39,0.42,0.37,0.38,0.35,0.37,0.32],"pp":[17.9,16.3,15.2,15.0,14.9,17.4,14.2,14.2,14.3,15.0,16.3,14.4]},{"id":"z002_06","fn":"Caitlin","ln":"Walker","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2025-05-27","tm":9.4,"pph":[25.0,25.6,31.0,30.6,28.9,27.7,29.8,28.2,25.5,22.9,25.1,30.0],"rb":[0.33,0.31,0.28,0.28,0.3,0.23,0.28,0.28,0.34,0.28,0.27,0.31],"pp":[11.8,13.9,11.4,14.9,13.1,12.3,14.6,12.4,13.8,11.0,10.9,13.6]},{"id":"z002_07","fn":"Cassidy","ln":"Martinez","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2024-03-18","tm":23.7,"pph":[31.2,26.1,23.9,28.8,26.3,26.8,28.0,33.0,27.5,30.3,27.9,25.0],"rb":[0.27,0.26,0.26,0.29,0.26,0.29,0.29,0.31,0.24,0.25,0.25,0.28],"pp":[13.2,13.7,11.4,13.7,12.9,14.3,12.5,11.4,13.9,12.9,12.0,13.4]},{"id":"z002_08","fn":"Paige","ln":"Nelson","lc":"z002","loc":"Blaine","plt":"zenoti","hd":"2026-02-01","tm":1.2,"pph":[24.6,25.8,29.3,26.4,25.1,28.4,25.9,28.0,26.2,26.4,29.9,26.5],"rb":[0.3,0.29,0.3,0.28,0.26,0.28,0.23,0.26,0.32,0.28,0.29,0.32],"pp":[14.7,14.2,15.3,15.0,14.1,17.9,13.5,13.2,15.1,15.0,14.6,16.3]},{"id":"z003_01","fn":"Lauren","ln":"Jackson","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2020-05-18","tm":69.7,"pph":[37.9,42.4,38.6,38.5,35.1,38.1,37.5,36.8,40.0,33.0,39.4,38.8],"rb":[0.27,0.29,0.27,0.28,0.3,0.27,0.32,0.29,0.27,0.28,0.29,0.3],"pp":[19.3,18.6,18.8,16.9,18.7,19.2,18.8,20.3,19.4,19.8,18.2,17.3]},{"id":"z003_02","fn":"Brooke","ln":"Martin","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2024-02-07","tm":25.0,"pph":[37.1,42.3,39.4,38.7,37.6,41.9,34.6,35.9,38.3,39.0,38.2,39.2],"rb":[0.3,0.32,0.35,0.32,0.25,0.27,0.33,0.28,0.27,0.3,0.28,0.31],"pp":[17.3,18.4,16.5,17.1,18.5,16.9,19.6,18.9,17.5,16.4,18.5,18.6]},{"id":"z003_03","fn":"Summer","ln":"Cook","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2021-03-03","tm":60.2,"pph":[34.7,36.3,39.2,40.4,36.3,38.6,40.3,37.9,40.3,32.7,35.8,38.4],"rb":[0.29,0.31,0.32,0.33,0.26,0.3,0.26,0.33,0.31,0.3,0.3,0.31],"pp":[19.1,16.1,18.7,18.6,19.7,17.6,20.2,19.2,17.6,17.6,18.3,18.9]},{"id":"z003_04","fn":"Hannah","ln":"Baker","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2024-12-20","tm":14.6,"pph":[36.9,42.4,37.5,38.0,35.3,35.1,37.5,36.2,40.2,38.2,38.7,42.2],"rb":[0.36,0.35,0.29,0.29,0.32,0.29,0.29,0.27,0.27,0.3,0.28,0.3],"pp":[19.3,20.3,18.7,18.0,20.7,19.7,19.4,17.8,18.9,17.7,20.8,18.7]},{"id":"z003_05","fn":"Chloe","ln":"Nelson","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2019-03-13","tm":83.9,"pph":[48.1,49.5,47.4,48.9,46.8,48.5,47.5,49.9,50.7,52.5,47.9,48.7],"rb":[0.38,0.37,0.37,0.33,0.39,0.35,0.35,0.33,0.41,0.37,0.41,0.38],"pp":[19.1,19.9,22.3,20.3,19.9,21.1,21.1,20.0,20.9,20.7,18.0,22.0]},{"id":"z003_06","fn":"Lauren","ln":"Mitchell","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2022-10-24","tm":40.5,"pph":[40.0,39.0,45.1,39.0,41.1,43.8,41.8,36.8,38.7,35.8,36.9,33.3],"rb":[0.39,0.25,0.3,0.27,0.33,0.32,0.32,0.28,0.26,0.2,0.3,0.24],"pp":[18.4,19.9,19.7,20.0,16.6,17.8,19.0,19.2,19.9,17.4,18.9,21.6]},{"id":"z003_07","fn":"Amanda","ln":"Martin","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2024-08-14","tm":18.8,"pph":[30.3,32.1,34.4,30.6,33.1,28.5,31.7,32.4,28.7,32.8,28.9,28.6],"rb":[0.22,0.27,0.23,0.24,0.19,0.22,0.18,0.2,0.24,0.21,0.26,0.21],"pp":[15.8,17.7,15.2,14.1,17.8,16.6,13.3,16.1,15.6,18.4,15.1,15.3]},{"id":"z003_08","fn":"Katelyn","ln":"White","lc":"z003","loc":"Crystal FS","plt":"zenoti","hd":"2026-01-17","tm":1.7,"pph":[27.3,25.7,26.6,25.3,25.6,25.4,27.7,27.4,26.2,31.7,32.4,33.3],"rb":[0.21,0.28,0.24,0.24,0.15,0.21,0.16,0.22,0.24,0.21,0.24,0.2],"pp":[19.4,16.7,18.4,19.2,19.4,18.5,21.2,18.2,18.1,15.1,21.0,18.2]},{"id":"z004_01","fn":"Tiffany","ln":"Miller","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2021-05-03","tm":58.2,"pph":[56.4,53.9,50.6,54.6,52.3,51.1,56.0,49.0,55.0,54.7,58.2,54.4],"rb":[0.44,0.47,0.5,0.51,0.53,0.44,0.49,0.53,0.55,0.56,0.49,0.53],"pp":[21.4,20.8,20.1,20.3,18.2,17.3,20.5,18.7,19.2,18.4,18.7,19.5]},{"id":"z004_02","fn":"Lindsey","ln":"Mitchell","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2023-06-12","tm":32.9,"pph":[54.3,53.5,52.1,55.4,57.8,52.4,56.4,55.7,47.9,52.0,52.3,55.4],"rb":[0.51,0.51,0.52,0.47,0.48,0.46,0.49,0.5,0.51,0.48,0.53,0.53],"pp":[21.2,20.1,19.4,20.1,20.0,18.4,20.9,21.4,21.8,19.2,19.6,19.7]},{"id":"z004_03","fn":"Caitlin","ln":"Jackson","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2025-01-29","tm":13.3,"pph":[54.5,52.8,51.3,56.7,53.4,53.5,53.6,54.9,52.8,54.2,55.9,54.6],"rb":[0.47,0.53,0.48,0.51,0.46,0.47,0.54,0.48,0.49,0.54,0.61,0.52],"pp":[20.0,18.1,20.8,20.5,16.6,20.2,18.9,19.9,20.5,20.5,17.4,18.2]},{"id":"z004_04","fn":"Crystal","ln":"Carter","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2021-10-08","tm":53.0,"pph":[66.9,70.7,72.6,71.8,71.7,67.3,70.2,66.3,70.3,72.2,70.1,71.8],"rb":[0.6,0.63,0.65,0.64,0.61,0.6,0.65,0.65,0.65,0.65,0.64,0.63],"pp":[21.7,19.5,20.3,21.3,20.8,21.4,22.8,22.7,20.8,20.0,23.3,20.4]},{"id":"z004_05","fn":"Rachel","ln":"Carter","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2024-03-18","tm":23.7,"pph":[60.9,60.4,60.3,60.9,60.0,57.2,57.8,56.4,54.4,54.1,47.9,49.6],"rb":[0.5,0.46,0.48,0.47,0.47,0.47,0.5,0.49,0.47,0.51,0.47,0.41],"pp":[19.5,19.9,18.9,18.8,19.0,15.7,20.5,20.1,18.2,20.2,19.8,20.1]},{"id":"z004_06","fn":"Danielle","ln":"Gonzalez","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2024-04-05","tm":23.1,"pph":[43.9,42.1,43.0,42.3,45.0,44.1,40.3,44.3,41.7,43.8,40.9,42.8],"rb":[0.39,0.39,0.33,0.34,0.35,0.38,0.37,0.36,0.38,0.43,0.37,0.31],"pp":[16.4,17.1,15.1,16.5,17.6,17.7,16.7,18.2,15.9,15.5,14.8,17.8]},{"id":"z004_07","fn":"Melissa","ln":"Smith","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2026-01-26","tm":1.4,"pph":[42.5,41.7,38.8,41.8,39.7,39.4,36.1,44.0,43.3,47.3,41.2,47.1],"rb":[0.36,0.4,0.41,0.4,0.37,0.39,0.41,0.34,0.39,0.43,0.42,0.4],"pp":[18.4,19.0,19.4,18.0,21.0,18.7,19.6,19.7,19.2,20.0,20.5,21.0]},{"id":"z004_08","fn":"Taylor","ln":"Jackson","lc":"z004","loc":"Elk River FS","plt":"zenoti","hd":"2022-05-06","tm":46.1,"pph":[47.2,47.1,46.2,47.7,47.0,44.7,44.9,43.8,48.2,57.9,53.6,58.6],"rb":[0.46,0.51,0.51,0.46,0.49,0.51,0.49,0.5,0.48,0.52,0.45,0.43],"pp":[20.7,20.1,17.9,20.3,21.2,18.6,22.0,19.9,18.4,18.8,18.0,18.3]},{"id":"z005_01","fn":"Ashley","ln":"King","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2025-02-13","tm":12.8,"pph":[44.1,41.3,41.9,39.9,43.2,43.9,40.3,43.4,41.2,42.3,41.2,43.8],"rb":[0.1,0.11,0.1,0.1,0.1,0.1,0.14,0.13,0.1,0.15,0.1,0.1],"pp":[13.8,12.2,12.4,12.6,11.0,15.8,12.6,11.8,10.5,11.3,12.5,14.2]},{"id":"z005_02","fn":"Lauren","ln":"Anderson","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2022-01-01","tm":50.2,"pph":[44.2,39.3,41.4,40.0,41.1,40.6,41.1,44.1,43.1,43.9,44.9,41.7],"rb":[0.1,0.12,0.15,0.13,0.14,0.13,0.13,0.1,0.13,0.11,0.1,0.1],"pp":[12.4,13.5,14.1,11.1,13.3,12.3,11.8,13.5,12.6,12.1,12.0,13.4]},{"id":"z005_03","fn":"Autumn","ln":"King","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2024-05-27","tm":21.4,"pph":[42.9,48.2,43.5,37.8,43.6,45.6,40.3,41.5,42.9,38.7,40.2,42.4],"rb":[0.11,0.12,0.1,0.1,0.13,0.11,0.1,0.15,0.1,0.1,0.11,0.11],"pp":[13.8,14.2,10.6,12.8,15.4,14.6,14.1,10.5,14.2,12.4,12.0,13.8]},{"id":"z005_04","fn":"Crystal","ln":"Miller","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2022-08-18","tm":42.7,"pph":[60.2,56.1,56.9,52.5,55.5,54.1,54.3,59.2,54.8,54.1,54.5,52.9],"rb":[0.14,0.13,0.12,0.18,0.1,0.11,0.11,0.12,0.12,0.15,0.15,0.13],"pp":[15.2,13.4,17.0,16.6,14.6,14.7,13.9,14.7,15.7,15.9,14.1,14.2]},{"id":"z005_05","fn":"Amber","ln":"Jackson","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2022-12-02","tm":39.2,"pph":[52.3,50.2,49.6,48.3,40.6,46.9,45.1,44.3,39.9,41.5,40.4,36.5],"rb":[0.15,0.11,0.1,0.14,0.1,0.1,0.1,0.1,0.12,0.1,0.1,0.1],"pp":[13.3,11.6,12.4,11.3,13.2,12.6,13.2,11.6,12.9,13.4,13.1,13.4]},{"id":"z005_06","fn":"Nicole","ln":"Scott","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2024-10-17","tm":16.7,"pph":[35.0,31.7,37.1,34.7,33.0,38.2,37.0,34.9,33.4,37.9,31.9,34.8],"rb":[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.11],"pp":[11.6,12.2,12.1,11.9,10.8,12.5,11.0,10.4,9.9,11.7,10.8,8.3]},{"id":"z005_07","fn":"Brianna","ln":"Hernandez","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2025-02-13","tm":12.8,"pph":[39.3,33.3,36.8,35.4,31.4,37.0,31.6,29.1,35.9,36.3,34.1,33.4],"rb":[0.12,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.11,0.1,0.1],"pp":[9.7,12.3,11.2,11.8,11.0,9.7,9.9,12.3,11.1,12.2,8.0,12.6]},{"id":"z005_08","fn":"Rachel","ln":"Bell","lc":"z005","loc":"Forest Lake","plt":"zenoti","hd":"2025-12-29","tm":2.3,"pph":[31.2,32.3,33.7,30.4,34.2,30.9,35.1,34.0,33.4,32.5,35.4,38.3],"rb":[0.1,0.1,0.1,0.1,0.11,0.1,0.1,0.1,0.1,0.1,0.11,0.12],"pp":[14.6,13.3,11.4,14.7,11.3,12.4,14.0,13.6,15.1,13.0,10.8,12.6]},{"id":"z006_01","fn":"Erica","ln":"Davis","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2024-12-29","tm":14.3,"pph":[40.7,41.8,38.4,41.6,43.9,44.0,38.3,40.1,41.2,39.9,36.6,41.0],"rb":[0.12,0.1,0.1,0.12,0.12,0.1,0.13,0.1,0.1,0.11,0.12,0.17],"pp":[15.7,17.8,15.6,15.6,14.9,14.7,15.3,15.6,14.0,14.0,14.5,18.5]},{"id":"z006_02","fn":"Brooke","ln":"Smith","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2025-03-27","tm":11.4,"pph":[44.6,39.8,40.9,42.5,38.3,39.7,45.6,41.9,38.0,40.1,40.5,42.6],"rb":[0.11,0.1,0.1,0.11,0.12,0.13,0.1,0.11,0.14,0.15,0.1,0.18],"pp":[15.3,17.1,16.1,14.4,16.8,16.6,17.0,17.0,16.3,16.3,18.4,15.1]},{"id":"z006_03","fn":"Amber","ln":"Thompson","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2020-05-24","tm":69.5,"pph":[44.3,38.7,44.3,39.6,41.5,42.2,43.5,41.0,42.9,39.3,42.9,42.2],"rb":[0.1,0.11,0.1,0.1,0.1,0.14,0.12,0.1,0.1,0.1,0.11,0.11],"pp":[15.9,17.2,15.7,16.2,17.6,16.5,15.3,16.8,14.9,16.9,13.7,15.3]},{"id":"z006_04","fn":"Brianna","ln":"Cook","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2021-04-30","tm":58.3,"pph":[54.0,54.1,48.8,58.0,51.4,52.6,55.2,55.7,52.8,53.7,56.7,54.2],"rb":[0.14,0.1,0.16,0.18,0.17,0.18,0.11,0.15,0.1,0.1,0.1,0.11],"pp":[16.7,18.1,16.9,17.7,19.4,18.4,19.3,19.1,17.3,20.8,19.5,16.9]},{"id":"z006_05","fn":"Alexis","ln":"Lopez","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2024-05-18","tm":21.7,"pph":[42.4,40.8,44.3,44.9,48.1,46.5,42.2,43.0,41.8,37.3,38.0,33.7],"rb":[0.1,0.1,0.11,0.13,0.1,0.12,0.11,0.13,0.1,0.1,0.1,0.1],"pp":[15.6,14.5,11.7,14.3,14.7,16.2,17.4,15.6,14.4,15.7,14.8,13.7]},{"id":"z006_06","fn":"Sierra","ln":"Rivera","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2023-09-17","tm":29.7,"pph":[32.6,35.4,34.5,32.4,31.3,37.8,36.6,32.4,31.9,29.6,30.3,33.0],"rb":[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.11,0.1,0.1],"pp":[14.3,13.6,15.4,12.9,13.7,12.9,14.2,12.8,12.8,13.4,15.4,15.1]},{"id":"z006_07","fn":"Megan","ln":"Thompson","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2025-09-20","tm":5.6,"pph":[34.1,31.9,32.9,33.8,31.6,35.0,32.3,31.7,38.8,31.5,34.6,35.5],"rb":[0.1,0.1,0.1,0.1,0.1,0.1,0.12,0.1,0.1,0.1,0.1,0.1],"pp":[16.6,14.4,11.6,15.0,14.1,13.6,14.9,11.8,14.6,15.8,14.5,13.0]},{"id":"z006_08","fn":"Brooke","ln":"Johnson","lc":"z006","loc":"Prior Lake","plt":"zenoti","hd":"2024-07-12","tm":19.9,"pph":[33.3,34.3,36.1,39.4,35.7,35.3,38.3,36.6,37.5,41.1,43.8,43.1],"rb":[0.1,0.1,0.1,0.1,0.1,0.12,0.1,0.1,0.1,0.1,0.1,0.12],"pp":[15.4,17.2,19.0,18.1,13.0,16.4,17.3,16.1,15.0,16.3,15.2,17.5]},{"id":"z007_01","fn":"Erica","ln":"Johnson","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2024-03-30","tm":23.3,"pph":[37.1,39.4,36.9,36.0,39.9,40.9,42.2,36.0,38.5,34.8,34.8,34.1],"rb":[0.19,0.22,0.23,0.19,0.11,0.23,0.17,0.23,0.24,0.17,0.22,0.15],"pp":[17.3,15.2,15.3,15.9,15.6,16.9,15.3,19.4,19.1,18.8,17.9,16.7]},{"id":"z007_02","fn":"Natasha","ln":"Taylor","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2024-10-11","tm":16.9,"pph":[39.6,36.2,36.6,35.0,33.4,38.5,37.4,38.4,39.7,39.8,35.5,37.0],"rb":[0.19,0.18,0.22,0.2,0.22,0.2,0.23,0.21,0.19,0.16,0.26,0.22],"pp":[18.7,17.1,17.0,18.0,18.4,18.6,16.8,13.9,15.3,19.1,14.4,18.1]},{"id":"z007_03","fn":"Crystal","ln":"Hall","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2025-03-31","tm":11.3,"pph":[42.5,37.1,41.0,41.4,43.2,42.8,37.2,38.8,42.3,37.6,38.4,32.0],"rb":[0.15,0.21,0.17,0.21,0.2,0.23,0.21,0.22,0.24,0.16,0.24,0.21],"pp":[14.9,15.2,17.9,16.6,18.8,17.9,15.4,17.8,17.9,16.5,18.5,17.6]},{"id":"z007_04","fn":"Natasha","ln":"Harris","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2020-07-15","tm":67.8,"pph":[49.8,48.4,51.2,49.5,52.0,48.1,46.2,47.8,50.2,48.1,54.1,45.1],"rb":[0.22,0.25,0.24,0.29,0.21,0.22,0.27,0.29,0.24,0.25,0.23,0.29],"pp":[18.4,20.7,19.2,18.4,19.4,20.4,18.7,19.4,20.0,22.1,20.5,20.7]},{"id":"z007_05","fn":"Ashley","ln":"Baker","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2023-11-02","tm":28.2,"pph":[40.3,44.0,41.4,43.7,42.2,43.4,40.6,41.2,34.4,35.4,36.3,32.8],"rb":[0.19,0.19,0.25,0.22,0.16,0.18,0.2,0.22,0.2,0.15,0.16,0.12],"pp":[18.0,19.2,17.2,15.0,18.9,16.2,16.8,15.9,17.3,18.3,16.9,18.6]},{"id":"z007_06","fn":"Cassidy","ln":"Lee","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2025-01-10","tm":13.9,"pph":[27.6,34.0,26.6,31.3,29.9,26.8,29.9,31.8,30.2,31.1,32.9,27.8],"rb":[0.18,0.15,0.1,0.12,0.14,0.16,0.15,0.18,0.15,0.18,0.17,0.13],"pp":[14.9,13.3,14.4,12.7,12.7,15.3,14.4,15.4,14.0,14.6,17.8,12.3]},{"id":"z007_07","fn":"Ashley","ln":"Green","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2026-02-19","tm":0.6,"pph":[32.0,24.6,27.1,25.7,25.4,31.2,29.4,32.4,31.6,30.9,30.4,36.6],"rb":[0.13,0.12,0.12,0.16,0.19,0.15,0.19,0.15,0.14,0.23,0.21,0.16],"pp":[16.1,15.1,17.7,16.9,17.8,17.6,17.8,18.7,17.6,16.3,16.2,18.0]},{"id":"z007_08","fn":"Heather","ln":"Wright","lc":"z007","loc":"Hudson","plt":"zenoti","hd":"2024-05-06","tm":22.1,"pph":[32.1,30.4,28.8,26.6,28.0,26.9,30.6,29.5,28.5,32.4,30.8,30.6],"rb":[0.16,0.18,0.1,0.17,0.1,0.12,0.17,0.16,0.16,0.15,0.19,0.1],"pp":[14.4,14.9,17.4,16.1,16.1,13.8,17.7,15.4,13.5,17.8,12.9,13.7]},{"id":"z008_01","fn":"Jasmine","ln":"Allen","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2020-07-30","tm":67.3,"pph":[41.3,44.9,38.3,40.4,41.0,39.7,39.5,44.6,43.0,38.9,45.4,43.9],"rb":[0.29,0.31,0.3,0.31,0.27,0.27,0.23,0.26,0.28,0.34,0.31,0.27],"pp":[18.2,19.6,17.4,18.6,16.9,17.3,18.2,16.9,18.0,18.5,17.9,19.3]},{"id":"z008_02","fn":"Katelyn","ln":"Taylor","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2021-08-14","tm":54.8,"pph":[41.8,43.1,44.1,42.2,41.1,43.5,43.1,43.2,39.5,43.1,41.8,42.5],"rb":[0.29,0.31,0.28,0.28,0.28,0.32,0.29,0.31,0.35,0.26,0.34,0.29],"pp":[18.6,19.1,18.7,18.8,17.5,18.0,16.8,18.5,17.5,18.1,18.0,19.0]},{"id":"z008_03","fn":"Katelyn","ln":"Hill","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2022-06-03","tm":45.2,"pph":[42.5,43.2,40.4,47.2,40.7,44.8,42.8,40.3,40.1,45.7,46.0,37.6],"rb":[0.32,0.32,0.32,0.29,0.27,0.37,0.32,0.3,0.29,0.27,0.28,0.29],"pp":[16.3,19.7,17.5,18.4,16.4,17.3,16.1,17.4,14.9,17.0,16.0,18.5]},{"id":"z008_04","fn":"Chelsea","ln":"Robinson","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2020-02-10","tm":72.9,"pph":[58.7,56.6,55.8,51.7,56.0,56.3,54.8,56.1,52.9,55.8,52.0,55.8],"rb":[0.34,0.36,0.43,0.35,0.37,0.38,0.42,0.37,0.39,0.34,0.39,0.37],"pp":[20.5,22.4,21.4,22.1,18.8,19.8,18.5,17.8,19.4,22.5,21.0,20.9]},{"id":"z008_05","fn":"Alyssa","ln":"Scott","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2022-08-12","tm":42.9,"pph":[43.7,45.7,47.3,49.0,43.6,47.6,46.4,43.6,45.2,40.5,37.1,41.1],"rb":[0.35,0.33,0.3,0.27,0.27,0.34,0.27,0.3,0.32,0.29,0.24,0.23],"pp":[20.0,18.6,19.2,18.2,19.8,19.5,19.9,17.1,16.4,17.8,17.3,19.2]},{"id":"z008_06","fn":"Whitney","ln":"Martin","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2023-09-24","tm":29.5,"pph":[32.8,32.7,32.5,31.9,33.4,29.2,31.5,34.5,35.3,33.8,33.1,37.1],"rb":[0.23,0.18,0.23,0.18,0.2,0.23,0.25,0.25,0.14,0.22,0.2,0.24],"pp":[15.0,15.9,14.6,16.6,16.4,17.2,16.4,12.7,13.8,14.4,15.1,16.4]},{"id":"z008_07","fn":"Brittany","ln":"Jackson","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2024-11-11","tm":15.9,"pph":[35.1,35.4,31.4,32.1,31.5,34.9,28.9,32.6,35.0,33.2,34.7,35.3],"rb":[0.24,0.27,0.17,0.18,0.25,0.21,0.23,0.24,0.18,0.2,0.19,0.23],"pp":[15.1,14.1,16.3,16.9,15.7,14.6,16.4,15.7,14.9,17.7,13.4,14.6]},{"id":"z008_08","fn":"Lindsey","ln":"Baker","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2026-01-23","tm":1.5,"pph":[30.5,31.3,25.6,30.3,28.5,31.1,32.2,29.7,32.5,36.1,35.4,34.3],"rb":[0.23,0.29,0.25,0.23,0.24,0.22,0.24,0.22,0.24,0.21,0.22,0.18],"pp":[19.1,16.6,16.4,18.8,18.5,15.7,18.6,16.4,16.3,17.6,19.8,21.1]},{"id":"z008_09","fn":"Rachel","ln":"Robinson","lc":"z008","loc":"New Richmond","plt":"zenoti","hd":"2023-08-12","tm":30.9,"pph":[40.9,37.6,41.7,36.0,40.8,41.1,37.7,38.8,39.7,45.4,43.7,44.9],"rb":[0.32,0.32,0.3,0.36,0.29,0.31,0.27,0.27,0.29,0.31,0.31,0.25],"pp":[16.2,19.2,17.1,15.5,16.6,18.4,15.7,16.7,18.3,17.5,19.8,17.7]},{"id":"z009_01","fn":"Savannah","ln":"Lee","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2021-01-04","tm":62.1,"pph":[44.3,41.5,47.7,42.8,41.7,43.7,43.1,46.3,46.6,46.8,44.8,39.1],"rb":[0.2,0.19,0.16,0.16,0.27,0.21,0.22,0.23,0.23,0.2,0.27,0.2],"pp":[16.3,14.8,17.4,13.6,16.5,16.2,17.2,16.5,15.2,15.2,14.0,14.0]},{"id":"z009_02","fn":"Summer","ln":"Martin","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2023-04-30","tm":34.3,"pph":[44.5,44.2,43.8,44.5,41.4,42.2,43.4,43.7,43.0,44.6,45.8,41.0],"rb":[0.18,0.2,0.25,0.23,0.22,0.22,0.19,0.23,0.22,0.14,0.17,0.16],"pp":[17.0,16.2,14.9,15.0,15.0,16.2,15.5,12.6,14.5,14.6,16.1,18.2]},{"id":"z009_03","fn":"Jessica","ln":"Moore","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2022-06-12","tm":44.9,"pph":[39.4,47.4,43.2,44.7,43.5,44.5,40.8,42.7,40.7,41.2,42.1,39.7],"rb":[0.19,0.18,0.16,0.2,0.2,0.17,0.26,0.22,0.23,0.19,0.23,0.22],"pp":[14.2,14.6,19.3,15.0,16.1,15.2,16.6,14.2,14.2,17.0,15.8,12.3]},{"id":"z009_04","fn":"Taylor","ln":"Smith","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2021-06-15","tm":56.8,"pph":[58.3,56.9,61.5,54.2,55.3,57.8,55.9,53.1,54.8,57.8,55.0,54.6],"rb":[0.26,0.26,0.31,0.28,0.27,0.25,0.23,0.29,0.25,0.21,0.23,0.23],"pp":[14.7,18.9,17.7,18.6,18.2,17.4,17.3,17.4,16.7,16.0,17.8,17.9]},{"id":"z009_05","fn":"Jessica","ln":"Bell","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2025-04-24","tm":10.5,"pph":[46.4,48.4,44.3,47.9,48.3,50.5,48.4,41.8,44.1,41.0,41.6,36.7],"rb":[0.17,0.22,0.19,0.28,0.18,0.17,0.19,0.2,0.19,0.15,0.17,0.17],"pp":[17.0,14.3,17.1,16.9,18.1,15.5,15.9,15.5,13.6,17.7,16.9,18.5]},{"id":"z009_06","fn":"Brooke","ln":"Baker","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2023-09-17","tm":29.7,"pph":[34.2,31.8,35.2,36.6,36.6,33.9,36.2,32.4,37.3,37.2,36.4,35.4],"rb":[0.13,0.14,0.1,0.18,0.18,0.11,0.14,0.16,0.12,0.15,0.13,0.19],"pp":[13.3,12.4,11.0,15.9,15.6,13.3,13.2,11.7,13.5,12.6,13.6,13.2]},{"id":"z009_07","fn":"Natasha","ln":"Lee","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2024-02-26","tm":24.4,"pph":[34.8,34.6,33.0,38.1,32.3,37.4,34.4,36.3,37.2,34.7,40.6,33.5],"rb":[0.16,0.16,0.16,0.15,0.16,0.12,0.17,0.12,0.14,0.1,0.1,0.14],"pp":[12.0,14.4,15.1,14.1,14.1,14.1,15.1,10.9,11.4,14.9,12.7,14.6]},{"id":"z009_08","fn":"Alyssa","ln":"Davis","lc":"z009","loc":"Roseville","plt":"zenoti","hd":"2025-12-26","tm":2.4,"pph":[35.6,36.0,34.0,33.8,31.4,33.8,34.7,34.6,33.5,32.6,32.6,39.5],"rb":[0.2,0.18,0.14,0.2,0.14,0.14,0.16,0.14,0.13,0.1,0.14,0.16],"pp":[14.8,17.8,17.0,18.3,16.5,14.2,14.9,15.3,17.4,16.9,15.8,15.8]},{"id":"z010_01","fn":"Alyssa","ln":"Anderson","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2024-08-05","tm":19.1,"pph":[35.2,39.9,38.8,37.6,33.7,35.4,44.7,41.4,39.0,40.9,38.3,37.0],"rb":[0.33,0.26,0.35,0.35,0.36,0.32,0.26,0.32,0.27,0.3,0.27,0.31],"pp":[14.4,12.9,12.8,13.7,12.1,12.3,12.6,12.3,14.6,12.5,14.6,14.2]},{"id":"z010_02","fn":"Amber","ln":"White","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2022-02-25","tm":48.4,"pph":[38.4,36.3,40.7,37.8,40.1,38.2,37.4,35.5,38.3,36.0,36.2,37.2],"rb":[0.3,0.31,0.29,0.3,0.31,0.28,0.31,0.27,0.28,0.33,0.3,0.32],"pp":[13.5,14.5,11.3,13.0,13.3,11.3,15.1,13.0,14.8,13.4,17.2,11.9]},{"id":"z010_03","fn":"Emily","ln":"Jackson","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2024-05-21","tm":21.6,"pph":[36.4,41.2,36.1,40.2,37.3,36.0,36.8,37.4,41.9,36.6,40.1,32.5],"rb":[0.28,0.3,0.31,0.3,0.3,0.3,0.27,0.3,0.26,0.26,0.29,0.32],"pp":[14.3,11.0,14.2,13.8,13.3,12.8,14.7,14.5,13.2,13.9,13.0,11.7]},{"id":"z010_04","fn":"Chloe","ln":"Wilson","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2022-11-02","tm":40.2,"pph":[46.7,54.7,49.1,47.0,47.7,47.4,47.9,52.5,45.0,47.6,47.8,48.0],"rb":[0.35,0.33,0.34,0.41,0.37,0.39,0.42,0.38,0.32,0.35,0.38,0.34],"pp":[15.9,16.4,16.0,13.7,15.0,14.9,14.2,15.4,16.4,16.0,14.6,17.1]},{"id":"z010_05","fn":"Jordan","ln":"Murphy","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2022-11-23","tm":39.5,"pph":[42.2,40.5,44.0,42.6,41.7,40.5,43.3,36.9,40.5,36.9,32.9,32.6],"rb":[0.25,0.33,0.28,0.32,0.33,0.25,0.26,0.28,0.29,0.3,0.25,0.22],"pp":[14.5,13.6,14.4,14.2,14.1,13.0,16.3,14.9,14.7,13.3,16.2,13.2]},{"id":"z010_06","fn":"Jasmine","ln":"Smith","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2024-09-14","tm":17.8,"pph":[28.6,27.9,29.7,30.6,27.4,35.6,28.0,31.9,32.8,29.1,29.4,28.8],"rb":[0.24,0.23,0.18,0.21,0.22,0.22,0.26,0.25,0.19,0.19,0.23,0.23],"pp":[9.3,8.9,11.0,11.7,11.9,10.2,12.4,11.0,10.8,10.6,10.7,12.5]},{"id":"z010_07","fn":"Emily","ln":"King","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2025-09-26","tm":5.4,"pph":[28.8,31.0,31.8,27.9,32.3,33.1,33.0,32.2,31.2,28.2,30.4,28.8],"rb":[0.24,0.23,0.14,0.2,0.19,0.15,0.2,0.21,0.21,0.24,0.22,0.21],"pp":[10.2,10.9,8.3,10.0,13.5,14.1,8.6,12.6,12.1,12.4,11.7,12.0]},{"id":"z010_08","fn":"Jordan","ln":"Cook","lc":"z010","loc":"Apple Valley","plt":"zenoti","hd":"2024-01-26","tm":25.4,"pph":[37.6,34.5,35.4,33.1,38.7,31.9,36.5,35.4,34.9,39.5,39.8,44.5],"rb":[0.34,0.26,0.27,0.27,0.27,0.32,0.32,0.33,0.3,0.23,0.33,0.28],"pp":[14.4,14.1,12.3,13.2,12.4,14.2,11.7,13.7,14.5,13.7,14.6,14.9]},{"id":"su001_01","fn":"Savannah","ln":"Allen","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2025-06-21","tm":8.6,"pph":[47.4,44.6,46.1,49.5,50.0,43.6,49.9,46.4,45.3,47.5,42.4,46.0],"rb":[0.45,0.43,0.45,0.46,0.35,0.42,0.4,0.43,0.39,0.38,0.41,0.45],"pp":[17.1,15.0,18.8,15.4,16.4,17.1,16.6,18.6,18.9,19.1,17.4,17.0]},{"id":"su001_02","fn":"Kelsey","ln":"White","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2021-02-01","tm":61.2,"pph":[45.8,48.3,48.8,44.1,45.2,49.9,42.7,45.7,46.2,46.2,43.8,48.0],"rb":[0.43,0.45,0.38,0.39,0.43,0.45,0.4,0.35,0.39,0.43,0.42,0.43],"pp":[19.7,16.6,16.0,15.6,17.0,18.5,19.4,17.5,17.2,17.0,18.8,16.2]},{"id":"su001_03","fn":"Alexis","ln":"Johnson","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2024-06-14","tm":20.8,"pph":[41.7,42.5,45.0,42.5,45.1,50.5,47.3,43.9,46.2,47.7,42.8,45.4],"rb":[0.4,0.4,0.48,0.4,0.42,0.37,0.38,0.39,0.39,0.37,0.39,0.42],"pp":[16.7,18.1,15.4,14.5,16.7,16.5,16.2,17.1,19.6,18.1,17.7,16.0]},{"id":"su001_04","fn":"Danielle","ln":"Cook","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2023-12-03","tm":27.2,"pph":[62.1,60.0,58.2,64.2,56.6,61.6,53.4,56.0,60.4,57.7,58.8,56.3],"rb":[0.48,0.47,0.53,0.49,0.49,0.52,0.48,0.47,0.49,0.53,0.5,0.45],"pp":[16.9,18.6,22.2,18.7,19.1,18.8,20.0,22.2,17.2,20.9,18.4,20.9]},{"id":"su001_05","fn":"Whitney","ln":"Moore","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2023-08-18","tm":30.7,"pph":[52.6,48.5,51.5,50.4,52.7,49.0,52.1,47.0,46.3,45.1,43.0,39.2],"rb":[0.41,0.43,0.34,0.37,0.37,0.41,0.39,0.35,0.34,0.37,0.36,0.37],"pp":[18.2,17.2,17.3,16.4,17.3,15.7,17.2,16.6,15.8,16.0,14.4,19.1]},{"id":"su001_06","fn":"Crystal","ln":"Johnson","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2025-10-02","tm":5.2,"pph":[37.3,38.7,38.6,36.8,37.4,35.4,35.3,33.9,36.7,40.1,36.0,37.6],"rb":[0.26,0.31,0.32,0.34,0.28,0.31,0.28,0.25,0.26,0.34,0.32,0.29],"pp":[15.8,14.1,16.0,17.7,15.9,14.1,15.1,16.9,16.2,16.3,14.1,14.4]},{"id":"su001_07","fn":"Tiffany","ln":"Murphy","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2026-01-14","tm":1.8,"pph":[39.2,35.9,34.7,37.6,41.6,37.0,33.2,32.1,38.2,37.1,36.6,41.3],"rb":[0.27,0.29,0.33,0.34,0.29,0.29,0.28,0.27,0.3,0.34,0.34,0.35],"pp":[18.8,18.5,17.7,17.6,17.9,17.7,17.5,18.2,16.3,17.1,16.9,16.2]},{"id":"su001_08","fn":"Lindsey","ln":"Harris","lc":"su001","loc":"Lakeville","plt":"salon_ultimate","hd":"2023-03-25","tm":35.5,"pph":[40.1,41.9,42.7,41.8,43.9,43.6,36.3,41.9,43.8,44.7,46.6,44.6],"rb":[0.38,0.37,0.42,0.4,0.45,0.42,0.44,0.36,0.37,0.43,0.39,0.41],"pp":[18.8,15.0,17.9,17.2,16.5,16.3,19.8,15.2,17.0,19.3,16.4,18.1]},{"id":"su002_01","fn":"Brittany","ln":"Allen","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2023-06-27","tm":32.4,"pph":[51.4,56.6,54.5,53.1,51.4,57.6,56.0,56.4,54.5,49.3,56.0,54.6],"rb":[0.23,0.18,0.17,0.19,0.16,0.17,0.15,0.16,0.24,0.17,0.23,0.18],"pp":[11.4,14.3,13.7,14.3,14.0,13.9,15.2,12.9,14.0,12.0,14.6,17.3]},{"id":"su002_02","fn":"Lauren","ln":"Green","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2022-10-24","tm":40.5,"pph":[55.1,54.5,54.6,54.0,53.6,58.2,52.3,58.2,49.3,53.1,58.4,56.5],"rb":[0.23,0.25,0.24,0.15,0.23,0.22,0.2,0.28,0.22,0.21,0.18,0.18],"pp":[14.2,15.5,14.5,12.8,15.0,13.0,15.2,15.1,13.8,13.6,12.7,15.0]},{"id":"su002_03","fn":"Sarah","ln":"Miller","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2021-04-30","tm":58.3,"pph":[58.5,54.7,57.6,53.6,54.1,53.4,53.2,58.9,57.2,51.6,53.6,58.7],"rb":[0.16,0.17,0.18,0.22,0.24,0.23,0.23,0.2,0.16,0.16,0.17,0.19],"pp":[16.3,15.8,11.7,14.2,14.0,12.8,14.1,15.0,15.9,15.8,14.6,16.5]},{"id":"su002_04","fn":"Kelsey","ln":"Murphy","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2022-10-30","tm":40.3,"pph":[72.1,71.4,69.9,69.6,75.4,75.3,69.2,72.8,66.4,71.9,75.6,72.2],"rb":[0.22,0.24,0.19,0.22,0.26,0.19,0.24,0.23,0.26,0.24,0.23,0.22],"pp":[14.9,18.5,14.5,16.9,15.7,15.2,15.1,16.8,15.4,18.3,17.2,17.4]},{"id":"su002_05","fn":"Autumn","ln":"Scott","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2024-04-02","tm":23.2,"pph":[59.3,56.5,59.4,55.6,59.7,59.6,59.4,57.3,54.6,57.1,55.4,49.8],"rb":[0.23,0.19,0.19,0.18,0.22,0.22,0.16,0.2,0.17,0.14,0.15,0.1],"pp":[13.5,16.6,14.7,12.6,14.8,14.2,13.7,13.3,14.1,13.3,13.9,15.1]},{"id":"su002_06","fn":"Ashley","ln":"Bell","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2023-10-06","tm":29.1,"pph":[45.1,47.0,42.8,46.2,41.9,42.1,42.9,43.7,43.0,42.6,40.4,44.1],"rb":[0.13,0.1,0.17,0.15,0.1,0.17,0.11,0.1,0.19,0.16,0.16,0.2],"pp":[13.0,11.0,12.4,13.9,11.8,10.9,10.3,11.0,12.8,14.1,12.6,13.5]},{"id":"su002_07","fn":"Sierra","ln":"Davis","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2025-05-09","tm":10.0,"pph":[45.6,46.7,42.7,46.0,43.3,43.9,42.9,43.5,42.7,47.4,45.1,45.4],"rb":[0.14,0.15,0.18,0.13,0.13,0.11,0.12,0.13,0.15,0.12,0.15,0.16],"pp":[13.5,12.8,10.7,12.9,12.9,12.6,12.4,13.3,11.5,12.8,12.2,10.5]},{"id":"su002_08","fn":"Erin","ln":"Rivera","lc":"su002","loc":"Farmington","plt":"salon_ultimate","hd":"2026-02-22","tm":0.5,"pph":[41.0,40.0,44.6,40.4,38.1,38.3,41.3,40.4,46.7,41.3,43.7,49.3],"rb":[0.14,0.22,0.16,0.13,0.16,0.12,0.21,0.17,0.16,0.19,0.17,0.15],"pp":[15.7,13.7,14.6,14.1,13.0,12.1,15.0,13.1,15.4,15.1,13.1,10.7]},{"id":"su003_01","fn":"Melissa","ln":"Rivera","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2021-03-12","tm":59.9,"pph":[35.0,33.5,35.5,32.5,32.8,32.2,32.7,33.5,35.7,33.7,33.9,30.8],"rb":[0.17,0.21,0.19,0.23,0.2,0.2,0.2,0.19,0.2,0.19,0.22,0.18],"pp":[11.8,12.9,12.2,11.3,12.3,15.8,11.1,14.5,13.6,13.0,13.3,15.0]},{"id":"su003_02","fn":"Natasha","ln":"Robinson","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2020-05-27","tm":69.4,"pph":[34.0,34.6,35.4,30.0,31.7,29.9,34.7,31.1,30.9,31.6,35.0,32.1],"rb":[0.13,0.18,0.18,0.25,0.22,0.18,0.16,0.22,0.18,0.2,0.21,0.26],"pp":[13.2,13.7,13.7,10.5,14.7,10.5,14.3,12.8,11.9,12.6,13.4,13.1]},{"id":"su003_03","fn":"Haley","ln":"Nelson","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2023-01-02","tm":38.2,"pph":[31.4,33.0,31.4,31.2,28.5,28.8,31.0,34.2,30.6,30.7,29.5,30.6],"rb":[0.18,0.22,0.2,0.2,0.2,0.22,0.2,0.17,0.21,0.19,0.19,0.14],"pp":[11.7,13.2,12.3,14.4,13.7,14.5,14.3,10.7,13.9,14.1,12.7,15.6]},{"id":"su003_04","fn":"Taylor","ln":"Davis","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2019-10-12","tm":76.9,"pph":[43.4,39.1,42.7,38.9,41.8,40.1,43.3,42.0,43.8,39.9,40.9,40.6],"rb":[0.2,0.29,0.2,0.22,0.27,0.28,0.27,0.27,0.27,0.25,0.33,0.23],"pp":[13.8,12.7,15.2,15.3,13.2,14.0,15.2,14.2,14.4,11.6,16.8,15.3]},{"id":"su003_05","fn":"Alyssa","ln":"Williams","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2022-11-26","tm":39.4,"pph":[32.4,35.8,32.5,39.5,36.7,35.9,35.7,33.4,35.1,29.4,27.3,29.4],"rb":[0.17,0.18,0.18,0.22,0.15,0.17,0.22,0.21,0.2,0.16,0.1,0.16],"pp":[11.6,14.8,13.0,12.8,13.9,12.0,13.1,14.5,12.8,13.6,13.9,14.4]},{"id":"su003_06","fn":"Brittany","ln":"Reed","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2025-03-27","tm":11.4,"pph":[26.9,22.3,23.1,25.9,25.9,26.9,25.8,25.2,28.4,26.4,27.2,28.2],"rb":[0.18,0.15,0.17,0.15,0.18,0.21,0.11,0.12,0.19,0.15,0.13,0.12],"pp":[12.3,11.8,13.7,11.0,12.3,13.2,9.2,9.7,11.4,10.3,10.5,10.2]},{"id":"su003_07","fn":"Haley","ln":"Cook","lc":"su003","loc":"Woodbury","plt":"salon_ultimate","hd":"2026-02-01","tm":1.2,"pph":[21.5,25.2,24.6,26.5,25.5,25.3,26.0,22.3,23.2,26.7,30.0,31.1],"rb":[0.15,0.15,0.16,0.12,0.18,0.18,0.18,0.18,0.18,0.1,0.16,0.11],"pp":[11.7,12.7,14.4,13.3,13.2,15.2,13.2,11.7,11.1,11.8,13.0,10.9]}];
+
+/* ═══════════════════════════════════════════════════════
+   STYLIST INTELLIGENCE — STATE & CONSTANTS
+═══════════════════════════════════════════════════════ */
+var siBuilt = false;
+var siFilters = { focus: 'all', location: 'all', tenure: 'all', sort: 'pph_desc' };
+var SI_LOC_AVG_PPH = {};
+var SI_LOC_AVG_RB  = {};
+var SI_NETWORK_AVG_PPH = 0;
+var SI_TOP20_THRESHOLD = 0;
+var SI_MOST_IMPROVED_THRESHOLD = 0;
+var FOCUS_PRIORITY = ['retention_risk','needs_attention','new_hire','top_performers','most_improved'];
+var FOCUS_LABELS = {
+  retention_risk: 'Retention Risk',
+  needs_attention: 'Needs Attention',
+  new_hire:        'New Hire',
+  top_performers:  'Top Performer',
+  most_improved:   'Most Improved',
+  stable:          'Stable'
+};
+var FOCUS_COLORS = {
+  retention_risk: '#E53E3E',
+  needs_attention:'#D69E2E',
+  new_hire:       '#3182CE',
+  top_performers: '#38A169',
+  most_improved:  '#805AD5',
+  stable:         '#718096'
+};
+var FOCUS_ICONS = {
+  retention_risk: '🔴',
+  needs_attention:'🟡',
+  new_hire:       '🆕',
+  top_performers: '⭐',
+  most_improved:  '📈',
+  stable:         '✅'
+};
+
+/* ═══════════════════════════════════════════════════════
+   STYLIST INTELLIGENCE — PIPELINE
+═══════════════════════════════════════════════════════ */
+function buildStylistIntelligence() {
+  if (siBuilt) return;
+  COACH_DATA.forEach(function(s) { siComputeMetrics(s); });
+  siComputeLocAverages();
+  siComputeNetworkThresholds();
+  COACH_DATA.forEach(function(s) { siComputeFocusTags(s); siResolvePrimaryFocus(s); });
+  COACH_DATA.forEach(function(s) { siComputeCoachingOutput(s); });
+  siBuilt = true;
+}
+
+function siComputeMetrics(s) {
+  s._si = {};
+  var pph = s.pph;
+  var rb  = s.rb;
+  var pp  = s.pp;
+  s._si.curPPH     = pph[pph.length - 1];
+  s._si.curRebook  = rb[rb.length - 1];
+  s._si.curProduct = pp[pp.length - 1];
+  var last4 = pph.slice(-4);
+  s._si.avgPPH4    = last4.reduce(function(a,b){return a+b;},0) / last4.length;
+  var rb4 = rb.slice(-4);
+  s._si.avgRebook4 = rb4.reduce(function(a,b){return a+b;},0) / rb4.length;
+  var pp4 = pp.slice(-4);
+  s._si.avgProduct4 = pp4.reduce(function(a,b){return a+b;},0) / pp4.length;
+  // 3-week trend (indices 9,10,11 = last 3 weeks)
+  var w9 = pph[9]; var w10 = pph[10]; var w11 = pph[11];
+  s._si.trend3    = w11 - w9;
+  s._si.trend3pct = w9 > 0 ? ((w11 - w9) / w9 * 100) : 0;
+  s._si.declining3 = (w10 < w9) && (w11 < w10);
+  // Improvement: first-4-avg vs last-4-avg
+  var first4 = pph.slice(0, 4);
+  var avg_first4 = first4.reduce(function(a,b){return a+b;},0) / first4.length;
+  s._si.improvement = avg_first4 > 0 ? ((s._si.avgPPH4 - avg_first4) / avg_first4 * 100) : 0;
+  s._si.onboardWeek  = Math.round(s.tm * 4.33);
+  s._si.hasSufficient = s.tm >= 3;
+}
+
+function siComputeLocAverages() {
+  var locGroups = {};
+  COACH_DATA.forEach(function(s) {
+    if (!locGroups[s.lc]) locGroups[s.lc] = { pph: [], rb: [] };
+    locGroups[s.lc].pph.push(s._si.avgPPH4);
+    locGroups[s.lc].rb.push(s._si.avgRebook4);
+  });
+  Object.keys(locGroups).forEach(function(lc) {
+    var g = locGroups[lc];
+    SI_LOC_AVG_PPH[lc] = g.pph.reduce(function(a,b){return a+b;},0) / g.pph.length;
+    SI_LOC_AVG_RB[lc]  = g.rb.reduce(function(a,b){return a+b;},0) / g.rb.length;
+  });
+}
+
+function siComputeNetworkThresholds() {
+  var allPPH = COACH_DATA.map(function(s){ return s._si.avgPPH4; }).sort(function(a,b){return a-b;});
+  SI_NETWORK_AVG_PPH  = allPPH.reduce(function(a,b){return a+b;},0) / allPPH.length;
+  SI_TOP20_THRESHOLD  = allPPH[Math.floor(allPPH.length * 0.80)];
+  var imps = COACH_DATA.filter(function(s){ return s._si.hasSufficient; })
+    .map(function(s){ return s._si.improvement; })
+    .sort(function(a,b){return a-b;});
+  SI_MOST_IMPROVED_THRESHOLD = imps.length > 0 ? imps[Math.floor(imps.length * 0.80)] : 5;
+}
+
+function siComputeFocusTags(s) {
+  s._si.tags = [];
+  if (!s._si.hasSufficient) {
+    s._si.tags.push('new_hire');
+    return;
+  }
+  var locAvg = SI_LOC_AVG_PPH[s.lc] || SI_NETWORK_AVG_PPH;
+  if (s._si.declining3 && s._si.curPPH < locAvg) {
+    s._si.tags.push('retention_risk');
+  }
+  if (s._si.tags.indexOf('retention_risk') === -1) {
+    if (s._si.avgPPH4 < locAvg * 0.90 || s._si.avgRebook4 < 0.25) {
+      s._si.tags.push('needs_attention');
+    }
+  }
+  if (s._si.avgPPH4 >= SI_TOP20_THRESHOLD) {
+    s._si.tags.push('top_performers');
+  }
+  if (s._si.improvement > 0 && s._si.improvement >= SI_MOST_IMPROVED_THRESHOLD) {
+    s._si.tags.push('most_improved');
+  }
+  if (s._si.tags.length === 0) {
+    s._si.tags.push('stable');
+  }
+}
+
+function siResolvePrimaryFocus(s) {
+  for (var i = 0; i < FOCUS_PRIORITY.length; i++) {
+    if (s._si.tags.indexOf(FOCUS_PRIORITY[i]) !== -1) {
+      s._si.primaryFocus = FOCUS_PRIORITY[i];
+      return;
+    }
+  }
+  s._si.primaryFocus = 'stable';
+}
+
+function siComputeCoachingOutput(s) {
+  var f = s._si.primaryFocus;
+  var locAvg = SI_LOC_AVG_PPH[s.lc] || SI_NETWORK_AVG_PPH;
+  var pct, delta;
+  if (f === 'retention_risk') {
+    pct   = Math.abs(s._si.trend3pct).toFixed(1);
+    delta = Math.abs(s._si.curPPH - locAvg).toFixed(2);
+    s._si.why     = 'PPH has dropped ' + pct + '% over 3 weeks. Currently at $' + s._si.curPPH.toFixed(2) + ' vs $' + locAvg.toFixed(2) + ' location avg ($' + delta + ' below).';
+    s._si.urgency = '🔴 Address this week';
+    s._si.action  = 'Schedule a 1:1 today. Review service mix and client list. Identify root cause before it compounds.';
+  } else if (f === 'needs_attention') {
+    if (s._si.avgRebook4 < 0.25) {
+      var rbPct = (s._si.avgRebook4 * 100).toFixed(0);
+      s._si.why = 'Rebook rate at ' + rbPct + '% — below the 25% baseline. Clients are not being asked to rebook.';
+    } else {
+      pct = ((1 - s._si.avgPPH4 / locAvg) * 100).toFixed(1);
+      s._si.why = 'PPH is ' + pct + '% below location average ($' + s._si.avgPPH4.toFixed(2) + ' vs $' + locAvg.toFixed(2) + '). Real room to grow here.';
+    }
+    s._si.urgency = '🟡 Monitor closely';
+    s._si.action  = 'Review rebook scripting at checkout. Walk the floor during their next service set and observe guest interactions.';
+  } else if (f === 'new_hire') {
+    var wk = s._si.onboardWeek;
+    s._si.why     = 'Week ~' + wk + ' of onboarding. Tenure: ' + s.tm.toFixed(1) + ' months. Building foundational habits now creates long-term retention.';
+    s._si.urgency = '🟢 Check in this week';
+    s._si.action  = 'Confirm they understand the rebook script and checkout sequence. Consider pairing with a top performer for a shadowing session.';
+  } else if (f === 'top_performers') {
+    var rbP = (s._si.avgRebook4 * 100).toFixed(0);
+    s._si.why     = 'Consistently top-tier PPH of $' + s._si.avgPPH4.toFixed(2) + ' (top 20% network). Rebook at ' + rbP + '%. Setting the standard.';
+    s._si.urgency = '⭐ Recognize and leverage';
+    s._si.action  = "Ask them to mentor one stylist this week. Share what's working in the next team huddle. Protect their schedule.";
+  } else if (f === 'most_improved') {
+    pct = s._si.improvement.toFixed(1);
+    s._si.why     = 'PPH up ' + pct + '% comparing first 4 weeks to last 4 weeks. Strong positive momentum worth reinforcing.';
+    s._si.urgency = '🌱 Reinforce momentum';
+    s._si.action  = 'Acknowledge improvement publicly in the next huddle. Ask what changed — document the insight for others.';
+  } else {
+    s._si.why     = 'Performing consistently near location average. No immediate concerns.';
+    s._si.urgency = '✅ Steady';
+    s._si.action  = 'Standard check-in. Review goals for the next quarter.';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   STYLIST INTELLIGENCE — SELECTORS
+═══════════════════════════════════════════════════════ */
+function siGetPriorityCounts() {
+  var counts = {retention_risk:0,needs_attention:0,new_hire:0,top_performers:0,most_improved:0,stable:0};
+  COACH_DATA.forEach(function(s) {
+    if (s._si && s._si.primaryFocus) counts[s._si.primaryFocus] = (counts[s._si.primaryFocus]||0) + 1;
+  });
+  return counts;
+}
+
+function siGetFocusCounts() {
+  var counts = {all:0,retention_risk:0,needs_attention:0,new_hire:0,top_performers:0,most_improved:0,stable:0};
+  COACH_DATA.forEach(function(s) {
+    if (!s._si || !s._si.primaryFocus) return;
+    if (siFilters.location !== 'all' && s.lc !== siFilters.location) return;
+    if (siFilters.tenure === 'new'         && s.tm >= 6)            return;
+    if (siFilters.tenure === 'established' && (s.tm < 6||s.tm>=24)) return;
+    if (siFilters.tenure === 'veteran'     && s.tm < 24)            return;
+    counts[s._si.primaryFocus]++;
+    counts.all++;
+  });
+  return counts;
+}
+
+function siGetVisibleStylists() {
+  var result = COACH_DATA.filter(function(s) {
+    if (!s._si) return false;
+    if (siFilters.focus    !== 'all' && s._si.primaryFocus !== siFilters.focus)  return false;
+    if (siFilters.location !== 'all' && s.lc              !== siFilters.location) return false;
+    if (siFilters.tenure   === 'new'         && s.tm >= 6)            return false;
+    if (siFilters.tenure   === 'established' && (s.tm<6||s.tm>=24))  return false;
+    if (siFilters.tenure   === 'veteran'     && s.tm < 24)            return false;
+    return true;
+  });
+  if (siFilters.sort === 'pph_desc')       result.sort(function(a,b){ return b._si.avgPPH4   - a._si.avgPPH4; });
+  else if (siFilters.sort === 'decline_first')  result.sort(function(a,b){ return a._si.trend3    - b._si.trend3; });
+  else if (siFilters.sort === 'improved_first') result.sort(function(a,b){ return b._si.improvement - a._si.improvement; });
+  return result;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STYLIST INTELLIGENCE — RENDERING
+═══════════════════════════════════════════════════════ */
+function renderCoachingPage() {
+  try {
+    buildStylistIntelligence();
+    siLoadFilters();
+    siAutoLoadDefaults();
+    renderSICoachingList();
+    renderSIFilterBar();
+    renderSIChips();
+    renderSIGrid();
+  } catch(e) {
+    var grid = document.getElementById('siGrid');
+    if (grid) grid.innerHTML = '<div style="padding:24px;color:#c0392b;background:#fff;border-radius:8px;border:1px solid #e74c3c;font-family:monospace;font-size:13px"><strong>Coaching tab error:</strong><br>' + e.message + '<br><pre>' + (e.stack||'').slice(0,400) + '</pre></div>';
+    console.error('renderCoachingPage error:', e);
+  }
+}
+
+function siAutoLoadDefaults() {
+  // Monday before noon → default to retention_risk + decline sort (only on first load)
+  var savedFilters = null;
+  try { savedFilters = localStorage.getItem('kpi_si_filters'); } catch(e) {}
+  if (savedFilters) return;
+  var now = new Date();
+  if (now.getDay() === 1 && now.getHours() < 12) {
+    siFilters.focus = 'retention_risk';
+    siFilters.sort  = 'decline_first';
+  }
+}
+
+function renderSICoachingList() {
+  var counts = siGetPriorityCounts();
+  var items = [
+    { focus:'retention_risk', label:'Retention Risk', icon:'🔴' },
+    { focus:'needs_attention', label:'Needs Attention',icon:'🟡' },
+    { focus:'top_performers',  label:'Top Performers', icon:'⭐' },
+    { focus:'new_hire',        label:'New Hires',      icon:'🆕' },
+    { focus:'most_improved',   label:'Most Improved',  icon:'📈' }
+  ];
+  var html = '<div class="si-coaching-list-header">Weekly Coaching List</div><div class="si-coaching-list-row">';
+  items.forEach(function(item) {
+    var isActive = siFilters.focus === item.focus;
+    html += '<button class="si-cl-item' + (isActive ? ' active' : '') + '" data-focus="' + item.focus + '" onclick="siSetFocusFilter(this.dataset.focus)">';
+    html += '<span class="si-cl-icon">' + item.icon + '</span>';
+    html += '<span class="si-cl-count">' + (counts[item.focus]||0) + '</span>';
+    html += '<span class="si-cl-label">' + item.label + '</span>';
+    html += '</button>';
+  });
+  html += '</div>';
+  var el = document.getElementById('siCoachingList');
+  if (el) el.innerHTML = html;
+}
+
+function renderSIFilterBar() {
+  var focusCounts = siGetFocusCounts();
+  var locations = [];
+  var locSeen = {};
+  COACH_DATA.forEach(function(s) {
+    if (!locSeen[s.lc]) { locSeen[s.lc] = true; locations.push({ lc:s.lc, loc:s.loc }); }
+  });
+  locations.sort(function(a,b){ return a.loc.localeCompare(b.loc); });
+
+  var focusOptions = [
+    { id:'all',             label:'All Focus Areas',  count:focusCounts.all },
+    { id:'retention_risk',  label:'🔴 Retention Risk',  count:focusCounts.retention_risk },
+    { id:'needs_attention', label:'🟡 Needs Attention', count:focusCounts.needs_attention },
+    { id:'top_performers',  label:'⭐ Top Performers',  count:focusCounts.top_performers },
+    { id:'new_hire',        label:'🆕 New Hires',       count:focusCounts.new_hire },
+    { id:'most_improved',   label:'📈 Most Improved',   count:focusCounts.most_improved }
+  ];
+
+  var html = '<div class="si-filter-row">';
+
+  html += '<div class="si-filter-group"><label class="si-filter-label">Focus</label>';
+  html += '<select class="si-filter-select" id="siFocusSelect" onchange="siSetFocusFilter(this.value)">';
+  focusOptions.forEach(function(opt) {
+    html += '<option value="' + opt.id + '"' + (siFilters.focus===opt.id?' selected':'') + '>' + opt.label + ' (' + opt.count + ')</option>';
+  });
+  html += '</select></div>';
+
+  html += '<div class="si-filter-group"><label class="si-filter-label">Location</label>';
+  html += '<select class="si-filter-select" id="siLocSelect" onchange="siSetLocationFilter(this.value)">';
+  html += '<option value="all"' + (siFilters.location==='all'?' selected':'') + '>All Locations</option>';
+  locations.forEach(function(l) {
+    html += '<option value="' + l.lc + '"' + (siFilters.location===l.lc?' selected':'') + '>' + l.loc + '</option>';
+  });
+  html += '</select></div>';
+
+  html += '<div class="si-filter-group"><label class="si-filter-label">Tenure</label>';
+  html += '<select class="si-filter-select" id="siTenureSelect" onchange="siSetTenureFilter(this.value)">';
+  [['all','All Tenures'],['new','New (<6 mo)'],['established','Established (6–24 mo)'],['veteran','Veteran (2+ yr)']].forEach(function(t) {
+    html += '<option value="' + t[0] + '"' + (siFilters.tenure===t[0]?' selected':'') + '>' + t[1] + '</option>';
+  });
+  html += '</select></div>';
+
+  if (siFilters.focus!=='all'||siFilters.location!=='all'||siFilters.tenure!=='all') {
+    html += '<button class="si-clear-btn" onclick="siClearAllFilters()">✕ Clear filters</button>';
+  }
+  html += '</div>';
+
+  // Sort pills
+  html += '<div class="si-sort-row">';
+  [['pph_desc','↓ PPH'],['decline_first','↓ Decline'],['improved_first','↑ Improved']].forEach(function(opt) {
+    html += '<button class="si-sort-pill' + (siFilters.sort===opt[0]?' active':'') + '" data-sortid="' + opt[0] + '" onclick="siSetSort(this.dataset.sortid)">' + opt[1] + '</button>';
+  });
+  html += '</div>';
+
+  var el = document.getElementById('siFilterBar');
+  if (el) el.innerHTML = html;
+}
+
+function renderSIChips() {
+  var chips = [];
+  if (siFilters.focus !== 'all') {
+    chips.push({ key:'focus', label:(FOCUS_ICONS[siFilters.focus]||'') + ' ' + (FOCUS_LABELS[siFilters.focus]||siFilters.focus) });
+  }
+  if (siFilters.location !== 'all') {
+    var locName = siFilters.location;
+    var locRec = null;
+    for (var i=0;i<COACH_DATA.length;i++){if(COACH_DATA[i].lc===siFilters.location){locRec=COACH_DATA[i];break;}}
+    if (locRec) locName = locRec.loc;
+    chips.push({ key:'location', label:'📍 ' + locName });
+  }
+  if (siFilters.tenure !== 'all') {
+    var tMap = { new:'<6 mo', established:'6–24 mo', veteran:'2+ yr' };
+    chips.push({ key:'tenure', label:'🕐 ' + (tMap[siFilters.tenure]||siFilters.tenure) });
+  }
+  var html = '';
+  chips.forEach(function(chip) {
+    html += '<span class="si-chip" data-key="' + chip.key + '" onclick="siRemoveFilter(this.dataset.key)">' + chip.label + ' ✕</span>';
+  });
+  var el = document.getElementById('siChipsRow');
+  if (el) el.innerHTML = html;
+}
+
+function renderSIGrid() {
+  var stylists = siGetVisibleStylists();
+  var grid = document.getElementById('siGrid');
+  var capNotice = document.getElementById('siCapNotice');
+  if (!grid) return;
+
+  var showCap = stylists.length > 10;
+  var displayList = showCap ? stylists.slice(0,10) : stylists;
+
+  if (capNotice) {
+    if (showCap) {
+      capNotice.style.display = '';
+      capNotice.textContent = stylists.length + ' stylists match — showing top 10 first';
+    } else {
+      capNotice.style.display = 'none';
+    }
+  }
+
+  if (stylists.length === 0) {
+    grid.innerHTML = '<div class="si-empty-state">No stylists match the current filters. <button class="si-clear-btn-inline" onclick="siClearAllFilters()">Clear filters</button></div>';
+    return;
+  }
+
+  grid.innerHTML = displayList.map(function(s){ return renderSICard(s); }).join('')
+    + (showCap ? '<button class="si-show-more" onclick="siShowAll()">▼ Show all ' + stylists.length + ' stylists</button>' : '');
+}
+
+function renderSICard(s) {
+  var f      = s._si.primaryFocus;
+  var color  = FOCUS_COLORS[f] || '#718096';
+  var icon   = FOCUS_ICONS[f]  || '✅';
+  var label  = FOCUS_LABELS[f] || 'Stable';
+  var pphTrend = s._si.trend3 >= 0
+    ? '+$' + s._si.trend3.toFixed(2)
+    : '-$' + Math.abs(s._si.trend3).toFixed(2);
+  var trendCls = s._si.trend3 >= 0 ? 'si-trend-up' : 'si-trend-down';
+  var sparkSvg = buildSparkline(s.pph, color);
+  var rbPct    = (s._si.avgRebook4 * 100).toFixed(0) + '%';
+  var tenureStr = s.tm < 12
+    ? s.tm.toFixed(1) + ' mo'
+    : (s.tm / 12).toFixed(1) + ' yr';
+  var plt = s.plt === 'zenoti' ? 'Zenoti' : 'SalonUlt';
+
+  return '<div class="si-card" id="si-card-' + s.id + '" data-id="' + s.id + '">'
+    + '<div class="si-card-header" data-stylistid="' + s.id + '" onclick="siToggleCard(this.dataset.stylistid)">'
+      + '<div class="si-card-name">' + s.fn + ' ' + s.ln + '</div>'
+      + '<div class="si-card-loc">📍 ' + s.loc + '</div>'
+      + '<span class="si-plt-badge">' + plt + '</span>'
+      + '<div class="si-focus-badge" style="background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + icon + ' ' + label + '</div>'
+      + '<div class="si-card-chevron" id="chevron-' + s.id + '">▼</div>'
+    + '</div>'
+    + '<div class="si-card-metrics">'
+      + '<div class="si-metric"><span class="si-metric-label">PPH (4wk)</span><span class="si-metric-value">$' + s._si.avgPPH4.toFixed(2) + '</span><span class="si-metric-trend ' + trendCls + '">' + pphTrend + ' (3wk)</span></div>'
+      + '<div class="si-metric"><span class="si-metric-label">Rebook</span><span class="si-metric-value">' + rbPct + '</span></div>'
+      + '<div class="si-metric"><span class="si-metric-label">Tenure</span><span class="si-metric-value">' + tenureStr + '</span></div>'
+      + '<div class="si-metric si-sparkline-cell">' + sparkSvg + '</div>'
+    + '</div>'
+    + '<div class="si-card-expand" id="expand-' + s.id + '" style="display:none;opacity:0">'
+      + '<div class="si-intel-row"><div class="si-intel-label">Why this week</div><div class="si-intel-text">' + (s._si.why||'') + '</div></div>'
+      + '<div class="si-intel-row"><div class="si-intel-label">Urgency</div><div class="si-intel-text">' + (s._si.urgency||'') + '</div></div>'
+      + '<div class="si-intel-row"><div class="si-intel-label">Coaching action</div><div class="si-intel-text">' + (s._si.action||'') + '</div></div>'
+    + '</div>'
+  + '</div>';
+}
+
+/* ═══════════════════════════════════════════════════════
+   STYLIST INTELLIGENCE — INTERACTIONS
+═══════════════════════════════════════════════════════ */
+function siToggleCard(stylistId) {
+  var expand  = document.getElementById('expand-'  + stylistId);
+  var chevron = document.getElementById('chevron-' + stylistId);
+  if (!expand) return;
+  if (expand.style.display === 'none' || expand.style.display === '') {
+    expand.style.display = 'block';
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ expand.style.opacity = '1'; });
+    });
+    if (chevron) chevron.textContent = '▲';
+  } else {
+    expand.style.opacity = '0';
+    setTimeout(function(){ expand.style.display = 'none'; }, 250);
+    if (chevron) chevron.textContent = '▼';
+  }
+}
+
+function siSetFilter(key, value) {
+  siFilters[key] = value;
+  siSaveFilters();
+  renderSICoachingList();
+  renderSIFilterBar();
+  renderSIChips();
+  renderSIGrid();
+}
+function siSetFocusFilter(v)    { siSetFilter('focus',    v); }
+function siSetLocationFilter(v) { siSetFilter('location', v); }
+function siSetTenureFilter(v)   { siSetFilter('tenure',   v); }
+
+function siSetSort(sortId) {
+  siFilters.sort = sortId;
+  siSaveFilters();
+  renderSIFilterBar();
+  renderSIGrid();
+}
+
+function siRemoveFilter(key) {
+  var defaults = { focus:'all', location:'all', tenure:'all' };
+  siFilters[key] = defaults[key] || 'all';
+  siSaveFilters();
+  renderSICoachingList();
+  renderSIFilterBar();
+  renderSIChips();
+  renderSIGrid();
+}
+
+function siClearAllFilters() {
+  siFilters = { focus:'all', location:'all', tenure:'all', sort:siFilters.sort };
+  siSaveFilters();
+  renderSICoachingList();
+  renderSIFilterBar();
+  renderSIChips();
+  renderSIGrid();
+}
+
+function siShowAll() {
+  var stylists = siGetVisibleStylists();
+  var grid = document.getElementById('siGrid');
+  var capNotice = document.getElementById('siCapNotice');
+  if (capNotice) capNotice.style.display = 'none';
+  if (grid) grid.innerHTML = stylists.map(function(s){ return renderSICard(s); }).join('');
+}
+
+function siFocusJump(stylistId) {
+  switchTab('coaching');
+  var s = null;
+  for (var i=0;i<COACH_DATA.length;i++){ if(COACH_DATA[i].id===stylistId){s=COACH_DATA[i];break;} }
+  if (s && s._si) {
+    siFilters.focus = s._si.primaryFocus;
+    siSaveFilters();
+    renderSICoachingList();
+    renderSIFilterBar();
+    renderSIChips();
+    renderSIGrid();
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        var card = document.getElementById('si-card-' + stylistId);
+        if (card) {
+          card.scrollIntoView({ behavior:'smooth', block:'center' });
+          card.classList.add('si-card-highlight');
+          setTimeout(function(){ card.classList.remove('si-card-highlight'); }, 2000);
+        }
+      });
+    });
+  }
+}
+
+function siSaveFilters() {
+  try { localStorage.setItem('kpi_si_filters', JSON.stringify(siFilters)); } catch(e) {}
+}
+
+function siLoadFilters() {
+  try {
+    var saved = localStorage.getItem('kpi_si_filters');
+    if (saved) siFilters = JSON.parse(saved);
+  } catch(e) {}
+}
+
 /* ── PWA: Service Worker ── */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
