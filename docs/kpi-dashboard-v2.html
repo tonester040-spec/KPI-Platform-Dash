@@ -292,58 +292,51 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 
 @media(max-width:900px){.loc-focus-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.loc-focus-grid{grid-template-columns:1fr}.morning-brief-strip{padding:8px 16px}}
-
 /* ══════════════════════════════════════════════════
-   DAD JOKE SPLASH — Owner / Karissa view only
-   Phase 2: gate behind login/persona detection
+   LOCATION SORT PILLS
 ══════════════════════════════════════════════════ */
-#joke-splash{position:fixed;inset:0;background:#F5F7FA;z-index:500;display:flex;align-items:center;justify-content:center;transition:opacity .3s ease}
-#joke-splash.hiding{opacity:0;pointer-events:none}
-.joke-skip{position:absolute;top:18px;right:24px;font-size:12px;font-weight:500;color:#A0AEC0;cursor:pointer;text-decoration:none;transition:color .15s;letter-spacing:.01em}
+.sort-pills-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.sort-pills-label{font-size:10px;font-weight:700;color:#A0AEC0;text-transform:uppercase;letter-spacing:.07em;margin-right:2px;white-space:nowrap;flex-shrink:0;line-height:1}
+.sort-pill{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid #E8ECF0;background:transparent;color:#7A8BA0;cursor:pointer;transition:background 150ms ease,color 150ms ease,border-color 150ms ease;font-family:'Inter',-apple-system,sans-serif;white-space:nowrap;line-height:1.6}
+.sort-pill:hover{background:#EEF4FB;color:#1E3A5F;border-color:#C8D8EA}
+.sort-pill.active{background:#1E3A5F;color:#fff;border-color:#1E3A5F}
+.sort-pill-sep{width:1px;height:18px;background:#E8ECF0;flex-shrink:0;align-self:center;margin:0 2px}
+#locCardsGrid{transition:opacity .12s ease,transform .12s ease}
+.region-divider-row{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:10px 0 2px}
+.region-divider-row:first-child{margin-top:0}
+.region-divider-label{font-size:10px;font-weight:700;color:#A0AEC0;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap}
+.region-divider-line{flex:1;height:1px;background:#E8ECF0}
+
+/* ── Dad Joke Splash ── */
+#joke-splash{position:fixed;inset:0;z-index:500;background:rgba(15,17,23,.92);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);transition:opacity .4s ease}
+#joke-splash.hidden{opacity:0;pointer-events:none}
+.joke-card{background:#fff;border-radius:18px;padding:40px 44px;max-width:480px;width:90%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.25);position:relative}
+.joke-day-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7A8BA0;margin-bottom:12px}
+.joke-setup{font-size:20px;font-weight:700;color:#1E3A5F;line-height:1.35;margin-bottom:20px}
+.joke-show-btn{background:#1E3A5F;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+.joke-show-btn:hover{background:#2a4f7a}
+.joke-punchline{font-size:18px;font-weight:600;color:#4A90D9;margin:16px 0 20px;display:none}
+.joke-reactions{display:none;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+.joke-reaction-btn{background:#F5F7FA;border:1px solid #E8ECF0;border-radius:30px;padding:6px 16px;font-size:14px;cursor:pointer;transition:background .15s,transform .1s}
+.joke-reaction-btn:hover{background:#EDF2FB;transform:scale(1.07)}
+.joke-reaction-btn.selected{background:#D6E8FB;border-color:#4A90D9}
+.joke-skip{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:#B0BEC5;cursor:pointer;line-height:1}
 .joke-skip:hover{color:#7A8BA0}
-.joke-card{background:#fff;border:1px solid #E8ECF0;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.06);padding:44px 52px 40px;max-width:500px;width:calc(100% - 48px);text-align:center}
-.joke-logo{font-size:22px;font-weight:800;color:#1E3A5F;letter-spacing:-.5px;margin-bottom:20px}
-.joke-logo span{color:#4A90D9}
-.joke-greeting{font-size:11px;font-weight:700;color:#A0AEC0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:22px}
-.joke-setup{font-size:17px;font-weight:700;color:#1E3A5F;line-height:1.55;letter-spacing:-.2px;margin-bottom:28px}
-.joke-show-btn{background:#EEF4FB;border:1.5px solid #4A90D9;color:#1E3A5F;font-family:'Inter',-apple-system,sans-serif;font-size:13px;font-weight:700;padding:9px 22px;border-radius:8px;cursor:pointer;transition:background .15s;margin-bottom:0}
-.joke-show-btn:hover{background:#DBEAFE}
-.joke-punchline{font-size:16px;color:#7A8BA0;font-style:italic;line-height:1.55;margin-top:22px;margin-bottom:0;opacity:0;transition:opacity .4s ease}
-.joke-punchline.visible{opacity:1}
-.joke-reactions{display:flex;gap:10px;justify-content:center;margin-top:22px;opacity:0;transition:opacity .3s ease .15s}
-.joke-reactions.visible{opacity:1}
-.joke-reaction-btn{background:#F8FAFC;border:1.5px solid #E8ECF0;border-radius:999px;padding:8px 18px;font-size:18px;cursor:pointer;transition:border-color .15s,background .15s;line-height:1;font-family:inherit}
-.joke-reaction-btn:hover{border-color:#C8D8EA;background:#EEF4FB}
-.joke-reaction-btn.selected{border-color:#4A90D9;background:#EEF4FB}
-.joke-reaction-text{font-size:12px;color:#7A8BA0;font-weight:500;min-height:16px;margin-top:14px;opacity:0;transition:opacity .25s ease}
-.joke-reaction-text.visible{opacity:1}
-.joke-enter{display:none;font-size:14px;font-weight:600;color:#4A90D9;cursor:pointer;text-decoration:none;background:none;border:none;font-family:'Inter',-apple-system,sans-serif;padding:0;margin-top:22px;transition:color .15s}
-.joke-enter:hover{color:#1E3A5F}
-.joke-enter.visible{display:inline-block}
-@media(max-width:540px){.joke-card{padding:32px 24px 28px}.joke-setup{font-size:15px}}
+.joke-footer{font-size:11px;color:#B0BEC5;margin-top:4px}
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════
-     DAD JOKE SPLASH — Owner / Karissa view only
-     Phase 2: gate behind persona/login detection
-════════════════════════════════════════════════════ -->
-<div id="joke-splash">
-  <a class="joke-skip" onclick="dismissJokeSplash()" href="javascript:void(0)">Skip to dashboard →</a>
+<!-- Dad Joke Splash Screen -->
+<div id="joke-splash" role="dialog" aria-modal="true" aria-label="Morning joke">
   <div class="joke-card">
-    <div class="joke-logo">K<span>PI</span></div>
-    <div class="joke-greeting" id="jokeGreeting"></div>
-    <div class="joke-setup" id="jokeSetup"></div>
-    <button class="joke-show-btn" id="jokeShowBtn" onclick="revealPunchline()">Show punchline 👀</button>
-    <div class="joke-punchline" id="jokePunchline"></div>
-    <div class="joke-reactions" id="jokeReactions">
-      <button class="joke-reaction-btn" id="react-groan" onclick="reactToJoke('groan')" title="Groan">😩</button>
-      <button class="joke-reaction-btn" id="react-meh"   onclick="reactToJoke('meh')"   title="Meh">😐</button>
-      <button class="joke-reaction-btn" id="react-laugh" onclick="reactToJoke('laugh')" title="Actually funny">😂</button>
-    </div>
-    <div class="joke-reaction-text" id="jokeReactionText"></div>
-    <button class="joke-enter" id="jokeEnterBtn" onclick="dismissJokeSplash()">Enter dashboard →</button>
+    <button class="joke-skip" onclick="dismissJokeSplash()" aria-label="Skip joke">✕</button>
+    <div class="joke-day-label" id="joke-day-label">Friday's Finest</div>
+    <div class="joke-setup" id="joke-setup"></div>
+    <button class="joke-show-btn" id="joke-show-btn" onclick="revealPunchline()">Hit me with it 👀</button>
+    <div class="joke-punchline" id="joke-punchline"></div>
+    <div class="joke-reactions" id="joke-reactions"></div>
+    <div class="joke-footer" id="joke-footer"></div>
   </div>
 </div>
 
@@ -388,6 +381,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
       <div class="section-title" style="margin-bottom:0" id="locCardsSectionLabel">Location Performance</div>
       <div class="loc-cards-context" id="locCardsContext">Focus View</div>
     </div>
+    <div class="sort-pills-row" id="sortPillsRow"></div>
     <div class="loc-focus-grid" id="locCardsGrid"></div>
   </div>
 
@@ -634,6 +628,29 @@ const SUMMARY_CARDS = [
   { id:'prod_pct', label:'Avg Product %',  value:NET_PROD_AVG.toFixed(1)+'%',                 trend:PCT(NET_PROD_AVG,PNET_PROD_AVG),sortKey:'prod_pct' },
   { id:'guests',   label:'Total Guests',   value:NET_GUESTS.toLocaleString(),                 trend:PCT(NET_GUESTS,PNET_GUESTS),   sortKey:'guests' },
 ];
+/* ═══════════════════════════════════════════════════════
+   REGION & SORT CONFIGURATION
+   Coach assignments confirmed by Tony 2026-03-20.
+   Phase 2: move to config file / admin UI.
+═══════════════════════════════════════════════════════ */
+const REGIONS = {
+  jess: ['Prior Lake','Apple Valley','Lakeville','Farmington'],
+  jenn: ['Andover FS','Blaine','Crystal FS','Elk River FS','Roseville'],
+  // karissa_direct = remainder: Forest Lake, Hudson, New Richmond, Woodbury
+};
+
+const SORT_OPTIONS = [
+  { id:'revenue_desc', label:'↓ Revenue',   group:'performance' },
+  { id:'revenue_asc',  label:'↑ Revenue',   group:'performance' },
+  { id:'loss_first',   label:'↓ vs Lw',     group:'performance' },
+  { id:'gain_first',   label:'↑ vs Lw',     group:'performance' },
+  { id:'pph_desc',     label:'↓ PPH',        group:'performance' },
+  { id:'goal_pct',     label:'Goal %',       group:'performance' },
+  { id:'region',       label:'⊞ Region',     group:'organize'    },
+  { id:'alpha',        label:'A → Z',        group:'organize'    },
+  { id:'platform',     label:'Platform',     group:'organize'    },
+];
+
 const TREND_LABELS  = ["2026-02-16","2026-02-23","2026-03-02","2026-03-09"];
 const TREND_SALES   = [152031,148273,162329,152309];
 const NET_AVG_PROD  = parseFloat(NET_PROD_AVG.toFixed(1));
@@ -1308,6 +1325,7 @@ buildMainCharts();
 
 // ── State ──
 let viewMode = 'focus';          // 'focus' | 'deep'
+let activeSortId = 'revenue_desc'; // active location sort
 let expandedLocations = new Set();
 let isMondayMorning = false;
 
@@ -1462,6 +1480,82 @@ function buildSparkline(data, color) {
        + '</svg>';
 }
 
+// ── Region helper ──
+function getRegion(locName) {
+  if (REGIONS.jess.indexOf(locName) !== -1) return 'jess';
+  if (REGIONS.jenn.indexOf(locName) !== -1) return 'jenn';
+  return 'karissa_direct';
+}
+
+// ── Returns LOCS sorted by activeSortId (never mutates LOCS) ──
+function getActiveLocsOrdered() {
+  var locs = LOCS.slice();
+  switch (activeSortId) {
+    case 'revenue_desc': locs.sort(function(a,b){ return b.sales - a.sales; }); break;
+    case 'revenue_asc':  locs.sort(function(a,b){ return a.sales - b.sales; }); break;
+    case 'loss_first':
+      locs.sort(function(a,b){
+        var ap = a.ps ? (a.delta_s / a.ps) : 0;
+        var bp = b.ps ? (b.delta_s / b.ps) : 0;
+        return ap - bp;
+      }); break;
+    case 'gain_first':
+      locs.sort(function(a,b){
+        var ap = a.ps ? (a.delta_s / a.ps) : 0;
+        var bp = b.ps ? (b.delta_s / b.ps) : 0;
+        return bp - ap;
+      }); break;
+    case 'pph_desc': locs.sort(function(a,b){ return b.pph - a.pph; }); break;
+    case 'goal_pct':
+      locs.sort(function(a,b){
+        var ha = LOC_HIST[a.name], hb = LOC_HIST[b.name];
+        var avg4a = ha.s.slice(-5,-1).reduce(function(x,y){return x+y;},0) / 4;
+        var avg4b = hb.s.slice(-5,-1).reduce(function(x,y){return x+y;},0) / 4;
+        return (avg4b ? b.sales/avg4b : 1) - (avg4a ? a.sales/avg4a : 1);
+      }); break;
+    case 'alpha': locs.sort(function(a,b){ return a.name.localeCompare(b.name); }); break;
+    case 'platform': locs.sort(function(a,b){ return a.plat.localeCompare(b.plat); }); break;
+    case 'region':
+      locs.sort(function(a,b){
+        var order = { jess:0, jenn:1, karissa_direct:2 };
+        var oa = order[getRegion(a.name)]; var ob = order[getRegion(b.name)];
+        if (oa !== ob) return oa - ob;
+        return a.name.localeCompare(b.name);
+      }); break;
+  }
+  return locs;
+}
+
+// ── Render sort pill row ──
+function renderSortPills() {
+  var row = document.getElementById('sortPillsRow');
+  if (!row) return;
+  var html = '<span class="sort-pills-label">Sort</span>';
+  var lastGroup = null;
+  SORT_OPTIONS.forEach(function(opt) {
+    if (opt.group !== lastGroup && lastGroup !== null) {
+      html += '<div class="sort-pill-sep" aria-hidden="true"></div>';
+    }
+    lastGroup = opt.group;
+    var isActive = activeSortId === opt.id;
+    html += '<button class="sort-pill' + (isActive ? ' active' : '') + '" onclick="applySort('' + opt.id + '')" aria-pressed="' + isActive + '">' + opt.label + '</button>';
+  });
+  row.innerHTML = html;
+}
+
+// ── Apply sort: animate grid, update pills, re-render cards ──
+function applySort(id) {
+  activeSortId = id;
+  if (!isMondayMorning) localStorage.setItem('kpi_location_sort', id);
+  var grid = document.getElementById('locCardsGrid');
+  if (grid) { grid.style.opacity = '0'; grid.style.transform = 'translateY(3px)'; }
+  renderSortPills();
+  setTimeout(function() {
+    renderLocCards();
+    if (grid) { grid.style.opacity = '1'; grid.style.transform = 'translateY(0)'; }
+  }, 130);
+}
+
 // ── Render location cards ──
 function renderLocCards() {
   var grid = document.getElementById('locCardsGrid');
@@ -1470,7 +1564,30 @@ function renderLocCards() {
   var topAlertLoc = null;
   var topAlertStatus = null;
 
-  var cardsHtml = LOCS.map(function(loc) {
+  var sortedLocs = getActiveLocsOrdered();
+
+  // Build card HTML — region sort adds territory dividers between groups
+  if (activeSortId === 'region') {
+    var groups = [
+      { key:'jess',           label:"Jess's Territory" },
+      { key:'jenn',           label:"Jenn's Territory"  },
+      { key:'karissa_direct', label:'Karissa Direct'    },
+    ];
+    var cardsHtml = '';
+    groups.forEach(function(grp) {
+      var groupLocs = sortedLocs.filter(function(l){ return getRegion(l.name) === grp.key; });
+      if (!groupLocs.length) return;
+      cardsHtml += '<div class="region-divider-row"><span class="region-divider-label">' + grp.label + '</span><div class="region-divider-line"></div></div>';
+      groupLocs.forEach(function(loc) {
+        if (!topAlertLoc) {
+          var ind = getLocIndicator(loc);
+          if (ind === 'red' || ind === 'amber') { topAlertLoc = loc; topAlertStatus = getLocStatus(loc); }
+        }
+        cardsHtml += buildLocCardHtml(loc);
+      });
+    });
+  } else {
+    var cardsHtml = sortedLocs.map(function(loc) {
     var h = LOC_HIST[loc.name];
     var isExpanded = expandedLocations.has(loc.name);
     var indicator = getLocIndicator(loc);
@@ -1518,6 +1635,8 @@ function renderLocCards() {
       + '<div class="loc-fc-expanded-body"><div class="loc-fc-expanded-inner">' + expandedHtml + '</div></div>'
       + '</div>';
   }).join('');
+    }).join('');
+  }
 
   // Monday: promote top alert to full width
   var alertHtml = '';
@@ -1530,8 +1649,62 @@ function renderLocCards() {
   grid.innerHTML = alertHtml + cardsHtml;
 }
 
+// ── Build single location card HTML ──
+function buildLocCardHtml(loc) {
+    var h = LOC_HIST[loc.name];
+    var isExpanded = expandedLocations.has(loc.name);
+    var indicator = getLocIndicator(loc);
+    var status = getLocStatus(loc);
+
+    if (!topAlertLoc && indicator === 'red') {
+      topAlertLoc = loc;
+      topAlertStatus = status;
+    } else if (!topAlertLoc && indicator === 'amber') {
+      topAlertLoc = loc;
+      topAlertStatus = status;
+    }
+
+    var deltaS   = loc.delta_s;
+    var deltaPct = loc.ps ? ((loc.sales - loc.ps) / loc.ps * 100) : 0;
+    var deltaDir = deltaS > 50 ? 'up' : deltaS < -50 ? 'down' : 'flat';
+    var deltaTxt = (deltaS >= 0 ? '+' : '') + deltaPct.toFixed(1) + '% vs last wk';
+
+    var expandedHtml = '';
+    {
+      var deltaH  = loc.delta_h;
+      var deltaG  = loc.delta_g;
+      var deltaP  = loc.delta_p;
+      var deltaAt = loc.pat ? (loc.avg_tick - loc.pat) : 0;
+      var sparkColor = indicator === 'green' ? '#16A34A'
+                     : indicator === 'amber' ? '#F59E0B' : '#EF4444';
+
+      expandedHtml =
+        '<div class="loc-fc-metrics">'
+        + '<div class="loc-fc-metric"><div class="loc-fc-metric-label">PPH</div><div class="loc-fc-metric-val">$' + loc.pph.toFixed(2) + '</div><div class="loc-fc-metric-delta ' + (deltaH>=0?'up':'down') + '">' + (deltaH>=0?'+':'') + '$' + Math.abs(deltaH).toFixed(2) + '</div></div>'
+        + '<div class="loc-fc-metric"><div class="loc-fc-metric-label">Guests</div><div class="loc-fc-metric-val">' + loc.guests + '</div><div class="loc-fc-metric-delta ' + (deltaG>=0?'up':'down') + '">' + (deltaG>=0?'+':'') + Math.round(deltaG) + ' vs lw</div></div>'
+        + '<div class="loc-fc-metric"><div class="loc-fc-metric-label">Avg Ticket</div><div class="loc-fc-metric-val">$' + loc.avg_tick.toFixed(2) + '</div><div class="loc-fc-metric-delta ' + (deltaAt>=0.5?'up':deltaAt<-0.5?'down':'flat') + '">' + (deltaAt>=0?'+':'') + '$' + Math.abs(deltaAt).toFixed(2) + '</div></div>'
+        + '<div class="loc-fc-metric"><div class="loc-fc-metric-label">Product %</div><div class="loc-fc-metric-val">' + loc.prod_pct.toFixed(1) + '%</div><div class="loc-fc-metric-delta ' + (deltaP>=0?'up':'down') + '">' + (deltaP>=0?'+':'') + deltaP.toFixed(1) + 'pts</div></div>'
+        + '<div class="loc-fc-metric"><div class="loc-fc-metric-label">Wax %</div><div class="loc-fc-metric-val">' + loc.wax_pct.toFixed(1) + '%</div><div class="loc-fc-metric-delta flat">— 12wk avg</div></div>'
+        + '<div class="loc-fc-metric"><div class="loc-fc-metric-label">Rank</div><div class="loc-fc-metric-val" style="font-size:20px">#' + loc.rank + '</div><div class="loc-fc-metric-delta flat">' + loc.plat.replace('_',' ') + '</div></div>'
+        + '</div>'
+        + '<div class="loc-fc-spark">' + buildSparkline(h.s, sparkColor) + '</div>'
+        + '<div class="loc-fc-spark-label">12-week sales trend</div>';
+    }
+
+    return '<div class="loc-fc status-' + indicator + (isExpanded ? ' expanded' : '') + '" data-locname="' + loc.name.replace(/"/g, '&quot;') + '" onclick="toggleLocCard(this.dataset.locname)" aria-expanded="' + isExpanded + '">'
+      + '<div class="loc-fc-head"><div><div class="loc-fc-name">' + loc.name + '</div><div class="loc-fc-plat">' + loc.plat.replace('_',' ') + '</div></div><span class="loc-fc-chevron" aria-hidden="true">▼</span></div>'
+      + '<div class="loc-fc-rev"><span class="loc-fc-rev-val">$' + Math.round(loc.sales).toLocaleString() + '</span><span class="loc-fc-rev-delta ' + deltaDir + '">' + deltaTxt + '</span></div>'
+      + '<div class="loc-fc-status-line ' + status.color + '">' + status.text + '</div>'
+      + '<div class="loc-fc-expanded-body"><div class="loc-fc-expanded-inner">' + expandedHtml + '</div></div>'
+      + '</div>';
+  }).join('');
+}
+
 // ── INIT ──
+// Load saved sort (reset to revenue_desc on Monday morning)
+activeSortId = isMondayMorning ? 'revenue_desc' : (localStorage.getItem('kpi_location_sort') || 'revenue_desc');
 updateMorningBrief();
+renderSortPills();
 renderLocCards();
 updateViewToggleBtn();
 
@@ -1565,80 +1738,62 @@ function dismissPwaBanner() {
     ? '<span class="freshness-badge badge-live" title="Data is current"><span class="badge-dot dot-live"></span>Live</span>'
     : '<span class="freshness-badge badge-stale" title="Last refreshed ' + weekDateStr + '. Auto-refresh coming soon." style="cursor:help"><span class="badge-dot dot-stale"></span>Stale</span>';
 })();
-/* ══════════════════════════════════════════════════════
-   DAD JOKE SPLASH — Owner / Karissa view only
-   Phase 2: gate this behind persona/login detection.
-   Currently shows on every dashboard load (first session visit only).
-   Jess / Jenn / Manager views will suppress via persona flag.
-══════════════════════════════════════════════════════ */
+/* ── Dad Joke Splash ── */
 (function initJokeSplash() {
+  var JOKES = [
+    { day: 0, label: 'Sunday Stretcher',  setup: "Why don't scientists trust atoms?",                    punchline: 'Because they make up everything.' },
+    { day: 1, label: 'Monday Motivator',  setup: 'Why did the scarecrow win an award?',                  punchline: 'Because he was outstanding in his field.' },
+    { day: 2, label: 'Tuesday Teaser',    setup: 'I told my wife she was drawing her eyebrows too high.', punchline: 'She looked surprised.' },
+    { day: 3, label: 'Wednesday Wisdom',  setup: "Why do cows wear bells?",                              punchline: "Because their horns don't work." },
+    { day: 4, label: 'Thursday Thought',  setup: 'What did the ocean say to the beach?',                 punchline: 'Nothing, it just waved.' },
+    { day: 5, label: "Friday's Finest",   setup: "Why don't some couples go to the gym?",               punchline: "Because some relationships don't work out." },
+    { day: 6, label: 'Saturday Special',  setup: "What do you call cheese that isn't yours?",           punchline: 'Nacho cheese.' },
+  ];
+  var REACTIONS = { '\uD83D\uDE02': 'LOL', '\uD83D\uDE44': 'Rough', '\uD83D\uDC4F': 'Nice', '\uD83E\uDD26': 'Dad...' };
+
+  if (sessionStorage.getItem('kpi_joke_seen')) return;
+
+  var today = new Date().getDay();
+  var joke = JOKES[today];
   var splash = document.getElementById('joke-splash');
   if (!splash) return;
 
-  // Skip if already seen this session
-  if (sessionStorage.getItem('kpi_joke_seen')) {
-    splash.style.display = 'none';
-    return;
-  }
+  document.getElementById('joke-day-label').textContent = joke.label;
+  document.getElementById('joke-setup').textContent = joke.setup;
 
-  var JOKES = [
-    { setup: "Why did the salon owner bring a spreadsheet to the barber?",   punchline: "She wanted to cut costs." },
-    { setup: "What did the stylist say when she hit her weekly revenue goal?", punchline: "I'm having a great hair day." },
-    { setup: "What do you call a stylist who always hits her targets?",        punchline: "A cut above." },
-    { setup: "Why don't salon managers ever get lost?",                        punchline: "They always follow the highlights." },
-    { setup: "Why do salon managers make great poker players?",                punchline: "They always know when to fold." },
-    { setup: "What's a salon owner's favorite kind of data?",                  punchline: "The kind that doesn't need a trim." },
-    { setup: "Why did the coach cancel the Monday call?",                      punchline: "The numbers already said everything." },
-  ];
+  var reactionsEl = document.getElementById('joke-reactions');
+  Object.keys(REACTIONS).forEach(function(emoji) {
+    var btn = document.createElement('button');
+    btn.className = 'joke-reaction-btn';
+    btn.setAttribute('data-emoji', emoji);
+    btn.textContent = emoji + ' ' + REACTIONS[emoji];
+    btn.onclick = function() { reactToJoke(emoji); };
+    reactionsEl.appendChild(btn);
+  });
 
-  var REACTIONS = {
-    groan: "Classic. We'll keep trying.",
-    meh:   "Fair. Monday bar is low.",
-    laugh: "We'll take it. Have a great week."
-  };
-
-  // Day-of-week joke
-  var joke = JOKES[new Date().getDay() % 7];
-  document.getElementById('jokeSetup').textContent     = joke.setup;
-  document.getElementById('jokePunchline').textContent = joke.punchline;
-
-  // Time-aware greeting
-  var hour = new Date().getHours();
-  var salutation = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('jokeGreeting').textContent = salutation + ', Karissa.';
-
-  // Reveal punchline
   window.revealPunchline = function() {
-    document.getElementById('jokeShowBtn').style.display = 'none';
-    requestAnimationFrame(function() {
-      document.getElementById('jokePunchline').classList.add('visible');
-      setTimeout(function() {
-        document.getElementById('jokeReactions').classList.add('visible');
-        document.getElementById('jokeEnterBtn').classList.add('visible');
-      }, 200);
-    });
+    document.getElementById('joke-show-btn').style.display = 'none';
+    var pl = document.getElementById('joke-punchline');
+    pl.textContent = joke.punchline;
+    pl.style.display = 'block';
+    document.getElementById('joke-reactions').style.display = 'flex';
+    document.getElementById('joke-footer').textContent = 'Tap a reaction to continue \u2192';
   };
 
-  // Reaction buttons
-  window.reactToJoke = function(type) {
-    ['groan','meh','laugh'].forEach(function(t) {
-      document.getElementById('react-' + t).classList.remove('selected');
-    });
-    document.getElementById('react-' + type).classList.add('selected');
-    var txt = document.getElementById('jokeReactionText');
-    txt.textContent = REACTIONS[type];
-    txt.classList.add('visible');
+  window.reactToJoke = function(emoji) {
+    document.querySelectorAll('.joke-reaction-btn').forEach(function(b) { b.classList.remove('selected'); });
+    var sel = document.querySelector('.joke-reaction-btn[data-emoji="' + emoji + '"]');
+    if (sel) sel.classList.add('selected');
+    document.getElementById('joke-footer').textContent = 'Nice taste. Loading your dashboard\u2026';
+    setTimeout(function() { dismissJokeSplash(); }, 900);
   };
 
-  // Dismiss — works for both Skip and Enter
   window.dismissJokeSplash = function() {
-    sessionStorage.setItem('kpi_joke_seen', 'true');
-    var el = document.getElementById('joke-splash');
-    el.classList.add('hiding');
-    setTimeout(function() { el.style.display = 'none'; }, 310);
+    splash.style.opacity = '0';
+    setTimeout(function() { splash.style.display = 'none'; }, 400);
+    sessionStorage.setItem('kpi_joke_seen', '1');
   };
 })();
-
 /* ── PWA: Service Worker ── */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
