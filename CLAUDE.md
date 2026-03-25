@@ -5,9 +5,13 @@
 
 ## What this project is
 
-A weekly salon analytics platform for **Karissa**, a multi-location salon owner in Minnesota. Every Monday at 7:00 AM Central the pipeline runs automatically via GitHub Actions. It reads salon performance data from a Google Sheet, generates AI commentary, builds HTML dashboards for 3 different managers, sends an Excel report by email, and pushes everything to GitHub Pages.
+A weekly salon analytics platform for **Karissa**, a multi-location salon owner in Minnesota. Two automated pipelines run via GitHub Actions:
+
+1. **Weekly KPI pipeline** — Every Monday at 7:00 AM Central. Reads salon performance data from a Google Sheet, generates AI commentary, builds HTML dashboards for 3 different managers, sends an Excel report by email, and pushes everything to GitHub Pages.
+2. **Daily Email Assistant** — Every weekday (Mon–Fri) at 7:30 AM Central. Reads Karissa's Gmail inbox, filters noise, categorizes real emails via Claude, generates draft replies in Karissa's voice, and publishes a morning debrief page to GitHub Pages.
 
 **Live dashboard:** https://tonester040-spec.github.io/KPI-Platform-Dash/
+**Morning debrief:** https://tonester040-spec.github.io/KPI-Platform-Dash/karissa-debrief.html
 **GitHub repo:** https://github.com/tonester040-spec/KPI-Platform-Dash
 **Google Sheet ID:** `1JY6L7H1Pb2JFmNoz2XNkvG0ogrYgagLVDwH01vuWT28`
 **Owner contact:** Tony (tonester60@hotmail.com) — not Karissa's dev, he's building this FOR her
@@ -16,25 +20,69 @@ A weekly salon analytics platform for **Karissa**, a multi-location salon owner 
 
 ## Architecture at a glance
 
+### Pipeline 1 — Weekly KPI (Mondays)
+
 ```
-Google Sheets (source of truth)
+Google Sheets (source of truth — Karissa's team enters current week into CURRENT tab)
     ↓
 main.py (pipeline orchestrator)
     ↓ reads
-core/data_source.py       → pulls from Sheets
+core/data_source.py       → reads CURRENT (locations), STYLISTS_DATA, DATA (history) tabs
 core/data_processor.py    → enriches, ranks, flags
 core/ai_cards.py          → Claude API summaries per location + stylist
+                             (claude-haiku-4-5-20251001 for bulk stylist cards,
+                              claude-sonnet-4-6 for coach briefing)
 core/sheets_writer.py     → writes CURRENT, STYLISTS_CURRENT, ALERTS tabs back
 core/report_builder.py    → generates 5-sheet Excel report (openpyxl)
 core/dashboard_builder.py → builds docs/index.html, docs/jess.html, docs/jenn.html
-core/email_sender.py      → sends Excel to Karissa via Gmail
-core/git_pusher.py        → commits + pushes docs/ to main
+core/email_sender.py      → sends Excel to Tony (tonester60@hotmail.com) via Gmail App Password
+core/git_pusher.py        → commits docs/ locally (workflow step pushes to main)
     ↓
-GitHub Pages (public PWA)
-    docs/index.html   → Karissa's full dashboard (all 12 locations)
-    docs/jess.html    → Jess's PIN-gated dashboard (her 4 locations)
-    docs/jenn.html    → Jenn's PIN-gated dashboard (her 5 locations)
-    docs/manifest.json + docs/sw.js → PWA (installable on iPhone)
+data/logs/pipeline_YYYYMMDD_HHMMSS.log  → uploaded as GitHub Actions artifact (30 days)
+```
+
+### Pipeline 2 — Email Assistant (Mon–Fri mornings)
+
+```
+Gmail inbox (Karissa's email — OAuth access)
+    ↓
+email_assistant/run_assistant.py (orchestrator)
+    ↓
+email_assistant/gmail_connector.py   → Gmail OAuth (GMAIL_CLIENT_ID/SECRET/REFRESH_TOKEN)
+email_assistant/noise_filter.py      → drops marketing/automated noise
+email_assistant/categorizer.py       → categorizes real emails via Claude (urgency, tasks)
+email_assistant/draft_generator.py   → generates draft replies in Karissa's voice via Claude
+email_assistant/debrief_builder.py   → builds docs/karissa-debrief.html
+email_assistant/friday_recap.py      → fetches week's emails for Friday summary (Fridays only)
+    ↓
+docs/karissa-debrief.html → published to GitHub Pages (committed + pushed by workflow)
+```
+
+### Voice profile (one-time setup)
+
+```
+voice/samples/           → 30-40 of Karissa's sent emails as .txt (gitignored — never committed)
+    ↓
+email_assistant/build_profile.py → analyzes samples, generates voice profile
+email_assistant/voice_profile.py → used by draft_generator at runtime
+    ↓
+voice/karissa_voice_profile.json → committed (style metadata only, no real email content)
+```
+
+### GitHub Pages (public PWA)
+
+```
+docs/index.html          → Karissa's full dashboard (all 12 locations)
+docs/jess.html           → Jess's PIN-gated dashboard (her 4 locations)
+docs/jenn.html           → Jenn's PIN-gated dashboard (her 5 locations)
+docs/owners.html         → Private owner dashboard (John/Patti) — PIN 7291, never linked publicly
+docs/karissa-debrief.html → Daily morning email debrief (rebuilt Mon–Fri by email_assistant)
+docs/manifest.json + docs/sw.js → PWA (installable on iPhone)
+docs/offline.html        → shown when app opened with no connection
+docs/icons/              → icon-192.png, icon-512.png
+docs/kpi-demo.html       → prototype/demo file (not regenerated by pipeline)
+docs/kpi-dashboard-v2.html → prototype/demo file (not regenerated by pipeline)
+docs/kpi-music.mp3       → audio file (not part of pipeline)
 ```
 
 ---
@@ -58,6 +106,8 @@ GitHub Pages (public PWA)
 
 **Woodbury (su003) was removed — do not re-add it.**
 Source of truth: `config/customers/karissa_001.json`
+
+**Note:** `docs/manifest.json` still says "13 locations" in its description — this is stale text. Cosmetic only, doesn't affect function.
 
 ---
 
@@ -92,16 +142,33 @@ Source of truth: `config/customers/karissa_001.json`
 
 | Tab               | What it holds                                              |
 |-------------------|------------------------------------------------------------|
-| `CURRENT`         | 12 rows — current week snapshot (pipeline overwrites each run) |
+| `CURRENT`         | 12 rows — current week snapshot (Karissa's team enters this; pipeline reads it, then overwrites with enriched data each run) |
 | `DATA`            | Append ledger — all historical weeks (never overwritten)   |
 | `GOALS`           | Per-location annual targets                                |
 | `ALERTS`          | Flag summary written by pipeline                           |
 | `STYLISTS_CURRENT`| Current week stylist rows (pipeline overwrites)            |
 | `STYLISTS_DATA`   | Historical stylist data (append ledger)                    |
 | `WEEKLY_DATA`     | Weekly aggregates                                          |
-| `WEEK_ENDING`     | Lookup tab for current week date                           |
+| `WEEK_ENDING`     | Manual reference tab — **not read by pipeline code** (pipeline reads week_ending from row data in CURRENT/DATA tabs) |
+
+**Data flow:** Karissa's team enters current week data into CURRENT tab manually. The pipeline reads CURRENT (current week) + DATA (location history) + STYLISTS_DATA (stylist history), enriches everything, then writes back to CURRENT + STYLISTS_CURRENT + ALERTS.
 
 **Known gap:** `sheets_writer.py` rewrites CURRENT and STYLISTS_CURRENT but does NOT automatically append to DATA/STYLISTS_DATA after each run. The `append_to_historical()` function (~20 lines) still needs to be added. Do not assume this is working until confirmed.
+
+---
+
+## GitHub Actions workflows (4 total)
+
+| File | Trigger | What it does |
+|------|---------|--------------|
+| `weekly_pipeline.yml` | Monday 7:00 AM Central (12:00 UTC) + manual dispatch | Full KPI pipeline: read sheets → AI cards → write sheets → Excel → email → build dashboards → commit + push docs/ |
+| `email_assistant.yml` | Mon–Fri 7:30 AM Central (12:30 UTC) + manual dispatch | Email pipeline: Gmail OAuth → noise filter → categorize → draft replies → build debrief HTML → commit + push docs/karissa-debrief.html |
+| `deploy.yml` | Push to main + manual dispatch | Deploys `docs/` folder to GitHub Pages |
+| `static.yml` | Push to main + manual dispatch | Identical to deploy.yml — older duplicate, both currently active |
+
+**Pipeline push strategy:** `git_pusher.py` commits `docs/` locally during the pipeline run. The workflow's "Push dashboard changes" step then fetches, rebases (`-X theirs`), and pushes. If rebase fails, falls back to `--force-with-lease`.
+
+**Concurrency:** Both `weekly_pipeline.yml` and `email_assistant.yml` use `cancel-in-progress: false`.
 
 ---
 
@@ -110,9 +177,18 @@ Source of truth: `config/customers/karissa_001.json`
 - **Runs:** Every Monday 7:00 AM Central (12:00 UTC) via `weekly_pipeline.yml`
 - **CRITICAL:** The pipeline **regenerates `docs/index.html`, `docs/jess.html`, `docs/jenn.html` from scratch** every run by calling `dashboard_builder.py`. Any manual edits to those HTML files will be overwritten the next Monday.
 - **Correct fix:** All permanent additions (PWA meta tags, PIN gate, WebAuthn JS, install banner) must be baked INTO `core/dashboard_builder.py` — not hand-edited into docs/*.html.
-- **Concurrency:** `cancel-in-progress: false` (changed from true after stability — flip back if queued runs pile up)
 - **Dry run available:** `DRY_RUN=true python main.py` skips all writes, API calls, email, git push
 - **Sandbox validation:** `python scripts/sandbox_run.py` — runs ALL modules against mock data, zero real API calls. Run this before deploying new credentials or after any schema/code change. Must show 8/8 PASS.
+
+## Email assistant — key behavior
+
+- **Runs:** Every weekday at 7:30 AM Central (12:30 UTC) via `email_assistant.yml`
+- **What it produces:** `docs/karissa-debrief.html` — a daily morning briefing showing urgent emails, categorized threads, draft reply previews, and location mentions
+- **Gmail auth:** OAuth 2.0 (NOT App Password). Secrets: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`
+- **One-time OAuth setup:** Run `email_assistant/get_token.py` locally to generate the refresh token, then store in GitHub Secrets
+- **Not yet live:** Gmail OAuth secrets have not been added to GitHub Secrets yet. Until then, the assistant writes a "Coming Soon" placeholder page and exits cleanly — no crashes
+- **Friday behavior:** On Fridays, fetches the full week's emails (last 120 hours) for a recap summary in addition to the daily debrief
+- **Voice profile:** Draft replies are generated to sound like Karissa. Set up by dropping 30–40 sent emails into `voice/samples/` and running `email_assistant/build_profile.py` once
 
 ---
 
@@ -181,13 +257,28 @@ The app is installable on iPhone (Add to Home Screen). Components:
 
 ## Environment variables (GitHub Actions Secrets)
 
+### Weekly KPI pipeline (`weekly_pipeline.yml`)
+
 | Variable                      | Required | Purpose                              |
 |-------------------------------|----------|--------------------------------------|
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | ✅       | Base64-encoded service account JSON  |
-| `ANTHROPIC_API_KEY`           | ✅       | Claude API for AI card generation    |
+| `ANTHROPIC_API_KEY`           | ✅       | Claude API for AI card + coach generation |
 | `GMAIL_APP_PASSWORD`          | ⚠️ soft | Gmail App Password — skipped if missing |
-| `GMAIL_SENDER`                | ⚠️ soft | Gmail sender address                 |
+| `GMAIL_SENDER`                | ⚠️ soft | Gmail sender address (outbound Excel report) |
 | `ACTIVE_CUSTOMER_ID`          | default  | Defaults to `karissa_001`            |
+
+### Email assistant pipeline (`email_assistant.yml`)
+
+| Variable                      | Required | Purpose                              |
+|-------------------------------|----------|--------------------------------------|
+| `GMAIL_CLIENT_ID`             | ✅       | Gmail OAuth client ID (inbox access) |
+| `GMAIL_CLIENT_SECRET`         | ✅       | Gmail OAuth client secret            |
+| `GMAIL_REFRESH_TOKEN`         | ✅       | Gmail OAuth refresh token — generate once via `email_assistant/get_token.py` |
+| `ANTHROPIC_API_KEY`           | ✅       | Claude API for email categorization + draft generation |
+
+**Two separate Gmail auth flows:**
+- KPI pipeline uses **App Password** (SMTP outbound only — sends the Excel report to Tony)
+- Email assistant uses **OAuth 2.0** (inbox read + draft write for Karissa's account)
 
 ---
 
@@ -200,25 +291,49 @@ The app is installable on iPhone (Add to Home Screen). Components:
 4. **Goals & YOY** — 6 live columns + 8 gray placeholder columns (⏳ prefix) for future Zenoti API feeds
 5. **Stylists** — per-stylist performance
 
+**Current recipients:** `config/customers/karissa_001.json` → `email_recipients` → `["tonester60@hotmail.com"]` (Tony). Update when Karissa's email is confirmed.
+
 ---
+
+## AI model usage
+
+- **Stylist cards** (bulk, ~12 locations × ~10 stylists): `claude-haiku-4-5-20251001` — fast + cheap
+- **Coach briefing** (1 per run, network-wide summary): `claude-sonnet-4-6` — higher quality
+- **Email categorization + draft replies** (email assistant): configured inside `categorizer.py` and `draft_generator.py` — check those files for current model
+
+---
+
+## Pipeline logging
+
+`main.py` writes a run log to `data/logs/pipeline_YYYYMMDD_HHMMSS.log` after each run. Uploaded as a GitHub Actions artifact (`pipeline-log-{run_id}`) with 30-day retention. Use these logs for drift calibration (actual revenue/PPH ranges per location over time).
+
+---
+
+## What's built but not yet live
+
+- **Email assistant** — Fully built (`email_assistant/` module + `email_assistant.yml` workflow + `docs/karissa-debrief.html`). Awaiting Gmail OAuth secrets (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`) to be added to GitHub Secrets. Runs the placeholder page loop cleanly until then.
+- **Voice profile** — `build_profile.py` and `voice_profile.py` are written and wired in. Awaiting Karissa's sample emails to be placed in `voice/samples/` and `build_profile.py` run once.
 
 ## What's paused / future state
 
-- **AI assistant chat** — floating chat UI, Cloudflare Worker proxy for API key security, scoped per manager. Architecture designed, not built. Waiting on historical data decisions.
 - **Historical backfill** — Karissa may have 2-4 years of data in Zenoti/Salon Ultimate. 50/50 on whether it's exportable. Architecture ready (DATA tab is the append ledger). `append_to_historical()` function needs to be written in `sheets_writer.py` first.
-- **Zenoti/Salon Ultimate API feeds** — placeholder columns exist in Goals & YOY sheet. API access not yet granted by Karissa. Do not wire up API calls until credentials arrive.
-- **Current week detection** — `data_source.py` may still have hardcoded date. Should read `max(week_ending)` dynamically. Confirm before each pipeline session.
+- **Zenoti/Salon Ultimate API feeds** — placeholder columns exist in Goals & YOY sheet. API access not yet granted by Karissa. Do not wire up API calls until credentials arrive. Schema contracts already written: `config/zenoti_schema.json`, `config/salon_ultimate_schema.json`.
+- **AI assistant chat** — floating chat UI, Cloudflare Worker proxy for API key security, scoped per manager. Architecture designed, not built. Waiting on historical data decisions.
 
 ---
 
 ## Tech stack
 
-- Python 3.x
+- Python 3.x (GitHub Actions runner: 3.11)
 - `gspread` / `google-auth` — Google Sheets read/write
 - `openpyxl` — Excel report generation
-- `anthropic` — Claude API (claude-sonnet-4-6 for AI cards; consider claude-haiku-4-5 for cheaper categorization tasks)
+- `anthropic` — Claude API
 - `Pillow` — icon generation
-- GitHub Actions — weekly automation
+- `authlib` — OAuth 2.0 (prepared for Zenoti integration)
+- `requests` — HTTP (in requirements.txt; reserved for future API connectors — not currently used in production code)
+- `backoff` — retry logic
+- `python-dotenv` — local .env loading
+- GitHub Actions — weekly + daily automation
 - GitHub Pages — hosting (docs/ folder → public)
 - WebAuthn API — biometric auth in jess.html / jenn.html (device-side, zero server cost)
 
@@ -227,10 +342,41 @@ The app is installable on iPhone (Add to Home Screen). Components:
 ## Git workflow
 
 - Main branch: `main`
-- Pipeline auto-commits to `docs/` every Monday — this will conflict with manual HTML edits
+- Pipeline auto-commits to `docs/` every Monday (3 dashboard HTML files)
+- Email assistant auto-commits `docs/karissa-debrief.html` every weekday morning
 - Tony pushes to GitHub via **GitHub Desktop** — the Cowork VM doesn't store git credentials
 - After Cowork makes changes: commit here, Tony opens GitHub Desktop and hits "Push origin"
 - If pipeline ran while Cowork was making changes: resolve using the programmatic reapply approach (extract pipeline HTML from conflict markers, re-apply PWA additions on top)
+
+---
+
+## Architecture phases
+
+### Phase 1 — In production (current)
+```
+Data entry  → Google Sheets (manual weekly entry by Karissa's team into CURRENT tab)
+Storage     → Google Sheets tabs (CURRENT, DATA, GOALS, ALERTS, STYLISTS_*)
+Processing  → Python pipeline (main.py + core/ modules)
+Delivery    → GitHub Pages dashboards (index.html, jess.html, jenn.html, owners.html)
+```
+
+### Phase 2 — Built, activating
+```
+Email layer → Gmail OAuth → Email Assistant → karissa-debrief.html
+              BUILT. Awaiting Gmail OAuth secrets in GitHub Secrets.
+API feeds   → Zenoti API + Salon Ultimate API
+              Schema contracts written. API access not yet granted by Karissa.
+```
+
+### Phase 3+ — Future
+```
+Storage     → PostgreSQL or BigQuery (replace Google Sheets as storage layer)
+Processing  → dedicated analytics pipeline (dbt or similar)
+Auth        → server-side authentication (Cloudflare Worker or similar)
+Chat        → AI assistant chat scoped per manager
+```
+
+**Intent documented for future developers:** The Google Sheets layer is a pragmatic bridge, not the final architecture. Schema contracts (`zenoti_schema.json`, `salon_ultimate_schema.json`) and the `DATA` append ledger pattern are designed to survive a Layer 2 migration with minimal pipeline changes.
 
 ---
 
@@ -241,5 +387,9 @@ The app is installable on iPhone (Add to Home Screen). Components:
 3. Delete or rename location IDs (z001-z010, su001-su002)
 4. Add Woodbury back
 5. Touch `GOOGLE_SERVICE_ACCOUNT_JSON` handling — it's base64 encoded for a reason
-6. Edit `docs/*.html` directly for permanent features — put them in `dashboard_builder.py`
+6. Edit `docs/*.html` directly for permanent features — put them in `dashboard_builder.py` (exception: `owners.html`, `karissa-debrief.html`, and prototype/demo files are manually maintained and safe from pipeline overwrites)
 7. Change `cancel-in-progress` in the pipeline without understanding the concurrency implications
+8. Commit anything to `voice/samples/` — Karissa's private emails must never be committed to the repo
+
+# currentDate
+Today's date is 2026-03-24.

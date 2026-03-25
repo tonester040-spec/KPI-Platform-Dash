@@ -3,7 +3,7 @@
 ## Audit Date: 2026-03-15
 ## Auditor: Claude (Cowork session — Sonnet 4.6)
 ## Reviewed By: Tony Grant
-## Branch: security-hardening (do not merge to main until Tony approves)
+## Status: Merged to main (2026-03-15 or shortly after)
 
 ---
 
@@ -37,7 +37,7 @@
 | L1 | §7 | `core/data_source.py:66` + `core/sheets_writer.py:27` | 66, 27 | **LOW** | `_build_service()` function is identical in both files — DRY violation. If auth pattern changes (e.g. adding retry or scope changes) it must be updated in two places. | **Documented only** — not refactored per audit scope rules (no security fix required). When Zenoti/Salon Ultimate APIs are added, extract to `core/google_auth.py` at that time. | **DOCUMENTED** |
 | L2 | §5 | `requirements.txt` | 16 | **LOW** | `requests>=2.31.0` listed as a dependency with comment "for future Zenoti/Salon Ultimate connectors" — it is not currently used anywhere in the codebase. Unused packages increase attack surface. | **Documented only** — package is legitimate and the comment explains intent. Acceptable risk. Remove when connectors are built and the actual HTTP client choice is finalized. | **DOCUMENTED** |
 | L3 | §1 | `CLAUDE.md` + `config/customers/karissa_001.json` | — | **LOW** | Google Sheet ID (`1JY6L7H1Pb2JFmNoz2XNkvG0ogrYgagLVDwH01vuWT28`) hardcoded in config and documentation. The sheet ID alone does not grant access — a valid service account credential is also required — so this is low risk. | **Documented only** — acceptable risk given the access controls in place. | **DOCUMENTED** |
-| L4 | §7 | `email_assistant/run_assistant.py` | 35 | **LOW** | Module docstring still references old path `email/run_assistant.py` (pre-rename) | **Documented only** — cosmetic. Fix in next maintenance pass. | **DOCUMENTED** |
+| L4 | §7 | `email_assistant/run_assistant.py` | 35 | **LOW** | Module docstring still references old path `email/run_assistant.py` (pre-rename) | **Documented only** — cosmetic. Confirmed still present as of 2026-03-24. Fix in next maintenance pass. | **DOCUMENTED** |
 | L5 | §7 | `email_assistant/gmail_connector.py` | 3 | **LOW** | Module docstring header still references old path `email/gmail_connector.py` | **Documented only** — cosmetic. Fix in next maintenance pass. | **DOCUMENTED** |
 
 ---
@@ -185,7 +185,7 @@ After 4 weeks of live data from Zenoti + Salon Ultimate:
 **Action:** Build `append_to_historical()` in `core/sheets_writer.py` as part of the next Zenoti/Salon Ultimate integration session. Do not assume it is working until confirmed.
 
 ### 5. always_real_senders — Populate Before Gmail Goes Live (High Priority)
-`config/email_config.json` → `always_real_senders` array is currently a placeholder. Before Gmail access is enabled, add:
+`config/email_config.json` → `always_real_senders` array is currently a placeholder (confirmed still placeholder as of 2026-03-24). Before Gmail access is enabled, add:
 - Jess's email address
 - Jenn's email address
 - Any other trusted internal sender who might be filtered by noise rules
@@ -253,6 +253,7 @@ This audit should be re-run when any of the following occur:
 - 90 days have elapsed since this audit date (next: 2026-06-13)
 - Any security incident of any severity (credential exposure, unauthorized access, data anomaly)
 - PIN gates are updated or new dashboard files are added
+- **Gmail OAuth goes live** — when `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` are added to GitHub Secrets, re-audit the email assistant OAuth scope and token storage path
 
 ---
 
