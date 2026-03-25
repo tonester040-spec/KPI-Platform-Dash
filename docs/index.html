@@ -1392,7 +1392,7 @@ function renderLocCards() {
         + '<div class="loc-fc-spark-label">12-week sales trend</div>';
     }
 
-    return '<div class="loc-fc status-' + indicator + (isExpanded ? ' expanded' : '') + '" onclick="toggleLocCard('' + loc.name.replace(/'/g, "\'") + '')">'
+    return '<div class="loc-fc status-' + indicator + (isExpanded ? ' expanded' : '') + '" onclick="toggleLocCard(\'' + loc.name.replace(/'/g, "\\\'" ) + '\'">'
       + '<div class="loc-fc-head"><div><div class="loc-fc-name">' + loc.name + '</div><div class="loc-fc-plat">' + loc.plat.replace('_',' ') + '</div></div><span class="loc-fc-chevron">▼</span></div>'
       + '<div class="loc-fc-rev"><span class="loc-fc-rev-val">$' + Math.round(loc.sales).toLocaleString() + '</span><span class="loc-fc-rev-delta ' + deltaDir + '">' + deltaTxt + '</span></div>'
       + '<div class="loc-fc-status-line ' + status.color + '">' + status.text + '</div>'
