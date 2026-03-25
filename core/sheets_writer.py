@@ -189,12 +189,94 @@ def write_alerts(
     log.info("ALERTS tab: wrote %d alert rows", len(alert_rows))
 
 
+# ─── COACH BRIEFS (ALERTS tab rows 100–101) ───────────────────────────────────
+
+def write_coach_briefs(
+    service,
+    config: dict,
+    coach_cards: dict,
+    week_ending: str,
+    dry_run: bool = False,
+):
+    """
+    Write JESS_BRIEF and JENN_BRIEF as key-value rows into the ALERTS tab
+    at fixed positions A100:F101 — well beyond where regular alert rows reach.
+
+    Dashboard reads these rows by scanning for the key in column A.
+
+    Preservation rule: if a card dict is missing or empty for a manager,
+    that row is NOT overwritten — the previous week's value stays in place.
+    This is safe because we use update() (not clear+write) for these rows.
+    """
+    if not coach_cards:
+        log.info("No coach cards provided — skipping ALERTS brief rows")
+        return
+
+    # Fixed row layout: JESS at row 100, JENN at row 101
+    row_map = [
+        ("Jess", "JESS_BRIEF", 100),
+        ("Jenn", "JENN_BRIEF", 101),
+    ]
+
+    if dry_run:
+        for manager_name, row_key, _ in row_map:
+            card = coach_cards.get(manager_name)
+            if card:
+                log.info("DRY RUN: Would write %s to ALERTS row (key=%s, %d chars JSON)",
+                         manager_name, row_key, len(json.dumps(card)))
+            else:
+                log.info("DRY RUN: No card for %s — would preserve existing row", manager_name)
+        return
+
+    sheet_id = config["sheet_id"]
+
+    for manager_name, row_key, row_num in row_map:
+        card = coach_cards.get(manager_name)
+        if not card:
+            log.warning(
+                "Coach card for %s is missing — preserving ALERTS!A%d (previous week kept)",
+                manager_name, row_num
+            )
+            continue
+
+        row_data = [
+            row_key,
+            "COACH_BRIEF",
+            "INFO",
+            json.dumps(card, separators=(",", ":")),
+            week_ending,
+            "KPI AI",
+        ]
+
+        service.spreadsheets().values().update(
+            spreadsheetId=sheet_id,
+            range=f"ALERTS!A{row_num}:F{row_num}",
+            valueInputOption="USER_ENTERED",
+            body={"values": [row_data]},
+        ).execute()
+
+        log.info("ALERTS!A%d: wrote %s brief (%d chars JSON)", row_num, row_key, len(row_data[3]))
+
+    log.info("Coach briefs write complete (dry_run=%s)", dry_run)
+
+
 # ─── Main entry ───────────────────────────────────────────────────────────────
 
-def write_all(config: dict, data: dict, ai_cards: dict, dry_run: bool = False):
-    """Write CURRENT, STYLISTS_CURRENT, and ALERTS in one call."""
+def write_all(
+    config: dict,
+    data: dict,
+    ai_cards: dict,
+    coach_cards: dict | None = None,
+    dry_run: bool = False,
+):
+    """Write CURRENT, STYLISTS_CURRENT, ALERTS, and coach brief rows in one call."""
     service = _build_service(config) if not dry_run else None
     write_current(service, config, data["locations"], dry_run)
     write_stylists_current(service, config, data["stylists"], dry_run)
     write_alerts(service, config, data["locations"], data["network"], ai_cards, dry_run)
+
+    if coach_cards:
+        week_ending = data["network"].get("week_ending", "")
+        write_coach_briefs(service, config, coach_cards, week_ending, dry_run)
+
     log.info("Sheets write complete (dry_run=%s)", dry_run)

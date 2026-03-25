@@ -138,11 +138,20 @@ def main():
         f"1 coach briefing"
     ))
 
+    # ── Step 4b: Manager coach cards ──────────────────────────────────────────
+    _step(4, "Manager coach cards — Jess & Jenn territory briefs")
+    from core import ai_coach_cards as coach_module
+    coach_cards = coach_module.generate_all_coach_cards(config, data, dry_run=DRY_RUN)
+    _ok("Coach cards", (
+        f"{len(coach_cards)} manager brief(s) generated: {', '.join(coach_cards.keys())}"
+        if coach_cards else "no managers configured with location_ids"
+    ))
+
     # ── Step 5: Sheets writer ─────────────────────────────────────────────────
-    _step(5, "Sheets writer — updating CURRENT, STYLISTS_CURRENT, ALERTS")
+    _step(5, "Sheets writer — updating CURRENT, STYLISTS_CURRENT, ALERTS + coach briefs")
     from core import sheets_writer
-    sheets_writer.write_all(config, data, ai_cards, dry_run=DRY_RUN)
-    _ok("Sheets writer", "CURRENT, STYLISTS_CURRENT, ALERTS updated" if not DRY_RUN else "DRY RUN — skipped")
+    sheets_writer.write_all(config, data, ai_cards, coach_cards=coach_cards, dry_run=DRY_RUN)
+    _ok("Sheets writer", "CURRENT, STYLISTS_CURRENT, ALERTS + coach briefs updated" if not DRY_RUN else "DRY RUN — skipped")
 
     # ── Step 6: Report builder ────────────────────────────────────────────────
     _step(6, "Report builder — building Excel file")
@@ -154,21 +163,36 @@ def main():
     else:
         _skip("Report builder", "openpyxl not available")
 
-    # ── Step 7: Email sender ──────────────────────────────────────────────────
-    _step(7, "Email sender — sending to Karissa")
+    # ── Step 7: Email sender — Karissa ────────────────────────────────────────
+    _step(7, "Email sender — sending weekly report to Karissa")
     from core import email_sender
     email_sender.send_report(config, data, ai_cards, report_path, dry_run=DRY_RUN)
     if not DRY_RUN and os.environ.get("GMAIL_APP_PASSWORD"):
-        _ok("Email sender", f"sent to {config.get('email_recipients', [])}")
+        _ok("Email sender (Karissa)", f"sent to {config.get('email_recipients', [])}")
     elif DRY_RUN:
-        _ok("Email sender", "DRY RUN — printed to console")
+        _ok("Email sender (Karissa)", "DRY RUN — printed to console")
     else:
-        _skip("Email sender", "GMAIL_APP_PASSWORD not set")
+        _skip("Email sender (Karissa)", "GMAIL_APP_PASSWORD not set")
+
+    # ── Step 7b: Email sender — Manager coach cards ───────────────────────────
+    _step(7, "Email sender — sending coach cards to Jess & Jenn")
+    if coach_cards:
+        week = data["network"].get("week_ending", "")
+        email_sender.send_manager_coach_cards(config, coach_cards, week, dry_run=DRY_RUN)
+        mgr_emails = {m["name"]: m.get("email","") for m in config.get("managers", [])}
+        sent_to = [name for name, card in coach_cards.items() if mgr_emails.get(name)]
+        skipped = [name for name, card in coach_cards.items() if not mgr_emails.get(name)]
+        if sent_to or DRY_RUN:
+            _ok("Email sender (managers)", f"coach cards: {', '.join(sent_to) or 'none with email configured'}")
+        if skipped:
+            _skip("Manager coach card emails", f"no email configured for: {', '.join(skipped)} — add 'email' to karissa_001.json managers")
+    else:
+        _skip("Manager coach card emails", "no coach cards generated")
 
     # ── Step 8: Dashboard builder ─────────────────────────────────────────────
-    _step(8, "Dashboard builder — rebuilding HTML files")
+    _step(8, "Dashboard builder — rebuilding HTML files with coach card data")
     from core import dashboard_builder
-    results = dashboard_builder.rebuild_all(config, data, DOCS_DIR, dry_run=DRY_RUN)
+    results = dashboard_builder.rebuild_all(config, data, DOCS_DIR, coach_cards=coach_cards, dry_run=DRY_RUN)
     updated = [f for f, ok in results.items() if ok]
     failed  = [f for f, ok in results.items() if not ok]
     _ok("Dashboard builder", f"{', '.join(updated)} rebuilt")

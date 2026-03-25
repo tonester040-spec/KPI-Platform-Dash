@@ -215,6 +215,58 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 .badge-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 .dot-live{background:#10B981}
 .dot-stale{background:#F59E0B}
+
+/* ── Coach Card ── */
+.cc-wrap{max-width:760px;margin:0 auto;padding:24px 32px 48px}
+.cc-headline{background:#F0F9FF;border-left:4px solid #4A90D9;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px}
+.cc-headline-label{font-size:10px;font-weight:700;color:#4A90D9;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.cc-headline-text{font-size:15px;color:#1E3A5F;line-height:1.7;font-weight:500}
+.cc-section{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7A8BA0;margin:24px 0 10px}
+.cc-card{background:#fff;border:1px solid #E8ECF0;border-radius:10px;padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.cc-card-red{border-color:#FCA5A5;background:#FFF5F5}
+.cc-card-gold{border-color:#FDE68A;background:#FFFBEB}
+.cc-card-amber{border-color:#FDE68A;background:#FFFBEB}
+.cc-card-green{border-color:#86EFAC;background:#F0FDF4}
+.cc-loc-name{font-size:15px;font-weight:700;color:#1E3A5F}
+.cc-flag{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;margin-left:8px}
+.cc-flag-star{background:#FEF3C7;color:#B45309}
+.cc-flag-watch{background:#FEE2E2;color:#B91C1C}
+.cc-flag-solid{background:#F0F9FF;color:#1E3A5F}
+.cc-label{font-size:10px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.cc-label-gold{color:#B45309}
+.cc-label-amber{color:#92400E}
+.cc-label-green{color:#166534}
+.cc-label-blue{color:#1E3A5F}
+.cc-body{font-size:13px;color:#374151;line-height:1.65}
+.cc-open-with{background:#fff;border-left:3px solid #DC2626;padding:10px 14px;margin-top:10px;border-radius:0 6px 6px 0}
+.cc-open-with-label{font-size:10px;font-weight:700;color:#DC2626;text-transform:uppercase;margin-bottom:4px}
+.cc-open-with-q{font-size:14px;font-style:italic;color:#1E3A5F;line-height:1.6}
+.cc-metrics{display:flex;gap:20px;flex-wrap:wrap;margin:10px 0 12px}
+.cc-metric{text-align:center;min-width:60px}
+.cc-metric-label{font-size:10px;font-weight:700;color:#7A8BA0;text-transform:uppercase;margin-bottom:3px}
+.cc-metric-val{font-size:20px;font-weight:800;color:#1E3A5F}
+.cc-metric-sub{font-size:11px;font-weight:600;margin-top:2px}
+.cc-up{color:#16A34A}
+.cc-down{color:#DC2626}
+.cc-neutral{color:#7A8BA0}
+.cc-tp{list-style:disc;padding-left:18px;margin:0}
+.cc-tp li{font-size:13px;color:#374151;line-height:1.65;margin-bottom:8px}
+.cc-spotlight{display:flex;flex-direction:column;gap:10px}
+.cc-spot-block{padding:12px 14px;border-radius:0 8px 8px 0;font-size:13px}
+.cc-spot-recog{background:#F0FDF4;border-left:4px solid #16A34A}
+.cc-spot-concern{background:#FFF7ED;border-left:4px solid #F59E0B}
+.cc-spot-name{font-size:14px;font-weight:700;color:#1E3A5F;margin-bottom:3px}
+.cc-spot-note{color:#374151;line-height:1.55}
+.cc-spot-meta{font-size:11px;color:#7A8BA0;margin-top:4px}
+.cc-pph-table{width:100%;border-collapse:collapse;font-size:13px}
+.cc-pph-table th{font-size:10px;font-weight:700;color:#7A8BA0;text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;background:#FAFBFC}
+.cc-pph-table td{padding:9px 12px;border-bottom:1px solid #F0F3F6;color:#2D3748}
+.cc-pph-table tr:last-child td{border-bottom:none}
+.cc-no-data{padding:48px 24px;text-align:center;color:#7A8BA0}
+.cc-no-data-icon{font-size:40px;margin-bottom:12px}
+.cc-no-data-title{font-size:16px;font-weight:700;color:#1E3A5F;margin-bottom:8px}
+.cc-no-data-msg{font-size:14px;line-height:1.6}
+@media(max-width:768px){.cc-wrap{padding:16px 12px 48px}.cc-metrics{gap:12px}}
 </style>
 </head>
 <body>
@@ -257,6 +309,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 <div class="tab-switcher">
   <button class="tab-btn active" id="tab-btn-locations" onclick="switchTab('locations')">📍 Locations</button>
   <button class="tab-btn" id="tab-btn-stylists" onclick="switchTab('stylists')">✂️ Stylists</button>
+  <button class="tab-btn" id="tab-btn-coachcard" onclick="switchTab('coachcard')">📋 Coach Card</button>
 </div>
 
 <!-- ═══ LOCATIONS TAB ═══ -->
@@ -320,6 +373,13 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
     </div>
   </div>
 </main>
+</div>
+
+<!-- ═══ COACH CARD TAB ═══ -->
+<div class="tab-panel" id="tab-coachcard">
+<div class="cc-wrap" id="coachCardContainer">
+  <!-- Rendered by renderCoachCard() after unlock -->
+</div>
 </div>
 
 <footer class="footer">
@@ -1287,6 +1347,155 @@ if ('serviceWorker' in navigator) {
       .catch(function(e){ console.log('KPI SW error:', e); });
   });
 }
+
+/* ════════════════════════════════════════════════════════
+   COACH CARD RENDERER
+   Reads from COACH_CARD_DATA injected by dashboard_builder.py
+════════════════════════════════════════════════════════ */
+function renderCoachCard() {
+  var el = document.getElementById('coachCardContainer');
+  if (!el) return;
+
+  if (!window.COACH_CARD_DATA) {
+    el.innerHTML = '<div class="cc-no-data">'
+      + '<div class="cc-no-data-icon">📋</div>'
+      + '<div class="cc-no-data-title">Coach Card Not Available</div>'
+      + '<div class="cc-no-data-msg">Your weekly coach card will appear here after the Monday pipeline runs.<br>If you\'re seeing this after Monday, check that the pipeline completed successfully.</div>'
+      + '</div>';
+    return;
+  }
+
+  var d = window.COACH_CARD_DATA;
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function flagBadge(flag) {
+    flag = (flag || 'SOLID').toUpperCase();
+    if (flag === 'STAR') return '<span class="cc-flag cc-flag-star">⭐ STAR</span>';
+    if (flag === 'WATCH') return '<span class="cc-flag cc-flag-watch">⚠ WATCH</span>';
+    return '<span class="cc-flag cc-flag-solid">✓ SOLID</span>';
+  }
+
+  function deltaClass(n) {
+    return n > 0 ? 'cc-up' : n < 0 ? 'cc-down' : 'cc-neutral';
+  }
+
+  function sign(n) { return n >= 0 ? '+' : ''; }
+
+  // ── Territory Headline ──
+  var html = '<div class="cc-headline">'
+    + '<div class="cc-headline-label">Territory Headline &nbsp;·&nbsp; Week ending ' + esc(d.week_ending) + '</div>'
+    + '<div class="cc-headline-text">' + esc(d.territory_headline) + '</div>'
+    + '</div>';
+
+  // ── Three-column top row: Star | Priority | Watch ──
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:4px;">';
+
+  var star = d.star_of_week || {};
+  html += '<div class="cc-card cc-card-gold">'
+    + '<div class="cc-label cc-label-gold">⭐ Star of the Week</div>'
+    + '<div style="font-size:14px;font-weight:700;color:#1E3A5F;margin-bottom:4px;">' + esc(star.location) + ' — $' + (+(star.pph||0)).toFixed(2) + ' PPH</div>'
+    + '<div class="cc-body">' + esc(star.recognition_line) + '</div>'
+    + '</div>';
+
+  var p = d.priority_call || {};
+  html += '<div class="cc-card cc-card-red">'
+    + '<div class="cc-label">📞 Priority Call — ' + esc(p.location) + ' (Rank #' + (p.network_rank||'?') + ')</div>'
+    + '<div class="cc-body" style="margin-bottom:8px;"><strong>Issue:</strong> ' + esc(p.issue) + '</div>'
+    + '<div class="cc-body" style="margin-bottom:8px;"><strong>Probable cause:</strong> ' + esc(p.probable_cause) + '</div>'
+    + '<div class="cc-open-with"><div class="cc-open-with-label">Open With</div>'
+    + '<div class="cc-open-with-q">"' + esc(p.coaching_question) + '"</div></div>'
+    + '</div>';
+
+  var w = d.one_to_watch || {};
+  html += '<div class="cc-card cc-card-amber">'
+    + '<div class="cc-label cc-label-amber">👀 One to Watch — ' + esc(w.location) + '</div>'
+    + '<div class="cc-body" style="margin-bottom:5px;"><strong>Trend:</strong> ' + esc(w.trend) + '</div>'
+    + '<div class="cc-body" style="margin-bottom:5px;"><strong>Threshold:</strong> ' + esc(w.threshold) + '</div>'
+    + '<div class="cc-body"><strong>Est. weeks until critical:</strong> ' + (w.weeks_until_critical||'?') + '</div>'
+    + '</div>';
+
+  html += '</div>';
+
+  // ── Location Cards ──
+  html += '<div class="cc-section">Location Breakdown</div>';
+  (d.location_cards || []).forEach(function(lc) {
+    var pphVs = lc.pph_vs_network || 0;
+    var revPct = lc.revenue_to_goal_pct || 0;
+    var revColor = revPct >= 95 ? '#16A34A' : revPct >= 80 ? '#D97706' : '#DC2626';
+    var pts = (lc.talking_points || []).map(function(tp) {
+      return '<li>' + esc(tp) + '</li>';
+    }).join('');
+
+    html += '<div class="cc-card">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
+      + '<div><span class="cc-loc-name">' + esc(lc.name) + '</span>' + flagBadge(lc.flag) + '</div>'
+      + '</div>'
+      + '<div class="cc-metrics">'
+      + '<div class="cc-metric"><div class="cc-metric-label">PPH</div><div class="cc-metric-val">$' + (+(lc.pph||0)).toFixed(2) + '</div>'
+      + '<div class="cc-metric-sub ' + deltaClass(pphVs) + '">' + sign(pphVs) + (+(pphVs)).toFixed(2) + ' vs avg</div></div>'
+      + '<div class="cc-metric"><div class="cc-metric-label">Avg Ticket</div><div class="cc-metric-val">$' + (+(lc.avg_ticket||0)).toFixed(2) + '</div></div>'
+      + '<div class="cc-metric"><div class="cc-metric-label">Guests</div><div class="cc-metric-val">' + (lc.guests||0) + '</div></div>'
+      + '<div class="cc-metric"><div class="cc-metric-label">Product %</div><div class="cc-metric-val">' + (+(lc.product_pct||0)).toFixed(1) + '%</div></div>'
+      + '<div class="cc-metric"><div class="cc-metric-label">vs Goal</div><div class="cc-metric-val" style="color:' + revColor + ';">' + (+(revPct)).toFixed(0) + '%</div></div>'
+      + '</div>'
+      + '<ul class="cc-tp">' + pts + '</ul>'
+      + '</div>';
+  });
+
+  // ── Stylist Spotlight ──
+  var spot = d.stylist_spotlight || {};
+  var recog = spot.recognition || {};
+  var concern = spot.concern;
+  if (recog.name && recog.name !== 'N/A') {
+    html += '<div class="cc-section">Stylist Spotlight</div>';
+    html += '<div class="cc-spotlight">';
+    html += '<div class="cc-spot-block cc-spot-recog">'
+      + '<div class="cc-spot-name">⭐ ' + esc(recog.name) + ' — ' + esc(recog.location) + '</div>'
+      + '<div class="cc-spot-note">' + esc(recog.note) + '</div>'
+      + '<div class="cc-spot-meta">PPH $' + (+(recog.pph||0)).toFixed(2) + ' &nbsp;·&nbsp; Rebook ' + (+(recog.rebook_rate||0)).toFixed(1) + '%</div>'
+      + '</div>';
+    if (concern && concern.name) {
+      html += '<div class="cc-spot-block cc-spot-concern">'
+        + '<div class="cc-spot-name">⚑ ' + esc(concern.name) + ' — ' + esc(concern.location) + '</div>'
+        + '<div class="cc-spot-note">' + esc(concern.note) + '</div>'
+        + '<div class="cc-spot-meta">PPH $' + (+(concern.pph||0)).toFixed(2) + ' &nbsp;·&nbsp; Rebook ' + (+(concern.rebook_rate||0)).toFixed(1) + '%</div>'
+        + '</div>';
+    }
+    html += '</div>';
+  }
+
+  // ── PPH Week-over-Week ──
+  if ((d.pph_comparison || []).length) {
+    html += '<div class="cc-section">PPH Week-over-Week</div>';
+    html += '<div class="cc-card" style="padding:0;overflow:hidden;"><table class="cc-pph-table">'
+      + '<thead><tr><th>Location</th><th style="text-align:right;">This Week</th><th style="text-align:right;">Last Week</th><th style="text-align:right;">Δ</th></tr></thead><tbody>';
+    (d.pph_comparison || []).forEach(function(row) {
+      var delta = row.delta || 0;
+      html += '<tr>'
+        + '<td style="font-weight:600;color:#1E3A5F;">' + esc(row.location) + '</td>'
+        + '<td style="text-align:right;">$' + (+(row.this_week||0)).toFixed(2) + '</td>'
+        + '<td style="text-align:right;">$' + (+(row.last_week||0)).toFixed(2) + '</td>'
+        + '<td style="text-align:right;" class="' + deltaClass(delta) + '">' + sign(delta) + (+(delta)).toFixed(2) + '</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  el.innerHTML = html;
+}
+
+var _ccRendered = false;
+var _origSwitchTab = window.switchTab;
+window.switchTab = function(tab) {
+  _origSwitchTab(tab);
+  if (tab === 'coachcard' && !_ccRendered) {
+    renderCoachCard();
+    _ccRendered = true;
+  }
+};
 </script>
 </body>
 </html>

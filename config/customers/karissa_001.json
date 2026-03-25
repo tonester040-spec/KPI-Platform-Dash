@@ -21,13 +21,15 @@
       "name": "Jess",
       "filename": "jess.html",
       "pin": "1234",
-      "location_ids": ["z006", "z010", "su001", "su002"]
+      "location_ids": ["z006", "z010", "su001", "su002"],
+      "email": ""
     },
     {
       "name": "Jenn",
       "filename": "jenn.html",
       "pin": "5678",
-      "location_ids": ["z001", "z002", "z003", "z004", "z009"]
+      "location_ids": ["z001", "z002", "z003", "z004", "z009"],
+      "email": ""
     }
   ],
   "email_recipients": [

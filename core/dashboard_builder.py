@@ -95,7 +95,18 @@ def _build_stylist_data(stylists: list[dict]) -> str:
     return "const STYLIST_DATA = " + json.dumps(records, separators=(",", ":")) + ";"
 
 
-def _build_data_block(locations: list[dict], stylists: list[dict]) -> str:
+def _build_coach_card_data(coach_card: dict | None) -> str:
+    """Build the COACH_CARD_DATA JavaScript constant."""
+    if coach_card:
+        return "const COACH_CARD_DATA = " + json.dumps(coach_card, separators=(",", ":")) + ";"
+    return "const COACH_CARD_DATA = null;"
+
+
+def _build_data_block(
+    locations: list[dict],
+    stylists: list[dict],
+    coach_card: dict | None = None,
+) -> str:
     """Build the full JavaScript data block to inject between markers."""
     weeks_12 = _build_weeks_12(locations)
     weeks_js = "const WEEKS_12 = [\n  " + ",".join(f"'{w}'" for w in weeks_12) + "\n];"
@@ -110,6 +121,11 @@ def _build_data_block(locations: list[dict], stylists: list[dict]) -> str:
         "   STYLIST DATA",
         "═══════════════════════════════════════════════════════ */",
         _build_stylist_data(stylists),
+        "",
+        "/* ═══════════════════════════════════════════════════════",
+        "   COACH CARD DATA",
+        "═══════════════════════════════════════════════════════ */",
+        _build_coach_card_data(coach_card),
         "// KPI_DATA_END",
     ]
     return "\n".join(parts)
@@ -158,6 +174,7 @@ def update_html_file(
     html_path: Path,
     locations: list[dict],
     stylists: list[dict],
+    coach_card: dict | None = None,
     dry_run: bool = False,
 ) -> bool:
     """Inject data into a single HTML file. Returns True on success."""
@@ -166,7 +183,7 @@ def update_html_file(
         return False
 
     html = html_path.read_text(encoding="utf-8")
-    data_block = _build_data_block(locations, stylists)
+    data_block = _build_data_block(locations, stylists, coach_card)
     updated, success = _inject_data(html, data_block)
 
     if not success:
@@ -185,9 +202,16 @@ def update_html_file(
 
 # ─── Main entry ───────────────────────────────────────────────────────────────
 
-def rebuild_all(config: dict, data: dict, docs_dir: Path, dry_run: bool = False):
+def rebuild_all(
+    config: dict,
+    data: dict,
+    docs_dir: Path,
+    coach_cards: dict | None = None,
+    dry_run: bool = False,
+):
     """
     Rebuild index.html (full view) + manager dashboards (filtered views).
+    coach_cards: optional {manager_name: coach_card_dict} — injected into manager HTML files.
     """
     locations = data["locations"]
     stylists  = data["stylists"]
@@ -195,11 +219,11 @@ def rebuild_all(config: dict, data: dict, docs_dir: Path, dry_run: bool = False)
 
     results = {}
 
-    # Main dashboard (Karissa — all locations)
+    # Main dashboard (Karissa — all locations, no coach card)
     main_html = docs_dir / "index.html"
-    results["index.html"] = update_html_file(main_html, locations, stylists, dry_run)
+    results["index.html"] = update_html_file(main_html, locations, stylists, dry_run=dry_run)
 
-    # Manager dashboards (filtered)
+    # Manager dashboards (filtered, with coach card if available)
     for mgr in managers:
         filename  = mgr.get("filename", "")
         loc_ids   = mgr.get("location_ids", [])
@@ -215,7 +239,16 @@ def rebuild_all(config: dict, data: dict, docs_dir: Path, dry_run: bool = False)
             log.warning("Manager %s has no matching locations — using full data", mgr_name)
             mgr_locs, mgr_styl = locations, stylists
 
-        results[filename] = update_html_file(mgr_html, mgr_locs, mgr_styl, dry_run)
+        # Attach coach card for this manager if available
+        mgr_coach_card = coach_cards.get(mgr_name) if coach_cards else None
+        if mgr_coach_card:
+            log.info("Injecting coach card into %s for %s", filename, mgr_name)
+
+        results[filename] = update_html_file(
+            mgr_html, mgr_locs, mgr_styl,
+            coach_card=mgr_coach_card,
+            dry_run=dry_run,
+        )
 
     success_count = sum(1 for v in results.values() if v)
     log.info(
