@@ -32,10 +32,16 @@ core/data_processor.py    → enriches, ranks, flags
 core/ai_cards.py          → Claude API summaries per location + stylist
                              (claude-haiku-4-5-20251001 for bulk stylist cards,
                               claude-sonnet-4-6 for coach briefing)
+core/ai_coach_cards.py    → Claude API coach cards for Jess & Jenn (claude-sonnet-4-6)
+                             Hardened prompt: Observation → Context → Question format
+                             Falls back to dry-run placeholder on JSON parse failure
 core/sheets_writer.py     → writes CURRENT, STYLISTS_CURRENT, ALERTS tabs back
+                             + JESS_BRIEF (ALERTS!A100) and JENN_BRIEF (ALERTS!A101)
 core/report_builder.py    → generates 5-sheet Excel report (openpyxl)
 core/dashboard_builder.py → builds docs/index.html, docs/jess.html, docs/jenn.html
+                             + injects COACH_CARD_DATA JS constant into manager HTML files
 core/email_sender.py      → sends Excel to Tony (tonester60@hotmail.com) via Gmail App Password
+                             + sends HTML coach card emails to Jess & Jenn (when email configured)
 core/git_pusher.py        → commits docs/ locally (workflow step pushes to main)
     ↓
 data/logs/pipeline_YYYYMMDD_HHMMSS.log  → uploaded as GitHub Actions artifact (30 days)
@@ -72,9 +78,9 @@ voice/karissa_voice_profile.json → committed (style metadata only, no real ema
 ### GitHub Pages (public PWA)
 
 ```
-docs/index.html          → Karissa's full dashboard (all 12 locations)
-docs/jess.html           → Jess's PIN-gated dashboard (her 4 locations)
-docs/jenn.html           → Jenn's PIN-gated dashboard (her 5 locations)
+docs/index.html          → Karissa's full dashboard (all 12 locations) — 3 tabs: Locations, Stylists, (no coach card)
+docs/jess.html           → Jess's PIN-gated dashboard (her 4 locations) — 4 tabs: Locations, Stylists, Coach Card, Visit Prep
+docs/jenn.html           → Jenn's PIN-gated dashboard (her 5 locations) — 4 tabs: Locations, Stylists, Coach Card, Visit Prep
 docs/owners.html         → Private owner dashboard (John/Patti) — PIN 7291, never linked publicly
 docs/karissa-debrief.html → Daily morning email debrief (rebuilt Mon–Fri by email_assistant)
 docs/manifest.json + docs/sw.js → PWA (installable on iPhone)
@@ -145,7 +151,7 @@ Source of truth: `config/customers/karissa_001.json`
 | `CURRENT`         | 12 rows — current week snapshot (Karissa's team enters this; pipeline reads it, then overwrites with enriched data each run) |
 | `DATA`            | Append ledger — all historical weeks (never overwritten)   |
 | `GOALS`           | Per-location annual targets                                |
-| `ALERTS`          | Flag summary written by pipeline                           |
+| `ALERTS`          | Flag summary written by pipeline. **Rows 100–101 reserved for coach briefs:** row 100 = JESS_BRIEF, row 101 = JENN_BRIEF (JSON strings written by `write_coach_briefs()`). Targeted update — missing cards do NOT clear previous week's row. |
 | `STYLISTS_CURRENT`| Current week stylist rows (pipeline overwrites)            |
 | `STYLISTS_DATA`   | Historical stylist data (append ledger)                    |
 | `WEEKLY_DATA`     | Weekly aggregates                                          |
@@ -176,9 +182,10 @@ Source of truth: `config/customers/karissa_001.json`
 
 - **Runs:** Every Monday 7:00 AM Central (12:00 UTC) via `weekly_pipeline.yml`
 - **CRITICAL:** The pipeline **regenerates `docs/index.html`, `docs/jess.html`, `docs/jenn.html` from scratch** every run by calling `dashboard_builder.py`. Any manual edits to those HTML files will be overwritten the next Monday.
-- **Correct fix:** All permanent additions (PWA meta tags, PIN gate, WebAuthn JS, install banner) must be baked INTO `core/dashboard_builder.py` — not hand-edited into docs/*.html.
+- **Correct fix:** All permanent additions (PWA meta tags, PIN gate, WebAuthn JS, install banner, Coach Card tab, Visit Prep tab) must be baked INTO `core/dashboard_builder.py` — not hand-edited into docs/*.html.
 - **Dry run available:** `DRY_RUN=true python main.py` skips all writes, API calls, email, git push
 - **Sandbox validation:** `python scripts/sandbox_run.py` — runs ALL modules against mock data, zero real API calls. Run this before deploying new credentials or after any schema/code change. Must show 8/8 PASS.
+- **⚠️ Sandbox needs update:** `scripts/sandbox_run.py` currently shows 8/8 PASS. It should be updated to include `ai_coach_cards` as a 9th module check (not yet done — do not change the PASS count until sandbox is updated).
 
 ## Email assistant — key behavior
 
@@ -299,6 +306,8 @@ The app is installable on iPhone (Add to Home Screen). Components:
 
 - **Stylist cards** (bulk, ~12 locations × ~10 stylists): `claude-haiku-4-5-20251001` — fast + cheap
 - **Coach briefing** (1 per run, network-wide summary): `claude-sonnet-4-6` — higher quality
+- **Manager coach cards** (Jess + Jenn, 2 per run): `claude-sonnet-4-6` — in `core/ai_coach_cards.py`
+- **Visit Prep** (on-demand, client-side): `claude-sonnet-4-20250514` — browser API call from jess.html / jenn.html
 - **Email categorization + draft replies** (email assistant): configured inside `categorizer.py` and `draft_generator.py` — check those files for current model
 
 ---
@@ -313,12 +322,122 @@ The app is installable on iPhone (Add to Home Screen). Components:
 
 - **Email assistant** — Fully built (`email_assistant/` module + `email_assistant.yml` workflow + `docs/karissa-debrief.html`). Awaiting Gmail OAuth secrets (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`) to be added to GitHub Secrets. Runs the placeholder page loop cleanly until then.
 - **Voice profile** — `build_profile.py` and `voice_profile.py` are written and wired in. Awaiting Karissa's sample emails to be placed in `voice/samples/` and `build_profile.py` run once.
+- **Manager coach card emails** — `send_manager_coach_cards()` is built and wired into `main.py` Step 7b. Awaiting Tony to fill in real email addresses for Jess and Jenn in `config/customers/karissa_001.json` → `managers[].email`. Currently empty strings — coach cards generate but emails silently skip.
+- **Manager coach cards (pipeline)** — `core/ai_coach_cards.py` is built and wired into `main.py` Steps 4b and 5. Coach card JSON is injected into `COACH_CARD_DATA` in jess.html / jenn.html on every Monday pipeline run. Coach briefs also written to ALERTS!A100 (JESS_BRIEF) and ALERTS!A101 (JENN_BRIEF).
 
 ## What's paused / future state
 
 - **Historical backfill** — Karissa may have 2-4 years of data in Zenoti/Salon Ultimate. 50/50 on whether it's exportable. Architecture ready (DATA tab is the append ledger). `append_to_historical()` function needs to be written in `sheets_writer.py` first.
 - **Zenoti/Salon Ultimate API feeds** — placeholder columns exist in Goals & YOY sheet. API access not yet granted by Karissa. Do not wire up API calls until credentials arrive. Schema contracts already written: `config/zenoti_schema.json`, `config/salon_ultimate_schema.json`.
 - **AI assistant chat** — floating chat UI, Cloudflare Worker proxy for API key security, scoped per manager. Architecture designed, not built. Waiting on historical data decisions.
+- **Visit Prep API key proxy** — Visit Prep fires a direct browser-to-Anthropic API call (acceptable for PIN-gated pilot). Before broader rollout, proxy through a serverless function (Vercel / Cloudflare Worker / GitHub Actions) so the key is not client-side. TODO comment is in the JS code.
+- **Visit history log (Phase 2)** — Each Visit Prep generation logs `{ coach, week_ending, locations_visited, generated_at }` to `console.log('[VISIT_LOG]', ...)`. Phase 2: write this to a VISITS tab in Google Sheets. One line change. TODO comment is in the code.
+
+---
+
+---
+
+## Coach cards — key behavior
+
+Built in the 2026-03-25 session. All 8 files modified/created, all syntax-verified.
+
+### Pipeline coach cards (`core/ai_coach_cards.py`)
+
+- Generated every Monday as Step 4b in `main.py`
+- One card per manager (Jess and Jenn only — Karissa's direct locations never get a card)
+- Managers with no `location_ids` in config are skipped
+- Uses hardened prompt: **Observation → Context → Question** format contract. No generic talking points.
+- Output JSON schema includes: `territory_headline`, `star_of_week`, `priority_call` (with `coaching_question`), `one_to_watch`, `location_cards[]`, `stylist_spotlight`, `pph_table`, `probable_cause`, `recognition_line`, `network_rank`, `threshold`, `weeks_until_critical`
+- Falls back to `_dry_run_brief()` placeholder on JSON parse failure — pipeline never crashes
+- Strips markdown fences before `json.loads()`
+- Supports `DRY_RUN=true`
+
+### Sheets storage (ALERTS tab rows 100–101)
+
+- `write_coach_briefs()` in `core/sheets_writer.py`
+- JESS_BRIEF → ALERTS!A100, JENN_BRIEF → ALERTS!A101
+- Targeted `update()` calls — missing cards do NOT clear previous week's data
+- Called by `write_all()` after `write_alerts()` when coach_cards dict is present
+
+### Dashboard injection (`core/dashboard_builder.py`)
+
+- `_build_coach_card_data()` builds `COACH_CARD_DATA` JS constant
+- Injected into jess.html and jenn.html between KPI_DATA_START / KPI_DATA_END markers
+- `COACH_CARD_DATA = null` for index.html (Karissa's dashboard has no coach card)
+- Manager HTML files render the Coach Card tab UI from this constant on tab open (lazy render, fires once)
+
+### Coach card emails (`core/email_sender.py`)
+
+- `send_manager_coach_cards()` sends mobile-optimized HTML email to each manager
+- Dashboard URL constructed as `https://tonester040-spec.github.io/KPI-Platform-Dash/{filename}`
+- Silently skips managers with empty `email` field in config
+- Called by `main.py` Step 7b
+- **ACTION REQUIRED:** Fill in Jess and Jenn email addresses in `config/customers/karissa_001.json` → `managers[].email`
+
+### Coach card UI (jess.html / jenn.html)
+
+- Third tab "📋 Coach Card" added to both manager dashboards
+- Lazy renders on first tab open (not on every switch)
+- Shows graceful "Coach Card Not Available" when `COACH_CARD_DATA` is null (before first pipeline run)
+- CSS classes: `.cc-wrap`, `.cc-headline`, `.cc-card`, `.cc-card-red`, `.cc-card-gold`, `.cc-flag`, `.cc-metrics`, `.cc-tp`, `.cc-pph-table`
+
+---
+
+## Visit Prep — key behavior
+
+Built in the 2026-03-25 session. Fourth tab added to jess.html and jenn.html.
+
+### What it is
+
+On-demand visit intelligence — not pipeline-generated. Coach selects which locations she's visiting this week, taps Generate, gets a purpose-built visit prep card in ~3 seconds. Available any day, not just Monday.
+
+### How it works
+
+- Entirely client-side. No backend changes. No pipeline changes.
+- Reads existing dashboard data (already loaded) — filters to selected locations
+- Fires a fetch call to `https://api.anthropic.com/v1/messages` directly from the browser
+- Model: `claude-sonnet-4-20250514`
+- Renders card from JSON response
+
+### Location selector
+
+- One toggle button per location in the coach's territory
+- 2-col grid on mobile (≤768px), 3-col on desktop
+- Default state: `#F0F0F0` background, `#0F1117` text, 1px `#CCCCCC` border
+- Selected state: `#C8A97E` (gold) background, white text, ✓ prepended to name
+- 150ms smooth transition
+- "Generate Visit Prep" button (full width, navy bg, gold text) — disabled until ≥1 location selected
+- If card already exists this week: button label = "Regenerate Visit Prep"
+
+### Loading states
+
+- Cycling messages: "Pulling this week's data for your visits..." → "Building your visit prep..." → "Almost ready..."
+- After 8 seconds: "This is taking a moment — still working."
+- On error: "Something went wrong. Try again." + Retry button (restores prior selections)
+- Never shows raw API error text
+
+### Output card structure
+
+- **Visit Focus Header**: full-width cream card (`#F5F3EF`), lists selected locations + week ending + cross-location focus (null if single location or no genuine pattern)
+- **Per-Location Cards**: one per selected location — location header (name + PPH + WoW delta + STAR/WATCH/SOLID badge), The One Number (metric + current value + prior value + why it matters), Stylist to Address (recognition ⭐ or concern ⚠️ — skipped if null), Talking Points (2, Obs→Context→Question), Visit Goal ("A successful visit looks like...")
+- **Regenerate Button**: below cards, restores selector with same selections pre-filled
+
+### Persistence
+
+- localStorage keys: `VISIT_PREP_SELECTIONS_{coachName}` and `VISIT_PREP_CARD_{coachName}`
+- Both include `week_ending`. On tab open: if stored week_ending ≠ current data week_ending, both keys are cleared (auto-resets when Monday pipeline delivers new data)
+- localStorage unavailable (private browsing): fresh state every session, no error
+
+### Visit history (Phase 2 groundwork)
+
+- Each generation logs: `console.log('[VISIT_LOG]', JSON.stringify({ coach, week_ending, locations_visited, generated_at }))`
+- TODO comment in code: Phase 2 write to VISITS tab in Google Sheet
+
+### API key security
+
+- For the PIN-gated pilot: direct browser → Anthropic API call is acceptable
+- TODO comment in code: before broader rollout, proxy through serverless function (Vercel / Cloudflare Worker)
+- API key must be provided via the `CLAUDE_API_KEY` config object in the dashboard
 
 ---
 
@@ -390,6 +509,8 @@ Chat        → AI assistant chat scoped per manager
 6. Edit `docs/*.html` directly for permanent features — put them in `dashboard_builder.py` (exception: `owners.html`, `karissa-debrief.html`, and prototype/demo files are manually maintained and safe from pipeline overwrites)
 7. Change `cancel-in-progress` in the pipeline without understanding the concurrency implications
 8. Commit anything to `voice/samples/` — Karissa's private emails must never be committed to the repo
+9. Add `COACH_CARD_DATA` or `VISIT_PREP_*` coach card data to `index.html` (Karissa's dashboard) — coach cards are for managers only
+10. Change the hardened prompt format contract in `ai_coach_cards.py` (Observation → Context → Question) without re-reviewing the full spec in `KPI_Coach_Card_AI_Prompt_Hardened.docx`
 
 # currentDate
-Today's date is 2026-03-24.
+Today's date is 2026-03-25.

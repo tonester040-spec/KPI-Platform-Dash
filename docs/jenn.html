@@ -267,6 +267,64 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 .cc-no-data-title{font-size:16px;font-weight:700;color:#1E3A5F;margin-bottom:8px}
 .cc-no-data-msg{font-size:14px;line-height:1.6}
 @media(max-width:768px){.cc-wrap{padding:16px 12px 48px}.cc-metrics{gap:12px}}
+
+/* ── Visit Prep ── */
+.vp-wrap{max-width:760px;margin:0 auto;padding:24px 32px 48px}
+.vp-heading{font-size:16px;font-weight:700;color:#1E3A5F;margin-bottom:4px}
+.vp-subtext{font-size:13px;color:#7A8BA0;margin-bottom:20px}
+.vp-selector-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+@media(min-width:769px){.vp-selector-grid{grid-template-columns:1fr 1fr 1fr}}
+.vp-loc-btn{padding:12px 14px;border-radius:8px;border:1px solid #CCCCCC;background:#F0F0F0;color:#0F1117;font-size:14px;font-weight:600;cursor:pointer;text-align:left;transition:all 150ms ease;font-family:inherit;width:100%}
+.vp-loc-btn.selected{background:#C8A97E;color:#fff;border-color:#C8A97E}
+.vp-loc-btn:hover:not(.selected){border-color:#1E3A5F}
+.vp-generate-btn{width:100%;padding:14px;border-radius:8px;border:1px solid #C8A97E;background:#0F1117;color:#C8A97E;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;transition:opacity .15s}
+.vp-generate-btn:disabled{background:#CCCCCC;color:#888;border-color:#CCCCCC;cursor:not-allowed}
+.vp-generate-btn:not(:disabled):hover{opacity:.88}
+.vp-loading{text-align:center;padding:48px 24px}
+.vp-spinner{width:36px;height:36px;border:3px solid #E8ECF0;border-top-color:#C8A97E;border-radius:50%;animation:vp-spin .9s linear infinite;margin:0 auto 16px}
+@keyframes vp-spin{to{transform:rotate(360deg)}}
+.vp-loading-msg{font-size:14px;color:#7A8BA0;font-style:italic}
+.vp-error-msg{text-align:center;padding:32px 24px}
+.vp-error-text{font-size:14px;color:#DC2626;margin-bottom:16px}
+.vp-retry-btn{padding:10px 24px;border-radius:8px;border:1px solid #DC2626;background:#fff;color:#DC2626;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.vp-retry-btn:hover{background:#FFF5F5}
+.vp-focus-header{background:#F5F3EF;border-top:3px solid #C8A97E;border-radius:8px;padding:18px 20px;margin-bottom:20px}
+.vp-focus-title{font-size:16px;font-weight:700;color:#1E3A5F;margin-bottom:4px}
+.vp-focus-week{font-size:12px;color:#7A8BA0;margin-bottom:10px}
+.vp-focus-text{font-size:14px;color:#374151;line-height:1.7}
+.vp-loc-card{background:#fff;border:1px solid #CCCCCC;border-radius:8px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.vp-loc-card.star{border-top:3px solid #C8A97E}
+.vp-loc-card.watch{border-top:3px solid #DC2626}
+.vp-loc-header{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.vp-loc-name{font-size:16px;font-weight:800;color:#1E3A5F}
+.vp-pph-val{font-size:14px;font-weight:600;color:#374151}
+.vp-pph-delta{font-size:12px;font-weight:600}
+.vp-flag{font-size:11px;font-weight:700;padding:2px 9px;border-radius:12px;margin-left:auto}
+.vp-flag.star{background:#FEF3C7;color:#B45309}
+.vp-flag.watch{background:#FEE2E2;color:#B91C1C}
+.vp-flag.solid{background:#F0F9FF;color:#1E3A5F}
+.vp-one-number{background:#F8FAFC;border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.vp-on-label{font-size:10px;font-weight:700;color:#C8A97E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.vp-on-metric{font-size:11px;font-weight:700;color:#7A8BA0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.vp-on-value{font-size:24px;font-weight:800;color:#1E3A5F;margin-bottom:2px}
+.vp-on-prior{font-size:12px;color:#7A8BA0;margin-bottom:8px}
+.vp-on-why{font-size:13px;color:#374151;line-height:1.6}
+.vp-stylist{border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:14px;font-size:13px}
+.vp-stylist.recog{background:#F0FDF4;border-left:4px solid #16A34A}
+.vp-stylist.concern{background:#FFF7ED;border-left:4px solid #F59E0B}
+.vp-stylist-name{font-size:14px;font-weight:700;color:#1E3A5F;margin-bottom:3px}
+.vp-stylist-metric{font-size:12px;color:#7A8BA0;margin-bottom:4px}
+.vp-stylist-say{font-size:13px;color:#374151;font-style:italic;line-height:1.55}
+.vp-tp-label{font-size:10px;font-weight:700;color:#7A8BA0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.vp-tp-list{list-style:none;padding:0;margin:0 0 14px}
+.vp-tp-list li{padding:10px 12px 10px 32px;position:relative;font-size:13px;color:#1E3A5F;line-height:1.65;background:#F8FAFC;border-radius:6px;margin-bottom:6px}
+.vp-tp-list li::before{content:attr(data-n);position:absolute;left:12px;font-weight:700;color:#C8A97E}
+.vp-goal{border-top:1px solid #E8ECF0;padding-top:12px}
+.vp-goal-label{font-size:10px;font-weight:700;color:#C8A97E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.vp-goal-text{font-size:14px;color:#1E3A5F;line-height:1.6}
+.vp-regen-btn{width:100%;padding:14px;border-radius:8px;border:1px solid #C8A97E;background:#0F1117;color:#C8A97E;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;transition:opacity .15s}
+.vp-regen-btn:hover{opacity:.88}
+@media(max-width:768px){.vp-wrap{padding:16px 12px 48px}}
 </style>
 </head>
 <body>
@@ -310,6 +368,7 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
   <button class="tab-btn active" id="tab-btn-locations" onclick="switchTab('locations')">📍 Locations</button>
   <button class="tab-btn" id="tab-btn-stylists" onclick="switchTab('stylists')">✂️ Stylists</button>
   <button class="tab-btn" id="tab-btn-coachcard" onclick="switchTab('coachcard')">📋 Coach Card</button>
+  <button class="tab-btn" id="tab-btn-visitprep" onclick="switchTab('visitprep')">🗺️ Visit Prep</button>
 </div>
 
 <!-- ═══ LOCATIONS TAB ═══ -->
@@ -379,6 +438,13 @@ tr.row-bottom td:first-child{border-left:3px solid #EF4444;padding-left:13px}
 <div class="tab-panel" id="tab-coachcard">
 <div class="cc-wrap" id="coachCardContainer">
   <!-- Rendered by renderCoachCard() after unlock -->
+</div>
+</div>
+
+<!-- ═══ VISIT PREP TAB ═══ -->
+<div class="tab-panel" id="tab-visitprep">
+<div class="vp-wrap" id="visitPrepContainer">
+  <!-- Rendered by initVisitPrep() on first tab open -->
 </div>
 </div>
 
@@ -1487,7 +1553,9 @@ function renderCoachCard() {
   el.innerHTML = html;
 }
 
+// Render coach card + visit prep when respective tabs are first opened
 var _ccRendered = false;
+var _vpOpened   = false;
 var _origSwitchTab = window.switchTab;
 window.switchTab = function(tab) {
   _origSwitchTab(tab);
@@ -1495,7 +1563,375 @@ window.switchTab = function(tab) {
     renderCoachCard();
     _ccRendered = true;
   }
+  if (tab === 'visitprep' && !_vpOpened) {
+    _vpOpened = true;
+    initVisitPrep();
+  }
 };
+
+/* ════════════════════════════════════════════════════════
+   VISIT PREP
+   On-demand visit intelligence — client-side Claude API call.
+   TODO: Before broader rollout, proxy this call through a serverless
+   function (Vercel / Cloudflare Worker) so the API key is not exposed
+   client-side. This is acceptable for the PIN-gated pilot.
+════════════════════════════════════════════════════════ */
+
+// Set your Anthropic API key here to enable Visit Prep.
+const CLAUDE_API_KEY = '';
+
+const COACH_NAME      = 'Jenn';
+const COACH_LOCATIONS = LOCS.map(function(l){ return l.name; });
+
+const VISIT_PREP_SYSTEM_PROMPT = `You are KPI — a business intelligence advisor built for professional salon networks. You are generating a visit prep brief for a business coach who is physically visiting one or more salon locations this week. The coach will read this on her phone before she walks in the door.
+
+YOUR JOB: For each location, tell the coach exactly:
+1. The one number most worth moving at this location this week
+2. Which specific stylist deserves recognition or a direct conversation
+3. Two talking points that surface cause, not restate symptom
+4. What a successful visit looks like — specific and measurable
+
+TALKING POINT FORMAT (non-negotiable):
+Observation (specific number + vs what) → Context (probable cause) → Question (open-ended, cannot be answered with one word).
+BAD: 'Discuss retail attachment with your manager.'
+GOOD: 'Product % dropped from 17% to 11% on flat guest volume. Ask who on the team is still consistently offering at checkout and who stopped.'
+
+VISIT GOAL format: starts with 'A successful visit looks like...'
+Must include a specific measurable outcome.
+
+If multiple locations, add 2-3 sentence cross_location_focus only if there is a genuine pattern. Set to null if not.
+
+Output: valid JSON only. No explanation. No markdown fences.
+
+JSON schema:
+{
+  "coach_name": string,
+  "week_ending": string,
+  "selected_locations": [string],
+  "cross_location_focus": string | null,
+  "location_cards": [
+    {
+      "name": string,
+      "pph": number,
+      "pph_delta": number,
+      "flag": "STAR" | "WATCH" | "SOLID",
+      "the_one_number": {
+        "metric": string,
+        "current_value": string,
+        "prior_value": string,
+        "why_it_matters": string
+      },
+      "stylist_to_address": {
+        "name": string,
+        "type": "recognition" | "concern",
+        "metric": string,
+        "what_to_say": string
+      } | null,
+      "talking_points": [string, string],
+      "visit_goal": string
+    }
+  ]
+}`;
+
+var _vpSelectedLocs = [];
+var _vpCard = null;
+
+function _vpStorageKey(type) {
+  return 'VISIT_PREP_' + type + '_' + COACH_NAME.toUpperCase();
+}
+
+function _vpSaveState() {
+  var weekEnding = WEEKS_12[WEEKS_12.length - 1] || '';
+  try {
+    localStorage.setItem(_vpStorageKey('SELECTIONS'), JSON.stringify({ week_ending: weekEnding, selections: _vpSelectedLocs }));
+    if (_vpCard) {
+      localStorage.setItem(_vpStorageKey('CARD'), JSON.stringify({ week_ending: weekEnding, card: _vpCard }));
+    }
+  } catch(e) {}
+}
+
+function _vpLoadState() {
+  var weekEnding = WEEKS_12[WEEKS_12.length - 1] || '';
+  try {
+    var sel = JSON.parse(localStorage.getItem(_vpStorageKey('SELECTIONS')) || 'null');
+    var crd = JSON.parse(localStorage.getItem(_vpStorageKey('CARD')) || 'null');
+    if (sel && sel.week_ending === weekEnding) {
+      _vpSelectedLocs = sel.selections || [];
+    } else {
+      _vpSelectedLocs = [];
+    }
+    if (crd && crd.week_ending === weekEnding) {
+      _vpCard = crd.card;
+    } else {
+      _vpCard = null;
+    }
+  } catch(e) {
+    _vpSelectedLocs = [];
+    _vpCard = null;
+  }
+}
+
+function _vpClearState() {
+  try {
+    localStorage.removeItem(_vpStorageKey('SELECTIONS'));
+    localStorage.removeItem(_vpStorageKey('CARD'));
+  } catch(e) {}
+  _vpSelectedLocs = [];
+  _vpCard = null;
+}
+
+function buildVisitPrepUserMessage(selectedNames) {
+  var weekEnding = WEEKS_12[WEEKS_12.length - 1] || CURRENT_WEEK;
+  var selectedLocData = LOCS.filter(function(l) {
+    return selectedNames.indexOf(l.name) !== -1;
+  }).map(function(l) {
+    var locStylists = STYLIST_DATA.filter(function(s) { return s.loc === l.name; });
+    var sorted = locStylists.slice().sort(function(a,b){ return b.cur_pph - a.cur_pph; });
+    var topS = sorted[0] ? { name: sorted[0].name, pph: sorted[0].cur_pph, rebook_rate: sorted[0].cur_rebook } : null;
+    var watchS = sorted.length > 1 ? sorted[sorted.length-1] : null;
+    var hist = LOC_HIST[l.name] || {};
+    var pphArr = hist.h || [];
+    var avg3 = pphArr.length >= 3 ? (pphArr.slice(-3).reduce(function(a,b){return a+b;},0)/3) : l.pph;
+    return {
+      name: l.name,
+      platform: l.plat,
+      pph_this_week: l.pph,
+      pph_last_week: l.ph,
+      pph_3wk_avg: avg3,
+      revenue_this_week: l.sales,
+      revenue_last_week: l.ps,
+      guests_this_week: l.guests,
+      avg_ticket_this_week: l.avg_tick,
+      product_pct_this_week: l.prod_pct,
+      product_pct_last_week: l.pp,
+      top_stylist: topS,
+      watch_stylist: watchS ? { name: watchS.name, pph: watchS.cur_pph, rebook_rate: watchS.cur_rebook } : null,
+      '12wk_trend_pph': pphArr.slice(-12),
+      network_pph_rank: l.rank
+    };
+  });
+  var networkSummary = {
+    avg_pph: NET_PPH_AVG,
+    avg_product_pct: NET_PROD_AVG,
+    total_locations: LOCS.length,
+    week_ending: weekEnding
+  };
+  return 'Generate a visit prep brief for ' + COACH_NAME + '.\n'
+    + 'She is visiting: ' + selectedNames.join(', ') + '.\n'
+    + 'Data for selected locations: ' + JSON.stringify(selectedLocData) + '\n'
+    + 'Network context: ' + JSON.stringify(networkSummary) + '\n'
+    + 'Week ending: ' + weekEnding + '\n'
+    + 'Return ONLY valid JSON matching the schema in the system prompt.';
+}
+
+function initVisitPrep() {
+  _vpLoadState();
+  if (_vpCard) {
+    renderVisitPrepCard(_vpCard);
+  } else {
+    renderVisitPrepSelector();
+  }
+}
+
+function renderVisitPrepSelector() {
+  var container = document.getElementById('visitPrepContainer');
+  if (!container) return;
+  var hasCard = !!_vpCard;
+  var btns = COACH_LOCATIONS.map(function(name) {
+    var sel = _vpSelectedLocs.indexOf(name) !== -1;
+    var esc = name.replace(/'/g, "\\'");
+    return '<button class="vp-loc-btn' + (sel ? ' selected' : '') + '" onclick="vpToggleLoc(this,\'' + esc + '\')">'
+      + (sel ? '✓ ' : '') + name + '</button>';
+  }).join('');
+  var genDisabled = _vpSelectedLocs.length === 0 ? ' disabled' : '';
+  var genLabel = hasCard ? 'Regenerate Visit Prep' : 'Generate Visit Prep';
+  container.innerHTML = '<div class="vp-heading">Select locations you\'re visiting this week</div>'
+    + '<div class="vp-subtext">Selections are saved until new data arrives Monday.</div>'
+    + '<div class="vp-selector-grid">' + btns + '</div>'
+    + '<button class="vp-generate-btn"' + genDisabled + ' id="vpGenBtn" onclick="vpGenerate()">' + genLabel + '</button>';
+}
+
+function vpToggleLoc(btn, name) {
+  var idx = _vpSelectedLocs.indexOf(name);
+  if (idx === -1) {
+    _vpSelectedLocs.push(name);
+    btn.classList.add('selected');
+    btn.textContent = '✓ ' + name;
+  } else {
+    _vpSelectedLocs.splice(idx, 1);
+    btn.classList.remove('selected');
+    btn.textContent = name;
+  }
+  var genBtn = document.getElementById('vpGenBtn');
+  if (genBtn) genBtn.disabled = _vpSelectedLocs.length === 0;
+}
+
+function vpGenerate() {
+  if (_vpSelectedLocs.length === 0) return;
+  var container = document.getElementById('visitPrepContainer');
+  if (!container) return;
+
+  if (!CLAUDE_API_KEY) {
+    container.innerHTML = '<div class="vp-error-msg"><div class="vp-error-text">API key not configured. Set CLAUDE_API_KEY in jenn.html to enable Visit Prep.</div>'
+      + '<button class="vp-retry-btn" onclick="renderVisitPrepSelector()">Back</button></div>';
+    return;
+  }
+
+  var msgs = ['Pulling this week\'s data for your visits...', 'Building your visit prep...', 'Almost ready...'];
+  var msgIdx = 0;
+  container.innerHTML = '<div class="vp-loading"><div class="vp-spinner"></div>'
+    + '<div class="vp-loading-msg" id="vpLoadMsg">' + msgs[0] + '</div></div>';
+
+  var msgInterval = setInterval(function() {
+    msgIdx = (msgIdx + 1) % msgs.length;
+    var el = document.getElementById('vpLoadMsg');
+    if (el) el.textContent = msgs[msgIdx];
+  }, 2500);
+
+  var longTimer = setTimeout(function() {
+    var el = document.getElementById('vpLoadMsg');
+    if (el) el.textContent = 'This is taking a moment — still working.';
+  }, 8000);
+
+  var selectedSnap = _vpSelectedLocs.slice();
+  var userMsg = buildVisitPrepUserMessage(selectedSnap);
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      system: VISIT_PREP_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMsg }]
+    })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    clearInterval(msgInterval);
+    clearTimeout(longTimer);
+    var raw = (data.content && data.content[0] && data.content[0].text) || '';
+    raw = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+    var parsed = JSON.parse(raw);
+    _vpCard = parsed;
+    _vpSaveState();
+    // Phase 2: write this to VISITS tab in Google Sheet
+    console.log('[VISIT_LOG]', JSON.stringify({
+      coach: COACH_NAME,
+      week_ending: WEEKS_12[WEEKS_12.length - 1] || CURRENT_WEEK,
+      locations_visited: selectedSnap,
+      generated_at: new Date().toISOString()
+    }));
+    renderVisitPrepCard(parsed);
+  })
+  .catch(function(err) {
+    clearInterval(msgInterval);
+    clearTimeout(longTimer);
+    console.error('[VISIT_PREP] API error:', err);
+    var c = document.getElementById('visitPrepContainer');
+    if (c) {
+      c.innerHTML = '<div class="vp-error-msg">'
+        + '<div class="vp-error-text">Something went wrong. Try again.</div>'
+        + '<button class="vp-retry-btn" onclick="vpRetry()">Retry</button>'
+        + '</div>';
+    }
+  });
+}
+
+function vpRetry() {
+  renderVisitPrepSelector();
+}
+
+function _vpEsc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderVisitPrepCard(card) {
+  var container = document.getElementById('visitPrepContainer');
+  if (!container) return;
+  var weekEnding = card.week_ending || WEEKS_12[WEEKS_12.length-1] || CURRENT_WEEK;
+  var locNames = (card.selected_locations || []).join(', ');
+  var html = '';
+
+  // Visit Focus Header
+  html += '<div class="vp-focus-header">'
+    + '<div class="vp-focus-title">Visit Prep — ' + _vpEsc(locNames) + '</div>'
+    + '<div class="vp-focus-week">Week ending ' + _vpEsc(weekEnding) + '</div>'
+    + (card.cross_location_focus ? '<div class="vp-focus-text">' + _vpEsc(card.cross_location_focus) + '</div>' : '')
+    + '</div>';
+
+  // Per-location cards
+  (card.location_cards || []).forEach(function(lc) {
+    var flagLower = (lc.flag || 'SOLID').toLowerCase();
+    var pphDelta = lc.pph_delta || 0;
+    var deltaSign = pphDelta >= 0 ? '+' : '';
+    var deltaColor = pphDelta > 0 ? '#16A34A' : pphDelta < 0 ? '#DC2626' : '#7A8BA0';
+    var flagText = flagLower === 'star' ? '⭐ STAR' : flagLower === 'watch' ? '⚠️ WATCH' : '✓ SOLID';
+
+    html += '<div class="vp-loc-card ' + flagLower + '">';
+
+    // Header
+    html += '<div class="vp-loc-header">'
+      + '<span class="vp-loc-name">' + _vpEsc(lc.name) + '</span>'
+      + '<span class="vp-pph-val">$' + (+lc.pph||0).toFixed(2) + ' PPH</span>'
+      + '<span class="vp-pph-delta" style="color:' + deltaColor + '">' + deltaSign + (+pphDelta).toFixed(2) + ' WoW</span>'
+      + '<span class="vp-flag ' + flagLower + '">' + flagText + '</span>'
+      + '</div>';
+
+    // The One Number
+    var on = lc.the_one_number || {};
+    html += '<div class="vp-one-number">'
+      + '<div class="vp-on-label">The One Number</div>'
+      + '<div class="vp-on-metric">' + _vpEsc(on.metric || '') + '</div>'
+      + '<div class="vp-on-value">' + _vpEsc(on.current_value || '') + '</div>'
+      + '<div class="vp-on-prior">' + _vpEsc(on.prior_value || '') + '</div>'
+      + '<div class="vp-on-why">' + _vpEsc(on.why_it_matters || '') + '</div>'
+      + '</div>';
+
+    // Stylist to Address
+    if (lc.stylist_to_address) {
+      var st = lc.stylist_to_address;
+      var isRecog = st.type === 'recognition';
+      html += '<div class="vp-stylist ' + (isRecog ? 'recog' : 'concern') + '">'
+        + '<div class="vp-stylist-name">' + (isRecog ? '⭐' : '⚠️') + ' ' + _vpEsc(st.name) + '</div>'
+        + '<div class="vp-stylist-metric">' + _vpEsc(st.metric) + '</div>'
+        + '<div class="vp-stylist-say">&ldquo;' + _vpEsc(st.what_to_say) + '&rdquo;</div>'
+        + '</div>';
+    }
+
+    // Talking Points
+    if (lc.talking_points && lc.talking_points.length) {
+      html += '<div class="vp-tp-label">Talking Points</div><ul class="vp-tp-list">';
+      lc.talking_points.forEach(function(tp, i) {
+        html += '<li data-n="' + (i+1) + '.">' + _vpEsc(tp) + '</li>';
+      });
+      html += '</ul>';
+    }
+
+    // Visit Goal
+    html += '<div class="vp-goal">'
+      + '<div class="vp-goal-label">Visit Goal</div>'
+      + '<div class="vp-goal-text">' + _vpEsc(lc.visit_goal || '') + '</div>'
+      + '</div>';
+
+    html += '</div>'; // end vp-loc-card
+  });
+
+  // Regenerate button
+  html += '<button class="vp-regen-btn" onclick="vpShowRegen()">↺ Regenerate Visit Prep</button>';
+
+  container.innerHTML = html;
+}
+
+function vpShowRegen() {
+  _vpCard = null;
+  _vpClearState();
+  renderVisitPrepSelector();
+}
 </script>
 </body>
 </html>
