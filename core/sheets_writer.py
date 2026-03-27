@@ -3,10 +3,12 @@
 core/sheets_writer.py
 KPI Platform — writes enriched data back to Google Sheets.
 
-Updates three tabs each pipeline run:
+Updates tabs each pipeline run:
   CURRENT          → Clear + rewrite with current week (13 rows)
   STYLISTS_CURRENT → Clear + rewrite with current week stylists
   ALERTS           → Clear + rewrite with AI-generated alerts
+  DATA             → Append current week rows (idempotent)
+  STYLISTS_DATA    → Append current week stylist rows (idempotent)
 """
 
 import os
@@ -260,6 +262,149 @@ def write_coach_briefs(
     log.info("Coach briefs write complete (dry_run=%s)", dry_run)
 
 
+# ─── DATA tab (historical append) ─────────────────────────────────────────────
+
+def append_to_historical(service, config: dict, locations: list[dict], dry_run: bool = False):
+    """Append this week's location rows to the DATA tab (idempotent).
+
+    Reads DATA!B2:B to check whether this week_ending is already present.
+    If so, skips the write — safe to re-run on the same week.
+    """
+    if not locations:
+        log.info("append_to_historical: no locations — skipping")
+        return
+
+    week_ending = locations[0].get("week_ending", "")
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_historical — would append %d rows for week_ending=%s",
+            len(locations), week_ending,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    # Idempotency check — skip if this week is already in DATA!B2:B
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="DATA!B2:B",
+    ).execute()
+    existing_weeks = {r[0] for r in existing.get("values", []) if r}
+    if week_ending and week_ending in existing_weeks:
+        log.info(
+            "append_to_historical: week_ending=%s already in DATA tab — skipping",
+            week_ending,
+        )
+        return
+
+    rows = []
+    for loc in locations:
+        rows.append([
+            loc.get("loc_name", ""),
+            loc.get("week_ending", ""),
+            loc.get("platform", ""),
+            loc.get("guests", 0),
+            loc.get("total_sales", 0),
+            loc.get("service", 0),
+            loc.get("product", 0),
+            loc.get("product_pct", 0),
+            loc.get("ppg", 0),
+            loc.get("pph", 0),
+            loc.get("avg_ticket", 0),
+            loc.get("prod_hours", 0),
+            loc.get("wax_count", 0),
+            loc.get("wax", 0),
+            loc.get("wax_pct", 0),
+            loc.get("color", 0),
+            loc.get("color_pct", 0),
+            loc.get("treat_count", 0),
+            loc.get("treat", 0),
+            loc.get("treat_pct", 0),
+        ])
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="DATA!A2:T",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": rows},
+    ).execute()
+
+    log.info("DATA tab: appended %d location rows for week_ending=%s", len(rows), week_ending)
+
+
+# ─── STYLISTS_DATA tab (historical append) ────────────────────────────────────
+
+def append_to_stylists_historical(
+    service,
+    config: dict,
+    stylists: list[dict],
+    week_ending: str,
+    dry_run: bool = False,
+):
+    """Append this week's stylist rows to the STYLISTS_DATA tab (idempotent).
+
+    Reads STYLISTS_DATA!A2:A to check whether this week_ending is already present.
+    If so, skips the write — safe to re-run on the same week.
+    """
+    if not stylists:
+        log.info("append_to_stylists_historical: no stylists — skipping")
+        return
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_stylists_historical — would append %d rows for week_ending=%s",
+            len(stylists), week_ending,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    # Idempotency check — skip if this week is already in STYLISTS_DATA!A2:A
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_DATA!A2:A",
+    ).execute()
+    existing_weeks = {r[0] for r in existing.get("values", []) if r}
+    if week_ending and week_ending in existing_weeks:
+        log.info(
+            "append_to_stylists_historical: week_ending=%s already in STYLISTS_DATA tab — skipping",
+            week_ending,
+        )
+        return
+
+    rows = []
+    for s in stylists:
+        rows.append([
+            week_ending,
+            s.get("name", ""),
+            s.get("loc_name", ""),
+            s.get("loc_id", ""),
+            s.get("status", "active"),
+            s.get("tenure_yrs", 0),
+            s.get("cur_pph", 0),
+            s.get("cur_rebook", 0),
+            s.get("cur_product", 0),
+            s.get("cur_ticket", 0),
+            s["services"][-1] if s.get("services") else 0,
+            s["color"][-1] if s.get("color") else 0,
+        ])
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_DATA!A2:L",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": rows},
+    ).execute()
+
+    log.info(
+        "STYLISTS_DATA tab: appended %d stylist rows for week_ending=%s",
+        len(rows), week_ending,
+    )
+
+
 # ─── Main entry ───────────────────────────────────────────────────────────────
 
 def write_all(
@@ -269,14 +414,18 @@ def write_all(
     coach_cards: dict | None = None,
     dry_run: bool = False,
 ):
-    """Write CURRENT, STYLISTS_CURRENT, ALERTS, and coach brief rows in one call."""
+    """Write CURRENT, STYLISTS_CURRENT, ALERTS, coach brief rows, and historical appends in one call."""
     service = _build_service(config) if not dry_run else None
     write_current(service, config, data["locations"], dry_run)
     write_stylists_current(service, config, data["stylists"], dry_run)
     write_alerts(service, config, data["locations"], data["network"], ai_cards, dry_run)
 
+    week_ending = data["network"].get("week_ending", "")
+
     if coach_cards:
-        week_ending = data["network"].get("week_ending", "")
         write_coach_briefs(service, config, coach_cards, week_ending, dry_run)
+
+    append_to_historical(service, config, data["locations"], dry_run)
+    append_to_stylists_historical(service, config, data["stylists"], week_ending, dry_run)
 
     log.info("Sheets write complete (dry_run=%s)", dry_run)
