@@ -113,7 +113,7 @@ docs/kpi-music.mp3       → audio file (not part of pipeline)
 **Woodbury (su003) was removed — do not re-add it.**
 Source of truth: `config/customers/karissa_001.json`
 
-**Note:** `docs/manifest.json` still says "13 locations" in its description — this is stale text. Cosmetic only, doesn't affect function.
+**⚠️ Prior Lake is Zenoti (z006), NOT Salon Ultimate.** `config/locations.py` LOCATION_POS_MAP was wrong in an earlier version — fixed 2026-04-20 per BUG-1 audit. Do not re-introduce `"Prior Lake": "salon_ultimate"`.
 
 ---
 
@@ -157,9 +157,9 @@ Source of truth: `config/customers/karissa_001.json`
 | `WEEKLY_DATA`     | Weekly aggregates                                          |
 | `WEEK_ENDING`     | Manual reference tab — **not read by pipeline code** (pipeline reads week_ending from row data in CURRENT/DATA tabs) |
 
-**Data flow:** Karissa's team enters current week data into CURRENT tab manually. The pipeline reads CURRENT (current week) + DATA (location history) + STYLISTS_DATA (stylist history), enriches everything, then writes back to CURRENT + STYLISTS_CURRENT + ALERTS.
+**Data flow:** Karissa's team enters current week data into CURRENT tab manually. The pipeline reads CURRENT (current week) + DATA (location history) + STYLISTS_DATA (stylist history), enriches everything, then writes back to CURRENT + STYLISTS_CURRENT + ALERTS, and appends to DATA + STYLISTS_DATA.
 
-**Known gap:** `sheets_writer.py` rewrites CURRENT and STYLISTS_CURRENT but does NOT automatically append to DATA/STYLISTS_DATA after each run. The `append_to_historical()` function (~20 lines) still needs to be added. Do not assume this is working until confirmed.
+**Historical append (idempotent):** `append_to_historical()` and `append_to_stylists_historical()` in `core/sheets_writer.py` append each Monday's CURRENT and STYLISTS_CURRENT rows to DATA and STYLISTS_DATA respectively. Both check for the week_ending already existing and skip if so — safe to re-run on the same week.
 
 ---
 
@@ -184,8 +184,7 @@ Source of truth: `config/customers/karissa_001.json`
 - **CRITICAL:** The pipeline **regenerates `docs/index.html`, `docs/jess.html`, `docs/jenn.html` from scratch** every run by calling `dashboard_builder.py`. Any manual edits to those HTML files will be overwritten the next Monday.
 - **Correct fix:** All permanent additions (PWA meta tags, PIN gate, WebAuthn JS, install banner, Coach Card tab, Visit Prep tab) must be baked INTO `core/dashboard_builder.py` — not hand-edited into docs/*.html.
 - **Dry run available:** `DRY_RUN=true python main.py` skips all writes, API calls, email, git push
-- **Sandbox validation:** `python scripts/sandbox_run.py` — runs ALL modules against mock data, zero real API calls. Run this before deploying new credentials or after any schema/code change. Must show 8/8 PASS.
-- **⚠️ Sandbox needs update:** `scripts/sandbox_run.py` currently shows 8/8 PASS. It should be updated to include `ai_coach_cards` as a 9th module check (not yet done — do not change the PASS count until sandbox is updated).
+- **Sandbox validation:** `python scripts/sandbox_run.py` — runs ALL modules against mock data, zero real API calls. Run this before deploying new credentials or after any schema/code change. Must show 9/9 PASS (confirmed 2026-04-20).
 
 ## Email assistant — key behavior
 
@@ -209,11 +208,11 @@ python scripts/sandbox_run.py
 
 What the sandbox does:
 - Mocks 12 realistic location rows and 3 stylist rows
-- Runs data_processor, drift_checker, ai_cards (DRY_RUN), sheets_writer (DRY_RUN), report_builder (DRY_RUN), email_sender (DRY_RUN), dashboard_builder (DRY_RUN), alerter test
-- Confirms all 8 modules pass before any real API credential is connected
+- Runs data_processor, drift_checker, ai_cards (DRY_RUN), sheets_writer (DRY_RUN), report_builder (DRY_RUN), email_sender (DRY_RUN), dashboard_builder (DRY_RUN), alerter test, ai_coach_cards (DRY_RUN)
+- Confirms all 9 modules pass before any real API credential is connected
 - Fires a deliberate test alert so the alerter path is confirmed working
 
-**Sandbox must show 8/8 PASS before this audit is considered done.** ✓ (confirmed 2026-03-15)
+**Sandbox must show 9/9 PASS before any release is considered shippable.** ✓ (confirmed 2026-04-20 post-audit)
 
 ---
 
@@ -327,7 +326,7 @@ The app is installable on iPhone (Add to Home Screen). Components:
 
 ## What's paused / future state
 
-- **Historical backfill** — Karissa may have 2-4 years of data in Zenoti/Salon Ultimate. 50/50 on whether it's exportable. Architecture ready (DATA tab is the append ledger). `append_to_historical()` function needs to be written in `sheets_writer.py` first.
+- **Historical backfill** — Karissa may have 2-4 years of data in Zenoti/Salon Ultimate. 50/50 on whether it's exportable. Architecture is ready: DATA tab is the append ledger, and `append_to_historical()` + `append_to_stylists_historical()` are both implemented and idempotent. Bulk backfill just needs a one-time loader that walks historical weeks through the same append functions.
 - **Zenoti/Salon Ultimate API feeds** — placeholder columns exist in Goals & YOY sheet. API access not yet granted by Karissa. Do not wire up API calls until credentials arrive. Schema contracts already written: `config/zenoti_schema.json`, `config/salon_ultimate_schema.json`.
 - **AI assistant chat** — floating chat UI, Cloudflare Worker proxy for API key security, scoped per manager. Architecture designed, not built. Waiting on historical data decisions.
 - **Visit Prep API key proxy** — Visit Prep fires a direct browser-to-Anthropic API call (acceptable for PIN-gated pilot). Before broader rollout, proxy through a serverless function (Vercel / Cloudflare Worker / GitHub Actions) so the key is not client-side. TODO comment is in the JS code.
@@ -512,5 +511,20 @@ Chat        → AI assistant chat scoped per manager
 9. Add `COACH_CARD_DATA` or `VISIT_PREP_*` coach card data to `index.html` (Karissa's dashboard) — coach cards are for managers only
 10. Change the hardened prompt format contract in `ai_coach_cards.py` (Observation → Context → Question) without re-reviewing the full spec in `KPI_Coach_Card_AI_Prompt_Hardened.docx`
 
-# currentDate
-Today's date is 2026-03-25.
+---
+
+## Latest audit
+
+**2026-04-20 senior-level technical audit** — see `KPI_AUDIT_REPORT_2026-04-20.md` at repo root. 14 sections covering architecture, parsers, data merger, Sheets integration, trust layer, tests, production readiness. Verdict: SHIP-READY for Phase 1. Findings resolved same session:
+
+- ✅ BUG-1: Prior Lake POS routing (Zenoti, not Salon Ultimate) — `config/locations.py`
+- ✅ BUG-2: Missing "FS" filename aliases (Andover FS, Crystal FS, Elk River FS) — `config/locations.py`
+- ✅ Docstring lie in `utils/sheets_writer.py` (20 → 22 columns)
+- ✅ Sandbox updated: now validates `ai_coach_cards` as Module 9 (9/9 PASS)
+- ✅ `docs/manifest.json` stale "13 locations" → "12 locations"
+- ✅ Confirmed `append_to_historical()` + `append_to_stylists_historical()` are already built and wired
+
+**Test status as of 2026-04-20:**
+- Sandbox: 9/9 PASS
+- Trust layer: 167/167 PASS in 0.34s
+- Zero secrets in repo, `.gitignore` covers voice samples and logs
