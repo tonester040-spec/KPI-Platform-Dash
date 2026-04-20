@@ -128,16 +128,19 @@ class ZenotiExcelParser:
             if "mgr" not in name.lower():
                 continue
 
-            # Standard: ends with " mgr"
+            # Check Sams/Roseville format FIRST — it also ends with " mgr" so
+            # must be caught before the standard check or the ID string gets
+            # returned as the location name.
+            # "888-40098-F Sams Roseville, MN\_mgr mgr" → "Roseville"
+            if " Sams " in name or name.lower().startswith("sams"):
+                sams_match = re.search(r"Sams\s+([A-Za-z\s]+?)(?:,|\s*_|\s*mgr)", name, re.IGNORECASE)
+                if sams_match:
+                    raw = sams_match.group(1).strip()
+                    return normalize_location(raw)
+
+            # Standard: ends with " mgr" — e.g. "Andover mgr"
             if name.lower().endswith(" mgr"):
                 raw = re.sub(r"\s+mgr$", "", name, flags=re.IGNORECASE).strip()
-                return normalize_location(raw)
-
-            # Non-standard (Roseville embedded ID):
-            # "888-40098-F Sams Roseville, MN\_mgr mgr"
-            sams_match = re.search(r"Sams\s+([A-Za-z\s]+?)(?:,|\s*_|\s*mgr)", name, re.IGNORECASE)
-            if sams_match:
-                raw = sams_match.group(1).strip()
                 return normalize_location(raw)
 
         return "Unknown"
