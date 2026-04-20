@@ -33,3 +33,9 @@ python-dotenv>=1.0.0
 # Date/time utilities
 python-dateutil>=2.9.0
 pytz>=2024.1
+
+# Tier 2 Excel parsers — .xls legacy format support
+# Note: .xls → .xlsx conversion also requires LibreOffice installed on the runner:
+#   sudo apt-get install -y libreoffice   (GitHub Actions / Ubuntu)
+#   brew install --cask libreoffice       (macOS)
+xlrd>=2.0.1
