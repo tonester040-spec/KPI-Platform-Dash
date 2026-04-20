@@ -313,6 +313,36 @@ def run_sandbox() -> int:
         _fail("alerter", exc)
         results["alerter"] = False
 
+    # ── Module 9: ai_coach_cards (DRY_RUN=true — no Claude API call) ──────────
+    _section("9", "ai_coach_cards — DRY RUN manager card generation (Jess + Jenn)")
+    if data:
+        try:
+            from core import ai_coach_cards
+            mock_config = {
+                "managers": [
+                    {"name": "Jess", "filename": "jess.html", "pin": "XXXX",
+                     "location_ids": ["z006", "z010", "su001", "su002"]},
+                    {"name": "Jenn", "filename": "jenn.html", "pin": "XXXX",
+                     "location_ids": ["z001", "z002", "z003", "z004", "z009"]},
+                ]
+            }
+            coach_cards = ai_coach_cards.generate_all_coach_cards(mock_config, data, dry_run=True)
+            assert "Jess" in coach_cards, "Jess coach card missing"
+            assert "Jenn" in coach_cards, "Jenn coach card missing"
+            assert "territory_headline" in coach_cards["Jess"], "Jess card missing territory_headline"
+            assert "territory_headline" in coach_cards["Jenn"], "Jenn card missing territory_headline"
+            _pass(
+                "ai_coach_cards",
+                f"{len(coach_cards)} coach cards generated (Jess + Jenn) — hardened prompt schema intact",
+            )
+            results["ai_coach_cards"] = True
+        except Exception as exc:
+            _fail("ai_coach_cards", exc)
+            results["ai_coach_cards"] = False
+    else:
+        _skip("ai_coach_cards", "data_processor failed")
+        results["ai_coach_cards"] = None
+
     # ── Summary ────────────────────────────────────────────────────────────────
     print()
     print("╔══════════════════════════════════════════════════════════╗")

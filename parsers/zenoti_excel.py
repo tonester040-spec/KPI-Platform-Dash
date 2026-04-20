@@ -63,21 +63,26 @@ class ZenotiExcelParser:
 
         Returns:
             {
-              'location': str,
-              'period':   {'start_date': 'YYYY-MM-DD', 'end_date': 'YYYY-MM-DD'},
-              'pos_system': 'zenoti',
-              'stylists': [ <stylist dict>, ... ]
+              'location':      str,
+              'location_id':   str,   # snake_case canonical name
+              'location_name': str,   # display name (same as location)
+              'period':        {'start_date': 'YYYY-MM-DD', 'end_date': 'YYYY-MM-DD'},
+              'pos_system':    'zenoti',
+              'stylists':      [ <stylist dict>, ... ]
             }
         """
-        location = self.extract_location()
-        period   = self.extract_period()
-        stylists = self._parse_stylists(location, period)
+        location    = self.extract_location()
+        location_id = location.lower().replace(" ", "_")
+        period      = self.extract_period()
+        stylists    = self._parse_stylists(location, location_id, period)
 
         return {
-            "location":   location,
-            "period":     period,
-            "pos_system": "zenoti",
-            "stylists":   stylists,
+            "location":      location,
+            "location_id":   location_id,
+            "location_name": location,
+            "period":        period,
+            "pos_system":    "zenoti",
+            "stylists":      stylists,
         }
 
     # ------------------------------------------------------------------
@@ -158,7 +163,12 @@ class ZenotiExcelParser:
         except (ValueError, AttributeError):
             return 0.0
 
-    def _parse_stylists(self, location: str, period: Dict) -> List[Dict]:
+    def _parse_stylists(
+        self,
+        location: str,
+        location_id: str,
+        period: Dict,
+    ) -> List[Dict]:
         """
         Parse all stylist rows between DATA_START and the "Total" row.
 
@@ -187,40 +197,50 @@ class ZenotiExcelParser:
                 continue
 
             # Extract raw values
-            invoice_count  = self._safe_float(self.sheet.cell(row=row_idx, column=self.COL_INVOICE_COUNT + 1).value)
-            service_sales  = self._safe_float(self.sheet.cell(row=row_idx, column=self.COL_SERVICE_SALES  + 1).value)
-            product_sales  = self._safe_float(self.sheet.cell(row=row_idx, column=self.COL_PRODUCT_SALES  + 1).value)
+            invoice_count = self._safe_float(self.sheet.cell(row=row_idx, column=self.COL_INVOICE_COUNT + 1).value)
+            service_sales = self._safe_float(self.sheet.cell(row=row_idx, column=self.COL_SERVICE_SALES  + 1).value)
+            product_sales = self._safe_float(self.sheet.cell(row=row_idx, column=self.COL_PRODUCT_SALES  + 1).value)
 
             # Skip rows that look completely empty (all zeros and a name we can't validate)
             if invoice_count == 0 and service_sales == 0 and product_sales == 0:
                 continue
 
             # ---- Karissa's authoritative formulas ----
-            guest_count  = invoice_count                                      # Override column D
-            total_sales  = service_sales + product_sales
-            service_net  = total_sales - product_sales                        # == service_sales
-            product_net  = product_sales                                      # explicit alias
-            ppg_net      = (product_sales / guest_count) if guest_count > 0 else 0.0
+            guest_count = invoice_count                                        # Override column D
+            total_sales = service_sales + product_sales
+            service_net = total_sales - product_sales                          # == service_sales
+            product_net = product_sales                                        # explicit alias
+            ppg_net     = (product_sales / guest_count) if guest_count > 0 else 0.0
+            avg_ticket  = (total_sales   / guest_count) if guest_count > 0 else 0.0
+            product_pct = (product_net   / total_sales * 100) if total_sales > 0 else 0.0
 
             stylists.append({
                 # Identity
                 "location":      location,
+                "location_id":   location_id,
+                "location_name": location,
                 "stylist_name":  name_str,
                 "period_start":  period["start_date"],
                 "period_end":    period["end_date"],
                 "pos_system":    "zenoti",
 
                 # Raw values preserved from Excel
-                "invoice_count": invoice_count,
-                "service_sales": service_sales,
-                "product_sales": product_sales,
+                "invoice_count": int(invoice_count),
+                "service_sales": round(service_sales, 2),
+                "product_sales": round(product_sales, 2),
 
                 # Derived per Karissa's formulas
-                "guest_count":   guest_count,
+                "guest_count":   int(guest_count),
                 "total_sales":   round(total_sales, 2),
                 "service_net":   round(service_net, 2),
                 "product_net":   round(product_net, 2),
                 "ppg_net":       round(ppg_net, 2),
+                "avg_ticket":    round(avg_ticket, 2),
+                "product_pct":   round(product_pct, 2),
+
+                # Zenoti does not report PPH or productive hours
+                "pph_net":          None,
+                "productive_hours": None,
             })
 
         return stylists

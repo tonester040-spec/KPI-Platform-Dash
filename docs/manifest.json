@@ -1,7 +1,7 @@
 {
   "name": "KPI — Karissa Performance Intelligence",
   "short_name": "KPI",
-  "description": "Salon network performance intelligence for 13 locations",
+  "description": "Salon network performance intelligence for 12 locations",
   "start_url": "/KPI-Platform-Dash/",
   "scope": "/KPI-Platform-Dash/",
   "display": "standalone",

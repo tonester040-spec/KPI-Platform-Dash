@@ -4,11 +4,11 @@ core/sheets_writer.py
 KPI Platform — writes enriched data back to Google Sheets.
 
 Updates tabs each pipeline run:
-  CURRENT          → Clear + rewrite with current week (13 rows)
+  CURRENT          → Clear + rewrite with current week (12 rows)
   STYLISTS_CURRENT → Clear + rewrite with current week stylists
-  ALERTS           → Clear + rewrite with AI-generated alerts
-  DATA             → Append current week rows (idempotent)
-  STYLISTS_DATA    → Append current week stylist rows (idempotent)
+  ALERTS           → Clear + rewrite with AI-generated alerts (rows 100-101 = coach briefs)
+  DATA             → Append current week rows (idempotent — skips if week already present)
+  STYLISTS_DATA    → Append current week stylist rows (idempotent — skips if week already present)
 """
 
 import os

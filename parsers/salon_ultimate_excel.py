@@ -13,20 +13,28 @@ Schema:
 
 Column mapping (Row 5 headers, 1-based):
   Col A (1)  : Stylist Name
-  Col C (3)  : Service Clients
-  Col D (4)  : Retail Clients
-  Col G (7)  : Service Net Sales
-  Col J (10) : Product Net Sales
+  Col B (2)  : Service Sales  → service_net
+  Col C (3)  : Retail Sales   → product_net
+  Col D (4)  : Hours Worked   → productive_hours  (Totals row only)
+  Col F (6)  : Serv $ Hour    → pph_net           (Totals row only)
+  Col G (7)  : Retail Client  → retail_clients    (per-stylist guest component)
+  Col H (8)  : Service Clients→ service_clients   (per-stylist guest component)
 
-Known edge cases (from spec):
-  - "Salon Ultimate" phantom rows may appear — skip them
-  - Some .xls files already have a .xlsx counterpart — skip re-conversion if present
-  - LibreOffice must be installed: soffice --headless --convert-to xlsx ...
+Excluded provider rows (skip, do not count as stylists):
+  - "Totals:"        — summary row
+  - "Booked Online"  — online booking phantom
+  - "House _"        — house account prefix
+  - "Salon Ultimate" — phantom phantom row
 
 Karissa's authoritative formulas:
-  guest_count = service_clients + retail_clients
-  total_sales = service_net + product_net
-  ppg_net     = product_net / guest_count   (0 when guest_count == 0)
+  guest_count  = service_clients + retail_clients
+  total_sales  = service_net + product_net
+  ppg_net      = product_net / guest_count       (0 when guest_count == 0)
+  avg_ticket   = total_sales / guest_count       (0 when guest_count == 0)
+  product_pct  = product_net / total_sales * 100 (0 when total_sales == 0)
+
+pph_net and productive_hours are location-level metrics read from the Totals row only.
+Per-stylist rows have pph_net: None and productive_hours: None.
 """
 
 import os
@@ -47,12 +55,18 @@ class SalonUltimateExcelParser:
     HEADER_ROW  = 5
     DATA_START  = 6
 
-    # 1-based column indices
-    COL_STYLIST_NAME    = 1   # A
-    COL_SERVICE_CLIENTS = 3   # C
-    COL_RETAIL_CLIENTS  = 4   # D
-    COL_SERVICE_NET     = 7   # G
-    COL_PRODUCT_NET     = 10  # J
+    # 1-based column indices (CORRECTED per spec)
+    COL_STYLIST_NAME     = 1   # A — "Stylist Name"
+    COL_SERVICE_NET      = 2   # B — "Service Sales"
+    COL_PRODUCT_NET      = 3   # C — "Retail Sales"
+    COL_HOURS_WORKED     = 4   # D — "Hours Worked"    (Totals row only)
+    # Col E (5) not captured
+    COL_PPH_NET          = 6   # F — "Serv $ Hour"     (Totals row only)
+    COL_RETAIL_CLIENTS   = 7   # G — "Retail Client"
+    COL_SERVICE_CLIENTS  = 8   # H — "Service Clients"
+
+    # Provider name patterns to skip entirely
+    SKIP_PATTERNS = ("Booked Online", "House _", "Salon Ultimate")
 
     def __init__(self, file_path: str):
         self.file_path       = file_path
@@ -79,21 +93,29 @@ class SalonUltimateExcelParser:
 
         Returns:
             {
-              'location':   str,
-              'period':     {'start_date': 'YYYY-MM-DD', 'end_date': 'YYYY-MM-DD'},
-              'pos_system': 'salon_ultimate',
-              'stylists':   [ <stylist dict>, ... ]
+              'location':       str,
+              'location_id':    str,   # snake_case canonical name
+              'location_name':  str,   # display name (same as location)
+              'period':         {'start_date': 'YYYY-MM-DD', 'end_date': 'YYYY-MM-DD'},
+              'pos_system':     'salon_ultimate',
+              'location_totals':{'pph_net': float, 'productive_hours': float},
+              'stylists':       [ <stylist dict>, ... ]
             }
         """
-        location = self.extract_location()
-        period   = self.extract_period()
-        stylists = self._parse_stylists(location, period)
+        location       = self.extract_location()
+        location_id    = location.lower().replace(" ", "_")
+        period         = self.extract_period()
+        location_totals = self._extract_location_totals()
+        stylists       = self._parse_stylists(location, location_id, period)
 
         return {
-            "location":   location,
-            "period":     period,
-            "pos_system": "salon_ultimate",
-            "stylists":   stylists,
+            "location":        location,
+            "location_id":     location_id,
+            "location_name":   location,
+            "period":          period,
+            "pos_system":      "salon_ultimate",
+            "location_totals": location_totals,
+            "stylists":        stylists,
         }
 
     # ------------------------------------------------------------------
@@ -140,7 +162,7 @@ class SalonUltimateExcelParser:
 
         soffice = os.environ.get("SOFFICE_PATH", "soffice")
         try:
-            result = subprocess.run(
+            subprocess.run(
                 [soffice, "--headless", "--convert-to", "xlsx",
                  "--outdir", output_dir, xls_path],
                 check=True,
@@ -246,14 +268,50 @@ class SalonUltimateExcelParser:
                 return row_idx
         return None
 
-    def _parse_stylists(self, location: str, period: Dict) -> List[Dict]:
+    def _extract_location_totals(self) -> Dict:
+        """
+        Read location-level metrics from the 'Totals:' row.
+
+        Returns dict with pph_net and productive_hours.
+        Both default to 0.0 if Totals row is not found.
+        """
+        totals_row = self._find_totals_row()
+        if totals_row is None:
+            return {"pph_net": 0.0, "productive_hours": 0.0}
+
+        productive_hours = self._safe_float(
+            self.sheet.cell(row=totals_row, column=self.COL_HOURS_WORKED).value
+        )
+        pph_net = self._safe_float(
+            self.sheet.cell(row=totals_row, column=self.COL_PPH_NET).value
+        )
+
+        return {
+            "pph_net":          round(pph_net, 2),
+            "productive_hours": round(productive_hours, 2),
+        }
+
+    def _should_skip(self, name: str) -> bool:
+        """Return True if this provider row should be excluded."""
+        for pattern in self.SKIP_PATTERNS:
+            if pattern.lower() in name.lower():
+                return True
+        return False
+
+    def _parse_stylists(
+        self,
+        location: str,
+        location_id: str,
+        period: Dict,
+    ) -> List[Dict]:
         """
         Parse stylist rows from DATA_START up to (but not including) 'Totals:'.
 
         Skips:
           - Empty stylist name
-          - Rows where name contains "Salon Ultimate" (phantom rows — known spec edge case)
-          - The "Totals:" summary row
+          - "Totals:" row
+          - Rows matching SKIP_PATTERNS (Booked Online, House _, Salon Ultimate)
+          - Rows where all key metrics are zero (blank spacer rows)
         """
         totals_row = self._find_totals_row()
         end_row    = totals_row if totals_row else self.sheet.max_row + 1
@@ -269,51 +327,62 @@ class SalonUltimateExcelParser:
 
             name_str = str(stylist_name).strip()
 
-            # Skip phantom "Salon Ultimate" rows (known edge case from spec)
-            if "Salon Ultimate" in name_str:
+            # Skip excluded provider patterns
+            if self._should_skip(name_str):
                 continue
 
-            # Extract raw values (1-based column access)
-            service_clients = self._safe_float(
-                self.sheet.cell(row=row_idx, column=self.COL_SERVICE_CLIENTS).value
-            )
-            retail_clients  = self._safe_float(
-                self.sheet.cell(row=row_idx, column=self.COL_RETAIL_CLIENTS).value
-            )
-            service_net     = self._safe_float(
+            # Extract raw values (corrected column mapping)
+            service_net      = self._safe_float(
                 self.sheet.cell(row=row_idx, column=self.COL_SERVICE_NET).value
             )
-            product_net     = self._safe_float(
+            product_net      = self._safe_float(
                 self.sheet.cell(row=row_idx, column=self.COL_PRODUCT_NET).value
             )
+            retail_clients   = self._safe_float(
+                self.sheet.cell(row=row_idx, column=self.COL_RETAIL_CLIENTS).value
+            )
+            service_clients  = self._safe_float(
+                self.sheet.cell(row=row_idx, column=self.COL_SERVICE_CLIENTS).value
+            )
 
-            # Skip rows that are entirely zero (likely blank spacer rows)
-            if service_clients == 0 and retail_clients == 0 and service_net == 0 and product_net == 0:
+            # Skip rows that are entirely zero (blank spacer rows)
+            if (service_net == 0 and product_net == 0
+                    and retail_clients == 0 and service_clients == 0):
                 continue
 
             # ---- Karissa's authoritative formulas ----
             guest_count = service_clients + retail_clients
             total_sales = service_net + product_net
-            ppg_net     = (product_net / guest_count) if guest_count > 0 else 0.0
+            ppg_net     = (product_net  / guest_count)  if guest_count  > 0 else 0.0
+            avg_ticket  = (total_sales  / guest_count)  if guest_count  > 0 else 0.0
+            product_pct = (product_net  / total_sales * 100) if total_sales > 0 else 0.0
 
             stylists.append({
                 # Identity
                 "location":      location,
+                "location_id":   location_id,
+                "location_name": location,
                 "stylist_name":  name_str,
                 "period_start":  period["start_date"],
                 "period_end":    period["end_date"],
                 "pos_system":    "salon_ultimate",
 
                 # Raw values preserved from Excel
-                "service_clients": service_clients,
-                "retail_clients":  retail_clients,
+                "service_clients": int(service_clients),
+                "retail_clients":  int(retail_clients),
                 "service_net":     round(service_net, 2),
                 "product_net":     round(product_net, 2),
 
                 # Derived per Karissa's formulas
-                "guest_count":  round(guest_count, 0),
+                "guest_count":  int(guest_count),
                 "total_sales":  round(total_sales, 2),
                 "ppg_net":      round(ppg_net, 2),
+                "avg_ticket":   round(avg_ticket, 2),
+                "product_pct":  round(product_pct, 2),
+
+                # SU location-level metrics — None at stylist level (from location_totals)
+                "pph_net":           None,
+                "productive_hours":  None,
             })
 
         return stylists

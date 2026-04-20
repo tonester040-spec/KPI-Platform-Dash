@@ -53,11 +53,14 @@ class ZenotiPDFParser:
     # Order matters — we try each against the extracted text.
     CATEGORIES = ["Haircut", "Color", "Wax", "Treatment"]
 
-    # Additional aliases that Zenoti sometimes uses
+    # Additional aliases that Zenoti sometimes uses.
+    # CRITICAL: "Waxing" is a separate row in some Zenoti PDFs — MUST be summed
+    # with "Wax" per Karissa's explicit rule. Both map to canonical "Wax".
     CATEGORY_ALIASES = {
         "Men's Haircut": "Haircut",
         "Mens Haircut":  "Haircut",
         "Men Haircut":   "Haircut",
+        "Waxing":        "Wax",     # ← Karissa's rule: sum Wax + Waxing
     }
 
     def __init__(self, file_path: str):

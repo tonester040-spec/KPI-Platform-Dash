@@ -2,13 +2,21 @@
 Google Sheets Writer — Tier 2 Normalized Stylist Data
 Writes parsed stylist data to Google Sheets.
 
-Target sheet schema ("Stylist Data") — 15 columns:
-  location        | stylist_name   | period_start | period_end     | pos_system
-  guest_count     | service_net    | product_net  | total_sales    | ppg_net
-  wax_count (PDF) | wax_pct (calc) | color_net    | color_pct(calc)| treatment_count (PDF)
+Target sheet schema ("Stylist Data") — 22 columns:
+   1. location          12. ppg_net
+   2. location_id       13. avg_ticket
+   3. location_name     14. product_pct
+   4. stylist_name      15. pph_net            (SU only)
+   5. period_start      16. productive_hours   (SU only)
+   6. period_end        17. wax_count          (Phase 2)
+   7. pos_system        18. wax_pct            (Phase 2)
+   8. guest_count       19. color_net          (Phase 2)
+   9. service_net       20. color_pct          (Phase 2)
+  10. product_net       21. treatment_count    (Phase 2)
+  11. total_sales       22. treatment_pct      (Phase 2)
 
-Phase 1 (Excel-only) rows write empty string "" for the last 5 columns.
-Phase 2 (merged) rows populate all 15 columns.
+Phase 1 (Excel-only) rows write empty string "" for PDF-sourced columns.
+Phase 2 (merged) rows populate all columns.
 
 Write modes:
   write_stylists()  — Full overwrite including header row (use for first load or full refresh)
@@ -31,25 +39,32 @@ from googleapiclient.errors import HttpError
 # The minimum OAuth scope needed for read+write
 _SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# Normalized column order — 15 columns, matches header row written by write_stylists()
-# Phase 1 (Excel-only) rows: wax_count … treatment_count are empty string ""
-# Phase 2 (merged)     rows: all 15 columns populated
+# Normalized column order — 22 columns, matches header row written by write_stylists()
+# Phase 1 (Excel-only) rows: PDF-sourced columns are empty string ""
+# Phase 2 (merged)     rows: all 22 columns populated
 _COLUMNS = [
     "location",           # 1
-    "stylist_name",       # 2
-    "period_start",       # 3
-    "period_end",         # 4
-    "pos_system",         # 5
-    "guest_count",        # 6
-    "service_net",        # 7
-    "product_net",        # 8
-    "total_sales",        # 9
-    "ppg_net",            # 10
-    "wax_count",          # 11 — Phase 2: distributed from PDF location total
-    "wax_pct",            # 12 — Phase 2: wax_count / guest_count × 100
-    "color_net",          # 13 — Phase 2: distributed from PDF location total
-    "color_pct",          # 14 — Phase 2: color_net / service_net × 100
-    "treatment_count",    # 15 — Phase 2: distributed from PDF location total
+    "location_id",        # 2
+    "location_name",      # 3
+    "stylist_name",       # 4
+    "period_start",       # 5
+    "period_end",         # 6
+    "pos_system",         # 7
+    "guest_count",        # 8
+    "service_net",        # 9
+    "product_net",        # 10
+    "total_sales",        # 11
+    "ppg_net",            # 12
+    "avg_ticket",         # 13 — computed from Excel data
+    "product_pct",        # 14 — computed from Excel data
+    "pph_net",            # 15 — SU only (from location_totals); None for Zenoti
+    "productive_hours",   # 16 — SU only (from location_totals); None for Zenoti
+    "wax_count",          # 17 — Phase 2: distributed from PDF location total
+    "wax_pct",            # 18 — Phase 2: wax_count / guest_count × 100
+    "color_net",          # 19 — Phase 2: distributed from PDF location total
+    "color_pct",          # 20 — Phase 2: color_net / service_net × 100
+    "treatment_count",    # 21 — Phase 2: distributed from PDF location total
+    "treatment_pct",      # 22 — Phase 2: treatment_count / guest_count × 100
 ]
 
 
@@ -142,30 +157,40 @@ class GoogleSheetsWriter:
     @staticmethod
     def _stylist_to_row(stylist: Dict) -> List:
         """
-        Serialize a stylist dict to a flat list matching _COLUMNS order (15 columns).
+        Serialize a stylist dict to a flat list matching _COLUMNS order (22 columns).
 
-        Phase 1 (Excel-only) rows will have "" for columns 11-15.
-        Phase 2 (merged) rows will have numeric values for all 15.
+        Phase 1 (Excel-only) rows have "" for PDF-sourced columns (wax/color/treatment).
+        Phase 2 (merged) rows have numeric values for all columns.
+        pph_net / productive_hours are None for Zenoti rows (serialized as "").
         """
-        # Detect whether this stylist has Phase 2 PDF data merged in
-        has_pdf = "wax_count" in stylist and stylist["wax_count"] != ""
+        def _val(key, default=""):
+            """Return value or default. None → default."""
+            v = stylist.get(key)
+            return default if v is None else v
 
         return [
-            stylist.get("location",          ""),   # 1
-            stylist.get("stylist_name",       ""),   # 2
-            stylist.get("period_start",       ""),   # 3
-            stylist.get("period_end",         ""),   # 4
-            stylist.get("pos_system",         ""),   # 5
-            stylist.get("guest_count",        0),    # 6
-            stylist.get("service_net",        0),    # 7
-            stylist.get("product_net",        0),    # 8
-            stylist.get("total_sales",        0),    # 9
-            stylist.get("ppg_net",            0),    # 10
-            stylist.get("wax_count",          ""),   # 11 — Phase 2
-            stylist.get("wax_pct",            ""),   # 12 — Phase 2
-            stylist.get("color_net",          ""),   # 13 — Phase 2
-            stylist.get("color_pct",          ""),   # 14 — Phase 2
-            stylist.get("treatment_count",    ""),   # 15 — Phase 2
+            _val("location",          ""),   # 1
+            _val("location_id",       ""),   # 2
+            _val("location_name",     ""),   # 3
+            _val("stylist_name",      ""),   # 4
+            _val("period_start",      ""),   # 5
+            _val("period_end",        ""),   # 6
+            _val("pos_system",        ""),   # 7
+            _val("guest_count",       0),    # 8
+            _val("service_net",       0),    # 9
+            _val("product_net",       0),    # 10
+            _val("total_sales",       0),    # 11
+            _val("ppg_net",           0),    # 12
+            _val("avg_ticket",        0),    # 13
+            _val("product_pct",       0),    # 14
+            _val("pph_net",           ""),   # 15 — SU only; None → "" for Zenoti
+            _val("productive_hours",  ""),   # 16 — SU only; None → "" for Zenoti
+            _val("wax_count",         ""),   # 17 — Phase 2
+            _val("wax_pct",           ""),   # 18 — Phase 2
+            _val("color_net",         ""),   # 19 — Phase 2
+            _val("color_pct",         ""),   # 20 — Phase 2
+            _val("treatment_count",   ""),   # 21 — Phase 2
+            _val("treatment_pct",     ""),   # 22 — Phase 2
         ]
 
     # ------------------------------------------------------------------

@@ -89,8 +89,12 @@ class DataMerger:
             treatment_count = round(treatment_count_total * share, 1)
 
             # Derived penetration/mix metrics
-            wax_pct   = round((wax_count / guest_count * 100),  2) if guest_count  > 0 else 0.0
-            color_pct = round((color_net / service_net * 100),  2) if service_net  > 0 else 0.0
+            # wax_pct       — guest penetration (wax services per guest %)
+            # color_pct     — revenue mix (color revenue % of service revenue)
+            # treatment_pct — guest penetration (treatment services per guest %)
+            wax_pct       = round((wax_count       / guest_count * 100), 2) if guest_count > 0 else 0.0
+            color_pct     = round((color_net       / service_net * 100), 2) if service_net > 0 else 0.0
+            treatment_pct = round((treatment_count / guest_count * 100), 2) if guest_count > 0 else 0.0
 
             augmented = stylist.copy()
             augmented.update({
@@ -99,6 +103,7 @@ class DataMerger:
                 "color_net":       color_net,
                 "color_pct":       color_pct,
                 "treatment_count": treatment_count,
+                "treatment_pct":   treatment_pct,   # ← added
             })
             enhanced.append(augmented)
 
@@ -213,6 +218,7 @@ class DataMerger:
                 f"  color_net       : ${sample.get('color_net', 0):.2f}",
                 f"  color_pct       : {sample.get('color_pct', 0):.2f}%",
                 f"  treatment_count : {sample.get('treatment_count', 0)}",
+                f"  treatment_pct   : {sample.get('treatment_pct', 0):.2f}%",
             ]
 
         return "\n".join(lines)

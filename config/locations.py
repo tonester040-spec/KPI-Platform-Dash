@@ -4,8 +4,9 @@ Source: KPI_Tier2_Intake_Complete_Spec.md
 """
 
 # Location to POS system mapping
+# Source of truth: config/customers/karissa_001.json
 LOCATION_POS_MAP = {
-    # Zenoti locations (8)
+    # Zenoti locations (9)
     "Andover": "zenoti",
     "Blaine": "zenoti",
     "Crystal": "zenoti",
@@ -13,13 +14,13 @@ LOCATION_POS_MAP = {
     "Forest Lake": "zenoti",
     "Hudson": "zenoti",
     "New Richmond": "zenoti",
+    "Prior Lake": "zenoti",     # FIX 2026-04-20: was salon_ultimate (wrong per karissa_001.json z006)
     "Roseville": "zenoti",
 
-    # Salon Ultimate locations (4)
+    # Salon Ultimate locations (3)
     "Apple Valley": "salon_ultimate",
     "Farmington": "salon_ultimate",
     "Lakeville": "salon_ultimate",
-    "Prior Lake": "salon_ultimate",
 }
 
 # Coach assignments
@@ -42,23 +43,29 @@ ZENOTI_LOCATION_IDS = {
 }
 
 # Canonical location name aliases — map file-level variations to canonical names
-# Used by parsers to normalize location strings extracted from Excel headers
+# Used by parsers to normalize location strings extracted from Excel headers and filenames
 LOCATION_ALIASES = {
-    # Zenoti aliases (as they appear in "Andover mgr" rows)
-    "andover": "Andover",
-    "blaine": "Blaine",
-    "crystal": "Crystal",
-    "elk river": "Elk River",
-    "forest lake": "Forest Lake",
-    "hudson": "Hudson",
-    "new richmond": "New Richmond",
-    "roseville": "Roseville",
+    # Zenoti aliases (as they appear in "Andover mgr" rows, or with "FS" suffix in filenames)
+    "andover":        "Andover",
+    "andover fs":     "Andover",
+    "andover full service": "Andover",
+    "blaine":         "Blaine",
+    "crystal":        "Crystal",
+    "crystal fs":     "Crystal",
+    "crystal full service": "Crystal",
+    "elk river":      "Elk River",
+    "elk river fs":   "Elk River",
+    "elk river full service": "Elk River",
+    "forest lake":    "Forest Lake",
+    "hudson":         "Hudson",
+    "new richmond":   "New Richmond",
+    "prior lake":     "Prior Lake",
+    "roseville":      "Roseville",
 
     # Salon Ultimate aliases (as they appear in B1 store name cell)
-    "apple valley": "Apple Valley",
-    "farmington": "Farmington",
-    "lakeville": "Lakeville",
-    "prior lake": "Prior Lake",
+    "apple valley":   "Apple Valley",
+    "farmington":     "Farmington",
+    "lakeville":      "Lakeville",
 }
 
 
