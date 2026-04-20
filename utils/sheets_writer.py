@@ -2,10 +2,13 @@
 Google Sheets Writer — Tier 2 Normalized Stylist Data
 Writes parsed stylist data to Google Sheets.
 
-Target sheet schema ("Stylist Data"):
-  location        | stylist_name  | period_start | period_end | pos_system
-  guest_count     | service_net   | product_net  | total_sales | ppg_net
-  wax_count (PDF) | color_net (PDF) | treatment_count (PDF)
+Target sheet schema ("Stylist Data") — 15 columns:
+  location        | stylist_name   | period_start | period_end     | pos_system
+  guest_count     | service_net    | product_net  | total_sales    | ppg_net
+  wax_count (PDF) | wax_pct (calc) | color_net    | color_pct(calc)| treatment_count (PDF)
+
+Phase 1 (Excel-only) rows write empty string "" for the last 5 columns.
+Phase 2 (merged) rows populate all 15 columns.
 
 Write modes:
   write_stylists()  — Full overwrite including header row (use for first load or full refresh)
@@ -28,21 +31,25 @@ from googleapiclient.errors import HttpError
 # The minimum OAuth scope needed for read+write
 _SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# Normalized column order — matches header row written by write_stylists()
+# Normalized column order — 15 columns, matches header row written by write_stylists()
+# Phase 1 (Excel-only) rows: wax_count … treatment_count are empty string ""
+# Phase 2 (merged)     rows: all 15 columns populated
 _COLUMNS = [
-    "location",
-    "stylist_name",
-    "period_start",
-    "period_end",
-    "pos_system",
-    "guest_count",
-    "service_net",
-    "product_net",
-    "total_sales",
-    "ppg_net",
-    "wax_count",        # Phase 2 — populated by PDF parsers
-    "color_net",        # Phase 2 — populated by PDF parsers
-    "treatment_count",  # Phase 2 — populated by PDF parsers
+    "location",           # 1
+    "stylist_name",       # 2
+    "period_start",       # 3
+    "period_end",         # 4
+    "pos_system",         # 5
+    "guest_count",        # 6
+    "service_net",        # 7
+    "product_net",        # 8
+    "total_sales",        # 9
+    "ppg_net",            # 10
+    "wax_count",          # 11 — Phase 2: distributed from PDF location total
+    "wax_pct",            # 12 — Phase 2: wax_count / guest_count × 100
+    "color_net",          # 13 — Phase 2: distributed from PDF location total
+    "color_pct",          # 14 — Phase 2: color_net / service_net × 100
+    "treatment_count",    # 15 — Phase 2: distributed from PDF location total
 ]
 
 
@@ -135,25 +142,30 @@ class GoogleSheetsWriter:
     @staticmethod
     def _stylist_to_row(stylist: Dict) -> List:
         """
-        Serialize a stylist dict to a flat list matching _COLUMNS order.
+        Serialize a stylist dict to a flat list matching _COLUMNS order (15 columns).
 
-        PDF-only fields (wax_count, color_net, treatment_count) default to ""
-        and will be back-filled by Phase 2 PDF parsers.
+        Phase 1 (Excel-only) rows will have "" for columns 11-15.
+        Phase 2 (merged) rows will have numeric values for all 15.
         """
+        # Detect whether this stylist has Phase 2 PDF data merged in
+        has_pdf = "wax_count" in stylist and stylist["wax_count"] != ""
+
         return [
-            stylist.get("location",     ""),
-            stylist.get("stylist_name", ""),
-            stylist.get("period_start", ""),
-            stylist.get("period_end",   ""),
-            stylist.get("pos_system",   ""),
-            stylist.get("guest_count",  0),
-            stylist.get("service_net",  0),
-            stylist.get("product_net",  0),
-            stylist.get("total_sales",  0),
-            stylist.get("ppg_net",      0),
-            stylist.get("wax_count",    ""),   # Phase 2
-            stylist.get("color_net",    ""),   # Phase 2
-            stylist.get("treatment_count", ""),  # Phase 2
+            stylist.get("location",          ""),   # 1
+            stylist.get("stylist_name",       ""),   # 2
+            stylist.get("period_start",       ""),   # 3
+            stylist.get("period_end",         ""),   # 4
+            stylist.get("pos_system",         ""),   # 5
+            stylist.get("guest_count",        0),    # 6
+            stylist.get("service_net",        0),    # 7
+            stylist.get("product_net",        0),    # 8
+            stylist.get("total_sales",        0),    # 9
+            stylist.get("ppg_net",            0),    # 10
+            stylist.get("wax_count",          ""),   # 11 — Phase 2
+            stylist.get("wax_pct",            ""),   # 12 — Phase 2
+            stylist.get("color_net",          ""),   # 13 — Phase 2
+            stylist.get("color_pct",          ""),   # 14 — Phase 2
+            stylist.get("treatment_count",    ""),   # 15 — Phase 2
         ]
 
     # ------------------------------------------------------------------

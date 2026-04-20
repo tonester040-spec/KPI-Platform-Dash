@@ -138,9 +138,10 @@ class SalonUltimateExcelParser:
             os.path.splitext(os.path.basename(xls_path))[0] + ".xlsx",
         )
 
+        soffice = os.environ.get("SOFFICE_PATH", "soffice")
         try:
             result = subprocess.run(
-                ["soffice", "--headless", "--convert-to", "xlsx",
+                [soffice, "--headless", "--convert-to", "xlsx",
                  "--outdir", output_dir, xls_path],
                 check=True,
                 capture_output=True,
