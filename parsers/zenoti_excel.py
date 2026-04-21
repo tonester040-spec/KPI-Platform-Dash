@@ -2,15 +2,16 @@
 Zenoti Employee KPI Excel Parser
 Parses .xlsx files from Zenoti "Employee KPI" reports.
 
-Schema (CORRECTED — header row is Row 3, not Row 4):
-  Row 1: "Employee KPI Fantastic Sams"
+Schema (verified against real Drive export, 2026-04-21):
+  Row 1: Brand name, e.g. "Fantastic Sams"
   Row 2: "Employee KPI From : 01 Mar 2026 To : 31 Mar 2026 By : Karissa Grant..."
-  Row 3: Column headers (Employee Name, Invoice Count, etc.)
-  Row 4+: Stylist data rows
+  Row 3: blank spacer row
+  Row 4: Column headers (Employee Name, Invoice Count, etc.)
+  Row 5+: Stylist data rows
   Last data row: "Total" summary row (stop here)
 
 Location extraction:
-  Scan data rows (Row 4+) for any employee_name containing 'mgr'.
+  Scan data rows (Row 5+) for any employee_name containing 'mgr'.
   Standard format  → "Andover mgr"        → location = "Andover"
   Non-standard     → "888-40098-F Sams Roseville, MN\\_mgr mgr"
                                            → location = "Roseville"
@@ -34,7 +35,7 @@ from config.locations import normalize_location
 class ZenotiExcelParser:
     """Parse a single Zenoti Employee KPI .xlsx file."""
 
-    # Zero-based column indices matching Row 3 headers
+    # Zero-based column indices matching Row 4 headers
     COL_EMPLOYEE_NAME    = 0   # A — "Employee Name"
     COL_INVOICE_COUNT    = 1   # B — "Invoice Count"
     COL_AVG_INVOICE      = 2   # C — "Avg Invoice Value"
@@ -44,9 +45,11 @@ class ZenotiExcelParser:
     COL_PRODUCT_SALES    = 6   # G — "Product Sales"
     COL_AVG_PRODUCT      = 7   # H — "Avg Product Value"
 
-    # Row numbers (1-based, as openpyxl uses)
-    HEADER_ROW  = 3   # CRITICAL CORRECTION: spec says Row 4, actual files use Row 3
-    DATA_START  = 4   # First stylist data row
+    # Row numbers (1-based, as openpyxl uses).
+    # Verified against the real Drive export 2026-04-21:
+    # Row 3 is a blank spacer, Row 4 is the header, Row 5 is the first stylist.
+    HEADER_ROW  = 4   # Column headers ("Employee Name", "Invoice Count", ...)
+    DATA_START  = 5   # First stylist data row
 
     def __init__(self, file_path: str):
         self.file_path = file_path

@@ -2,10 +2,11 @@
 Zenoti Salon Summary PDF Parser
 Extracts service category data from Zenoti "Salon Summary" PDFs.
 
-Typical PDF structure:
-  Page header : "888-10278-Andover Salon Summary From: 4/1/2026 To: 4/5/2026"
-  Section     : "SERVICE DETAILS ITEM QTY (%)"
-  Data rows   : Haircut / Color / Wax / Treatment
+Typical PDF structure (verified against real Drive export, 2026-04-21):
+  Page 1 header : "888-11812-Forest Lake\\nSalon Summary\\nFrom: 4/1/2026 To: 4/5/2026"
+  Early pages   : Sales / transactions / payment tables (skipped)
+  Later page    : "SERVICE DETAILS ITEM QTY (%)" — the section this parser targets
+  Data rows     : Haircut / Color / Wax / Treatment
 
 Data row format (raw text after PyMuPDF extraction):
   "Haircut 81 (73.64) 0.60 2,547.20 (65.71) 58.80"

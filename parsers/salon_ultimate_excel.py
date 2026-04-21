@@ -37,15 +37,18 @@ pph_net and productive_hours are location-level metrics read from the Totals row
 Per-stylist rows have pph_net: None and productive_hours: None.
 """
 
+import logging
 import os
 import re
-import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional
 
 import openpyxl
 
 from config.locations import normalize_location
+from parsers.utils.xls_converter import convert_xls_to_xlsx, needs_conversion
+
+logger = logging.getLogger(__name__)
 
 
 class SalonUltimateExcelParser:
@@ -75,13 +78,19 @@ class SalonUltimateExcelParser:
         wb_path = self._resolve_workbook_path(file_path)
         self.wb = openpyxl.load_workbook(wb_path, data_only=True)
 
-        # Worksheet sheet is required
-        if self.SHEET_NAME not in self.wb.sheetnames:
-            raise ValueError(
-                f"Expected sheet '{self.SHEET_NAME}' not found in {wb_path}. "
-                f"Available sheets: {self.wb.sheetnames}"
+        # Resolve the active sheet — tolerate LibreOffice renames.
+        # Salon Ultimate's original .xls is named "Worksheet", but after
+        # LibreOffice conversion the sheet often takes the file's stem
+        # (e.g. "stylist_tracking"). Fall back to the first sheet in that case.
+        if self.SHEET_NAME in self.wb.sheetnames:
+            self.sheet = self.wb[self.SHEET_NAME]
+        else:
+            self.sheet = self.wb.active
+            logger.warning(
+                "Expected sheet '%s' not found in %s — falling back to active sheet '%s'. "
+                "Available sheets: %s",
+                self.SHEET_NAME, wb_path, self.sheet.title, self.wb.sheetnames,
             )
-        self.sheet = self.wb[self.SHEET_NAME]
 
     # ------------------------------------------------------------------
     # Public API
@@ -128,66 +137,18 @@ class SalonUltimateExcelParser:
 
         Strategy:
           1. If the path already ends with .xlsx — use it directly.
-          2. If a corresponding .xlsx already exists on disk — reuse it.
-          3. Otherwise — run LibreOffice conversion and return the new path.
+          2. If a .xls, delegate to `parsers.utils.xls_converter.convert_xls_to_xlsx`.
+             The utility auto-reuses an existing .xlsx sibling if present.
+
+        The conversion path is recorded on `self._converted_path` so callers can
+        (optionally) call `.cleanup()` to remove the generated file.
         """
-        if file_path.endswith(".xlsx"):
+        if not needs_conversion(file_path):
             return file_path
 
-        xlsx_path = re.sub(r"\.xls$", ".xlsx", file_path, flags=re.IGNORECASE)
-
-        if os.path.exists(xlsx_path):
-            # Already converted from a previous run
-            return xlsx_path
-
-        # Run LibreOffice headless conversion
-        xlsx_path = self._convert_with_libreoffice(file_path)
-        self._converted_path = xlsx_path   # remember for optional cleanup
-        return xlsx_path
-
-    def _convert_with_libreoffice(self, xls_path: str) -> str:
-        """
-        Convert .xls → .xlsx using LibreOffice in headless mode.
-
-        Command:
-            soffice --headless --convert-to xlsx --outdir <dir> <file>
-
-        Raises RuntimeError if LibreOffice is not installed or conversion fails.
-        """
-        output_dir = os.path.dirname(os.path.abspath(xls_path))
-        expected_xlsx = os.path.join(
-            output_dir,
-            os.path.splitext(os.path.basename(xls_path))[0] + ".xlsx",
-        )
-
-        soffice = os.environ.get("SOFFICE_PATH", "soffice")
-        try:
-            subprocess.run(
-                [soffice, "--headless", "--convert-to", "xlsx",
-                 "--outdir", output_dir, xls_path],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-        except FileNotFoundError:
-            raise RuntimeError(
-                "LibreOffice (soffice) is not installed or not on PATH. "
-                "Install with: sudo apt-get install libreoffice  "
-                "or brew install --cask libreoffice"
-            )
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"LibreOffice conversion failed for {xls_path}.\n"
-                f"stdout: {e.stdout}\nstderr: {e.stderr}"
-            )
-
-        if not os.path.exists(expected_xlsx):
-            raise RuntimeError(
-                f"LibreOffice conversion appeared to succeed but output file "
-                f"not found: {expected_xlsx}"
-            )
-
-        return expected_xlsx
+        xlsx_path = convert_xls_to_xlsx(file_path, reuse_existing=True)
+        self._converted_path = str(xlsx_path)
+        return str(xlsx_path)
 
     # ------------------------------------------------------------------
     # Extraction helpers
