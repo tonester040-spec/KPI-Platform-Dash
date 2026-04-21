@@ -6,6 +6,8 @@
 # ── Python ─────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
 *.pyo
 *.pyd
 .Python
