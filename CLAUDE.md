@@ -100,6 +100,68 @@ docs/kpi-music.mp3       → audio file (not part of pipeline)
 
 ---
 
+## KPI formulas — Karissa's canonical definitions (MISSION CRITICAL)
+
+**These formulas come directly from Karissa and govern every KPI the pipeline computes or displays. Do NOT trust the pre-computed statistics printed on the POS PDFs when they conflict with these rules — compute from first principles.** Ignoring this contract silently ships wrong numbers to coaches and owners.
+
+### Guest count — the denominator for everything else
+
+Definition differs by POS platform:
+
+| Platform       | `guest_count` formula                                     | PDF source                                          |
+|----------------|-----------------------------------------------------------|-----------------------------------------------------|
+| Salon Ultimate | `Serviced Guests + Retail Only Guests`                    | Equivalent to the "TOTAL Guests" line               |
+| Zenoti         | `Invoice count` (total invoices with services or product) | "Total invoices with services or product" line      |
+
+**Do not use** Zenoti's "Total guest count" statistic — that's unique guests, which differs from invoice count (e.g., Andover 4/1–4/5: 94 unique guests vs 95 invoices). Karissa uses invoice count.
+
+### Sales
+
+| Field         | Formula                            | Notes                                                        |
+|---------------|------------------------------------|--------------------------------------------------------------|
+| `service_net` | PDF direct (Service sales NET)     | Pre-tax                                                      |
+| `product_net` | PDF direct (Product / Retail NET)  | Pre-tax                                                      |
+| `total_sales` | `service_net + product_net`        | NOT "Sales(Inc. Tax)" in Zenoti. NOT tax-inclusive anywhere. |
+
+### Per-guest KPIs (all use Karissa's guest_count as the denominator)
+
+| Field        | Formula                         | PDF stat to reject?                                                                                                               |
+|--------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `avg_ticket` | `total_sales / guest_count`     | Matches SU's "TOTAL Avg Ticket". Matches Zenoti's "Avg. invoice value" (Zenoti uses invoice count internally). Compute, don't trust. |
+| `ppg`        | `product_net / guest_count`     | Reject Zenoti's "Net product sales per guest" — it uses unique-guest denominator, not invoice count. SU's PPG stat matches since SU's denominator already matches Karissa's. |
+| `pph`        | PDF direct                      | Net service sales / productive hour. Same on both platforms.                                                                      |
+
+### Service penetration percentages — counts over guest_count, NOT sales share
+
+`wax_pct` and `treatment_pct` are **penetration rates** (share of guests who got that service), not revenue shares. Coaches use these to answer "how many of our guests got a wax this week" — not "what percent of our revenue came from wax".
+
+| Field                | Formula                                                |
+|----------------------|--------------------------------------------------------|
+| `wax_count` (SU)     | `Wax.qty` from Service Categories table                |
+| `wax_count` (Zenoti) | `Wax.qty + Waxing.qty` — sum BOTH buckets when present. Four locations (Crystal, Elk River, Hudson, Roseville) ship a separate "Waxing" category; **Roseville uses ONLY "Waxing" with no "Wax" row at all.** Always sum both; either can be zero or absent. |
+| `wax_pct`            | `wax_count / guest_count`                              |
+| `treatment_count`    | `Treatment.qty` from Service Categories (SU) / Service Details (Zenoti) |
+| `treatment_pct`      | `treatment_count / guest_count`                        |
+
+**Do NOT use** the "% Sales" or "% Qty" columns from the PDF Service Categories table — those are share-of-sales or share-of-services-line-items, not share-of-guests.
+
+### Color — revenue share, NOT penetration
+
+**Per Karissa (2026-04-21): `color_pct` is a revenue share, not a penetration rate.** This is the traditional salon industry metric and it intentionally uses a different formula than `wax_pct` and `treatment_pct` above.
+
+| Field          | Formula                       | Notes                                                                                                              |
+|----------------|-------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `color_sales`  | PDF direct (Color row, Sales) | Service Categories table (SU) / Service Details (Zenoti). Pre-tax service sales for the Color category.            |
+| `color_pct`    | `color_sales / total_sales`   | Revenue share. Matches the "% Sales" column on the PDF. Do **not** compute `color_count / guest_count` for this field. |
+
+Color parser note: the Service Categories / Service Details table always lists Color. If a PDF genuinely has no color sales (zero-revenue week), `color_sales = 0` and `color_pct = 0`. Never drop the column.
+
+### Productive hours
+
+Not yet specified by Karissa under this contract. Parser extracts the PDF value directly (SU: "Production Hours"; Zenoti: "Productive Hours" from the dashboard summary) and writes it verbatim. Revisit before any derived KPI uses this field.
+
+---
+
 ## Location master list
 
 | ID    | Name          | Platform        | Manager |
