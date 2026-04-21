@@ -405,6 +405,99 @@ def append_to_stylists_historical(
     )
 
 
+# ─── Dual-write shadow hook (v2 parallel Sheet) ───────────────────────────────
+#
+# This is the bridge between the legacy pipeline and the new v2 Sheets. It is
+# OFF by default. Flip it on by setting:
+#
+#     DUAL_WRITE_V2=true        # enable the shadow write
+#     V2_MASTER_SHEET_ID=<id>   # v2 master sheet ID
+#     V2_COACH_SHEET_ID=<id>    # optional — v2 coach cards sheet ID
+#     V2_DRY_RUN=true|false     # override (defaults to the outer dry_run)
+#
+# The legacy write runs first and is the source of truth. The v2 write runs
+# AFTER and is wrapped so any failure (auth, schema mismatch, network) is
+# logged but never propagates — production must continue exactly as before.
+
+def _dual_write_v2_enabled() -> bool:
+    return os.environ.get("DUAL_WRITE_V2", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _dual_write_v2(
+    data: dict,
+    coach_cards: dict | None,
+    dry_run: bool,
+) -> None:
+    """
+    Shadow-write the enriched pipeline output to the v2 Sheet.
+    Never raises — all failures are logged at WARNING.
+    """
+    if not _dual_write_v2_enabled():
+        return
+
+    try:
+        master_id = os.environ.get("V2_MASTER_SHEET_ID", "").strip()
+        if not master_id:
+            log.warning("DUAL_WRITE_V2: V2_MASTER_SHEET_ID not set — skipping shadow write")
+            return
+
+        # v2 dry-run defaults to the outer dry_run, but can be overridden.
+        v2_dry_env = os.environ.get("V2_DRY_RUN", "").strip().lower()
+        if v2_dry_env in ("1", "true", "yes", "on"):
+            v2_dry = True
+        elif v2_dry_env in ("0", "false", "no", "off"):
+            v2_dry = False
+        else:
+            v2_dry = dry_run
+
+        # Import lazily so this module stays importable without v2 deps on the
+        # path (the v2 code imports gspread + our schema module; neither is
+        # required for the legacy pipeline).
+        from core.google_sheets_store import GoogleSheetsStore
+        from core.schema_mapper import (
+            map_coach_briefs,
+            map_location_rows,
+            map_stylist_rows,
+        )
+
+        store = GoogleSheetsStore(
+            master_sheet_id=master_id,
+            coach_cards_sheet_id=os.environ.get("V2_COACH_SHEET_ID") or None,
+            dry_run=v2_dry,
+        )
+
+        locations = data.get("locations") or []
+        stylists = data.get("stylists") or []
+        week_ending = data.get("network", {}).get("week_ending", "")
+
+        v2_locations = map_location_rows(locations)
+        v2_stylists = map_stylist_rows(stylists, period_end=week_ending)
+
+        caller = "core.sheets_writer.write_all"
+
+        store.write_locations_current(v2_locations, caller=caller)
+        store.append_locations_historical(v2_locations, caller=caller)
+        store.write_stylists_current(v2_stylists, caller=caller)
+        store.append_stylists_historical(v2_stylists, caller=caller)
+
+        if coach_cards:
+            briefs = map_coach_briefs(coach_cards)
+            if briefs:
+                store.write_coach_briefs(
+                    briefs,
+                    period_end=week_ending,
+                    model="",  # model name threaded through in a later phase
+                    caller=caller,
+                )
+
+        log.info("DUAL_WRITE_V2: shadow write complete (dry_run=%s)", v2_dry)
+    except Exception as e:  # noqa: BLE001 — must never propagate
+        log.warning(
+            "DUAL_WRITE_V2: shadow write failed (non-fatal — legacy write succeeded): %s",
+            e,
+        )
+
+
 # ─── Main entry ───────────────────────────────────────────────────────────────
 
 def write_all(
@@ -427,5 +520,9 @@ def write_all(
 
     append_to_historical(service, config, data["locations"], dry_run)
     append_to_stylists_historical(service, config, data["stylists"], week_ending, dry_run)
+
+    # v2 shadow write — OFF by default, gated by DUAL_WRITE_V2 env var.
+    # Runs AFTER legacy writes succeed; any v2 failure is logged, not raised.
+    _dual_write_v2(data, coach_cards, dry_run)
 
     log.info("Sheets write complete (dry_run=%s)", dry_run)
