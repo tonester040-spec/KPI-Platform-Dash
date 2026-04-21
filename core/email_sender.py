@@ -423,6 +423,191 @@ def _build_coach_card_html(manager_name: str, card: dict, week: str, dashboard_u
 </html>"""
 
 
+# ─── Inbox watcher notification ───────────────────────────────────────────────
+
+def _build_inbox_error_html(file_records: list[dict], run_date: str) -> str:
+    """Build the HTML body for an inbox rejection / error email."""
+    rejected = [r for r in file_records if r.get("processing_status") in (
+        "security_rejected", "invalid_extension_skipped"
+    )]
+
+    rows = ""
+    for r in rejected:
+        status = r.get("processing_status", "")
+        reason = {
+            "security_rejected": "Sender not on whitelist (header validation failed)",
+            "invalid_extension_skipped": "File type not in allowed extensions",
+        }.get(status, "Unknown reason")
+        rows += f"""
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8ECF0;">{r.get('filename','(unknown)')}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8ECF0;">{r.get('sender','(unknown)')}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8ECF0;color:#B91C1C;">{reason}</td>
+        </tr>"""
+
+    if not rows:
+        rows = (
+            '<tr><td colspan="3" style="padding:12px;color:#7A8BA0;">'
+            'No file-level details available — see inbox run log for specifics.'
+            '</td></tr>'
+        )
+
+    return f"""<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;color:#333;max-width:680px;margin:0 auto;">
+  <div style="background:#B91C1C;color:#fff;padding:16px 20px;border-radius:6px 6px 0 0;">
+    <div style="font-size:18px;font-weight:700;">⚠️ KPI Inbox — Files Rejected</div>
+    <div style="font-size:13px;opacity:0.9;margin-top:4px;">Run date: {run_date}</div>
+  </div>
+  <div style="border:1px solid #FCA5A5;border-top:none;padding:20px;border-radius:0 0 6px 6px;">
+    <p style="margin-top:0;">Some files from this morning's email batch were not processed. Details below.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#F9FAFB;">
+          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;">Filename</th>
+          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;">Sender</th>
+          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;">Reason</th>
+        </tr>
+      </thead>
+      <tbody>{rows}</tbody>
+    </table>
+    <p style="margin-top:20px;font-size:13px;color:#374151;">
+      <strong>What to do:</strong> If a file was rejected in error, verify the sender address is on the
+      whitelist in <code>config/inbox_config.json</code> and that the extension is one of .xlsx, .xls, .pdf.
+      Then re-send or re-run the workflow manually from the GitHub Actions tab.
+    </p>
+  </div>
+</body></html>"""
+
+
+def _build_inbox_success_html(
+    karissa_email: str,
+    file_records: list[dict],
+    locations_processed: list[str],
+    dashboard_url: str,
+    trust_layer_flags: list | None,
+) -> str:
+    """Build the HTML body for a successful inbox ingestion email."""
+    ready = [r for r in file_records if r.get("processing_status") == "ready"]
+    file_list = "".join(
+        f'<li style="margin-bottom:4px;">{r.get("filename","(unknown)")}</li>'
+        for r in ready
+    )
+    loc_list = ", ".join(locations_processed) if locations_processed else "(none detected)"
+
+    flags_block = ""
+    if trust_layer_flags:
+        flag_items = "".join(f'<li style="margin-bottom:4px;">{f}</li>' for f in trust_layer_flags)
+        flags_block = f"""
+        <div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 16px;margin-top:16px;border-radius:0 6px 6px 0;">
+          <div style="font-weight:700;color:#B45309;margin-bottom:6px;">⚑ Issues flagged during processing</div>
+          <ul style="margin:0;padding-left:20px;font-size:13px;color:#374151;">{flag_items}</ul>
+        </div>"""
+
+    salutation = "Hey Karissa,"
+    if karissa_email and not karissa_email.startswith("karissa@[REPLACE"):
+        salutation = f"Hey Karissa ({karissa_email}),"
+
+    return f"""<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;color:#333;max-width:680px;margin:0 auto;">
+  <div style="background:#0F1117;color:#fff;padding:16px 20px;border-radius:6px 6px 0 0;">
+    <div style="font-size:18px;font-weight:700;">✅ KPI Weekly Data Processed</div>
+  </div>
+  <div style="border:1px solid #E8ECF0;border-top:none;padding:20px;border-radius:0 0 6px 6px;">
+    <p style="margin-top:0;">{salutation}</p>
+    <p>Your weekly data is in and the pipeline has run. Quick summary:</p>
+    <p><strong>Files received ({len(ready)}):</strong></p>
+    <ul style="margin:4px 0 16px;padding-left:20px;">{file_list or '<li>(no files)</li>'}</ul>
+    <p><strong>Locations processed:</strong> {loc_list}</p>
+    {flags_block}
+    <div style="margin-top:24px;text-align:center;">
+      <a href="{dashboard_url}" style="display:inline-block;background:#4A90D9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">
+        Open Dashboards →
+      </a>
+    </div>
+  </div>
+</body></html>"""
+
+
+def send_inbox_notification(
+    inbox_config: dict,
+    status: str,
+    file_records: list[dict],
+    run_date: str,
+    trust_layer_flags: list | None = None,
+    locations_processed: list[str] | None = None,
+    dashboard_url: str = "https://tonester040-spec.github.io/KPI-Platform-Dash/",
+    dry_run: bool = False,
+) -> None:
+    """
+    Send a notification email for the Gmail Attachment Watcher.
+
+    Reuses the existing SMTP plumbing (GMAIL_APP_PASSWORD + GMAIL_SENDER).
+
+    status == "error"   → sends rejection/error email to notification_recipients
+    status == "success" → sends success email to notification_recipients (addresses Karissa personally)
+    other statuses     → logs and skips (no email)
+
+    Silently skips on missing GMAIL_APP_PASSWORD / GMAIL_SENDER so a missing
+    credential does not crash the watcher.
+    """
+    recipients = inbox_config.get("notification_recipients", [])
+    # Filter out the placeholder so we don't try to email "[REPLACE_BEFORE_GO_LIVE]"
+    recipients = [r for r in recipients if "[REPLACE" not in r]
+
+    if not recipients:
+        log.info("No notification_recipients in inbox_config — skipping notification email")
+        return
+
+    if status == "error":
+        subject = f"⚠️ KPI Inbox — Files Rejected ({run_date})"
+        html_body = _build_inbox_error_html(file_records, run_date)
+    elif status == "success":
+        subject = f"✅ KPI Weekly Data Processed — {run_date}"
+        html_body = _build_inbox_success_html(
+            karissa_email=inbox_config.get("karissa_email", ""),
+            file_records=file_records,
+            locations_processed=locations_processed or [],
+            dashboard_url=dashboard_url,
+            trust_layer_flags=trust_layer_flags,
+        )
+    else:
+        log.info("send_inbox_notification called with status=%r — no email to send", status)
+        return
+
+    if dry_run:
+        log.info("DRY RUN: Would send %s inbox notification to: %s", status, recipients)
+        log.info("DRY RUN: Subject: %s", subject)
+        return
+
+    app_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip()
+    sender_email = os.environ.get("GMAIL_SENDER", "").strip()
+
+    if not app_password or not sender_email:
+        log.warning(
+            "GMAIL_APP_PASSWORD or GMAIL_SENDER not set — skipping inbox notification email. "
+            "Watcher run summary still written to data/logs/."
+        )
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = sender_email
+    msg["To"]      = ", ".join(recipients)
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(sender_email, app_password)
+            smtp.sendmail(sender_email, recipients, msg.as_string())
+        log.info("Inbox notification (%s) sent to %d recipient(s)", status, len(recipients))
+    except smtplib.SMTPAuthenticationError:
+        log.error("Gmail authentication failed sending inbox notification.")
+    except Exception as exc:
+        log.error("Inbox notification email failed: %s", exc)
+
+
 def send_manager_coach_cards(
     config: dict,
     coach_cards: dict,

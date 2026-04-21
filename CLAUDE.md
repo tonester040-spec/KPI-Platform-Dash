@@ -23,7 +23,14 @@ A weekly salon analytics platform for **Karissa**, a multi-location salon owner 
 ### Pipeline 1 — Weekly KPI (Mondays)
 
 ```
-Google Sheets (source of truth — Karissa's team enters current week into CURRENT tab)
+parsers/gmail_attachment_watcher.py (Step 0 — runs BEFORE main.py in the workflow)
+    ↓ pulls weekly POS export attachments from karissaperformanceintelligence@gmail.com
+    ↓ (validates sender via headers, SHA256 dedup, archives, writes manifest)
+    ↓ writes data/inbox/*.xlsx + data/inbox/manifest_YYYY-MM-DD.json
+    ↓ (Tier 2 batch processor — future — consumes manifest, populates Google Sheets)
+    ↓
+Google Sheets (source of truth — Karissa's team enters current week into CURRENT tab;
+              Tier 2 will auto-populate from POS exports once wired)
     ↓
 main.py (pipeline orchestrator)
     ↓ reads
@@ -167,7 +174,7 @@ Source of truth: `config/customers/karissa_001.json`
 
 | File | Trigger | What it does |
 |------|---------|--------------|
-| `weekly_pipeline.yml` | Monday 7:00 AM Central (12:00 UTC) + manual dispatch | Full KPI pipeline: read sheets → AI cards → write sheets → Excel → email → build dashboards → commit + push docs/ |
+| `weekly_pipeline.yml` | Monday 7:00 AM Central (12:00 UTC) + manual dispatch | Full KPI pipeline: Step 0 `gmail_attachment_watcher.py` (inbox ingest, `continue-on-error`) → read sheets → AI cards → write sheets → Excel → email → build dashboards → commit + push docs/ |
 | `email_assistant.yml` | Mon–Fri 7:30 AM Central (12:30 UTC) + manual dispatch | Email pipeline: Gmail OAuth → noise filter → categorize → draft replies → build debrief HTML → commit + push docs/karissa-debrief.html |
 | `deploy.yml` | Push to main + manual dispatch | Deploys `docs/` folder to GitHub Pages |
 | `static.yml` | Push to main + manual dispatch | Identical to deploy.yml — older duplicate, both currently active |
@@ -272,6 +279,9 @@ The app is installable on iPhone (Add to Home Screen). Components:
 | `GMAIL_APP_PASSWORD`          | ⚠️ soft | Gmail App Password — skipped if missing |
 | `GMAIL_SENDER`                | ⚠️ soft | Gmail sender address (outbound Excel report) |
 | `ACTIVE_CUSTOMER_ID`          | default  | Defaults to `karissa_001`            |
+| `KPI_INBOX_CLIENT_ID`         | ⚠️ soft | OAuth client ID for Gmail attachment watcher (Step 0). Missing → watcher skips, pipeline continues. |
+| `KPI_INBOX_CLIENT_SECRET`     | ⚠️ soft | OAuth client secret for Gmail attachment watcher |
+| `KPI_INBOX_REFRESH_TOKEN`     | ⚠️ soft | OAuth refresh token for Gmail attachment watcher |
 
 ### Email assistant pipeline (`email_assistant.yml`)
 
@@ -282,9 +292,10 @@ The app is installable on iPhone (Add to Home Screen). Components:
 | `GMAIL_REFRESH_TOKEN`         | ✅       | Gmail OAuth refresh token — generate once via `email_assistant/get_token.py` |
 | `ANTHROPIC_API_KEY`           | ✅       | Claude API for email categorization + draft generation |
 
-**Two separate Gmail auth flows:**
-- KPI pipeline uses **App Password** (SMTP outbound only — sends the Excel report to Tony)
-- Email assistant uses **OAuth 2.0** (inbox read + draft write for Karissa's account)
+**Three separate Gmail auth flows:**
+- KPI pipeline uses **App Password** (SMTP outbound only — sends the Excel report to Tony, and error notifications from the watcher)
+- Email assistant uses **OAuth 2.0** (inbox read + draft write for Karissa's personal inbox — `GMAIL_*` secrets)
+- Gmail attachment watcher uses **OAuth 2.0** (inbox read + labels + archive on the dedicated `karissaperformanceintelligence@gmail.com` inbox — `KPI_INBOX_*` secrets)
 
 ---
 
@@ -437,6 +448,148 @@ On-demand visit intelligence — not pipeline-generated. Coach selects which loc
 - For the PIN-gated pilot: direct browser → Anthropic API call is acceptable
 - TODO comment in code: before broader rollout, proxy through serverless function (Vercel / Cloudflare Worker)
 - API key must be provided via the `CLAUDE_API_KEY` config object in the dashboard
+
+---
+
+## Gmail Attachment Watcher — Inbox Ingestion Layer
+
+Built 2026-04-21. Step 0 of the weekly KPI pipeline. Turns the dedicated inbox `karissaperformanceintelligence@gmail.com` into a clean, dedup-safe pickup point for Elaina's weekly POS export attachments.
+
+### Purpose
+
+Every Monday at 7:00 AM Central (before `main.py` runs), `parsers/gmail_attachment_watcher.py` polls the dedicated KPI inbox for new attachment emails from whitelisted senders, validates them at the header level, hashes every file for deduplication, archives each file to `data/archive/` for audit, and writes fresh copies to `data/inbox/` along with a manifest the Tier 2 batch processor can consume.
+
+### Configuration
+
+`config/inbox_config.json` — single source of truth for inbox behavior. Fields:
+
+| Field                     | Purpose                                                                 |
+|---------------------------|-------------------------------------------------------------------------|
+| `whitelisted_senders`     | Email addresses allowed to submit attachments. Validated via headers, not search query. |
+| `kpi_inbox`               | The ingestion inbox (`karissaperformanceintelligence@gmail.com`).       |
+| `karissa_email`           | Karissa's email (for error notifications).                              |
+| `notification_recipients` | Who gets success/error emails (Karissa + Elaina).                       |
+| `allowed_extensions`      | `.xlsx`, `.xls`, `.pdf` only.                                           |
+| `search_window_days`      | Gmail search window (default 2 days — Monday looks at Sat+Sun+Mon AM).  |
+| `archive_retention_days`  | Days to keep archived files (90). Cleanup is a future task.             |
+| `kpi_processed_label`     | `KPI-Processed` — applied + INBOX removed on full success.              |
+| `kpi_attention_label`     | `KPI-Attention` — applied but INBOX kept on partial/error.              |
+| `dry_run`                 | When `true`, disables ALL I/O (no archive, no inbox write, no labels, no archiving emails, no notifications). Safe for validation. |
+
+**Two Karissa placeholders in config must be filled before go-live:** `karissa@[REPLACE_BEFORE_GO_LIVE]` appears in `karissa_email` and `notification_recipients`. Update both when her email is confirmed.
+
+### Authentication
+
+Separate Gmail OAuth flow from the email assistant (different Gmail account). Env vars:
+
+| Variable                     | Purpose                                          |
+|------------------------------|--------------------------------------------------|
+| `KPI_INBOX_CLIENT_ID`        | OAuth client ID for the KPI inbox                |
+| `KPI_INBOX_CLIENT_SECRET`    | OAuth client secret                              |
+| `KPI_INBOX_REFRESH_TOKEN`    | Long-lived refresh token — generate once locally |
+| `GMAIL_APP_PASSWORD`         | Reused from KPI pipeline (SMTP outbound for error emails) |
+| `GMAIL_SENDER`               | Reused from KPI pipeline (error email sender)    |
+
+The watcher calls the Gmail REST API directly via `urllib` (same pattern as `email_assistant/gmail_connector.py`) — no `google-api-python-client` dependency added. If OAuth env vars are missing, the watcher logs and exits cleanly (does not crash the workflow).
+
+### Processing order (invariant)
+
+For every valid attachment, the watcher executes steps in this exact order — if any step fails, the next does not run:
+
+1. **Validate sender via headers** — `From:` header must match whitelist. Search query filters the inbox; headers are the gatekeeper.
+2. **Validate extension** — must be in `allowed_extensions`.
+3. **Compute SHA256** — full-file content hash.
+4. **Check ledger** — if hash already in `data/processed_attachments.json`, skip (duplicate).
+5. **Archive** — write to `data/archive/YYYY-MM-DD/{hash[:6]}_{filename}`. Archive-before-inbox is a hard invariant.
+6. **Write to inbox** — write to `data/inbox/{hash[:6]}_{filename}`. Hash prefix prevents collisions.
+7. **Update ledger** — atomic write (temp file + rename) of `processed_attachments.json`.
+8. **Write manifest** — `data/inbox/manifest_YYYY-MM-DD.json` with `trust_layer_flags: []` (Tier 2 populates).
+9. **Write run summary** — `data/logs/inbox_watcher_YYYYMMDD_HHMMSS.json`.
+10. **Label + archive email in Gmail** — only AFTER summary is written, so labeling failures never corrupt the ledger.
+
+### Per-message outcome tracking
+
+The watcher tracks every message's result in a `message_outcomes` dict (`success`, `partial`, or `error`). Overall run status is derived from the mix:
+
+| Outcome           | Gmail behavior                                              |
+|-------------------|-------------------------------------------------------------|
+| `success`         | Apply `KPI-Processed` label + remove `INBOX` label (archives the thread). |
+| `partial_success` | Apply `KPI-Attention` label, keep `INBOX` (stays visible). |
+| `error`           | No label change, no archive. Inbox is untouched.            |
+
+### Manifest contract
+
+Tier 2 (`parsers/tier2_batch_processor.py`) reads `data/inbox/manifest.json` — a single file overwritten each run. It's a JSON array of per-attachment records (one row per attachment, not per email):
+
+```json
+[
+  {
+    "filename": "Karissa_Salon_Weekly_Report.xlsx",
+    "safe_filename": "a1b2c3_Karissa_Salon_Weekly_Report.xlsx",
+    "archived_path": "data/archive/2026-04-21/a1b2c3_Karissa_Salon_Weekly_Report.xlsx",
+    "inbox_path": "data/inbox/a1b2c3_Karissa_Salon_Weekly_Report.xlsx",
+    "hash": "a1b2c3...full sha256...",
+    "message_id": "18f5d2a0c3e1b4f7",
+    "sender": "elaina@karissasalon.com",
+    "date_received": "Mon, 21 Apr 2026 06:18:22 -0500",
+    "processing_status": "ready",
+    "trust_layer_flags": []
+  }
+]
+```
+
+`processing_status` is one of: `ready` (clean, ready for Tier 2), `duplicate_skipped`, `invalid_extension_skipped`, `security_rejected`. Tier 2 should only process records where `processing_status == "ready"`.
+
+Tier 2 populates `trust_layer_flags` after parsing; the watcher never touches that field. When Tier 2 is wired in a future session, it will consume this manifest and call `email_sender.send_inbox_notification(status="success", ...)` on completion. The watcher itself only fires the `"error"` notification path.
+
+### Run logs
+
+Every run writes `data/logs/inbox_run_YYYY-MM-DD-HHMMSS.json` with:
+
+- `status` (`success` / `partial_success` / `no_files` / `error`)
+- `emails_scanned`, `attachments_found`, `new_files`, `duplicates_skipped`, `invalid_extension_skipped`, `security_rejections`
+- `run_time` (UTC ISO-8601)
+- `notes` — human-readable trace (also used for fatal errors)
+
+If the script dies with an unhandled exception, a top-level `try/except` guarantees a `status="error"` run summary is still written before the process exits 1.
+
+### Files created / modified by the watcher
+
+| Path                                    | Purpose                                                |
+|-----------------------------------------|--------------------------------------------------------|
+| `data/inbox/{hash[:6]}_*.xlsx\|xls\|pdf` | Fresh attachments for Tier 2 to process.              |
+| `data/inbox/manifest.json`              | Manifest consumed by Tier 2 (overwritten each run).   |
+| `data/archive/YYYY-MM-DD/{hash[:6]}_*`  | Permanent audit copy of every accepted attachment.    |
+| `data/processed_attachments.json`       | SHA256 idempotency ledger (append-only).              |
+| `data/logs/inbox_run_*.json`            | Per-run execution summary.                            |
+
+### Dry run
+
+Set `"dry_run": true` in `config/inbox_config.json`:
+
+- Auth still runs (verifies tokens)
+- Messages and attachments still fetch
+- Hash + dedup check still run
+- **No files are written to archive or inbox**
+- **No Gmail labels applied or emails archived**
+- **No ledger updates**
+- **No notification emails sent**
+- Run summary IS written (so you can inspect what would have happened)
+
+Flip back to `false` before deploying.
+
+### Manual re-run
+
+`python parsers/gmail_attachment_watcher.py` from repo root is idempotent — the SHA256 ledger guarantees that re-running against the same inbox never duplicates a file. Safe to run ad-hoc for debugging.
+
+### Don't do these things
+
+1. Don't remove the archive-before-inbox invariant — archive is the audit trail; inbox is transient.
+2. Don't change the manifest JSON schema without updating Tier 2's reader.
+3. Don't add sender validation via search query only — headers are the gatekeeper (defense in depth).
+4. Don't delete the SHA256 ledger. If you need to reprocess, restore from `data/archive/` instead.
+5. Don't touch `trust_layer_flags` in the manifest from the watcher — Tier 2 owns that field.
+6. Don't write `success` notification emails from the watcher — Tier 2 fires that after parse confirms data is good.
 
 ---
 

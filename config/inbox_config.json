@@ -1,0 +1,17 @@
+{
+  "whitelisted_senders": [
+    "elaina@karissasalon.com"
+  ],
+  "kpi_inbox": "karissaperformanceintelligence@gmail.com",
+  "karissa_email": "karissa@[REPLACE_BEFORE_GO_LIVE]",
+  "notification_recipients": [
+    "karissa@[REPLACE_BEFORE_GO_LIVE]",
+    "elaina@karissasalon.com"
+  ],
+  "allowed_extensions": [".xlsx", ".xls", ".pdf"],
+  "search_window_days": 2,
+  "archive_retention_days": 90,
+  "kpi_processed_label": "KPI-Processed",
+  "kpi_attention_label": "KPI-Attention",
+  "dry_run": false
+}

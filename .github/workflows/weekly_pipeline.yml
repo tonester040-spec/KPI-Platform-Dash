@@ -65,7 +65,24 @@ jobs:
           git config user.name  "KPI Pipeline Bot"
           git config user.email "kpi-bot@users.noreply.github.com"
 
-      # ── 5. Run pipeline ───────────────────────────────────────────
+      # ── 5. Run Gmail Attachment Watcher (Inbox Ingestion) ────────
+      # Step 0 of the weekly ingest: pulls POS export attachments from
+      # karissaperformanceintelligence@gmail.com, validates sender via
+      # headers, dedupes by SHA256, archives + writes to data/inbox/.
+      # continue-on-error: failed ingest emails Karissa; KPI pipeline
+      # still runs from whatever Sheet data is already current.
+      - name: Run Gmail Attachment Watcher
+        continue-on-error: true
+        env:
+          KPI_INBOX_CLIENT_ID:         ${{ secrets.KPI_INBOX_CLIENT_ID }}
+          KPI_INBOX_CLIENT_SECRET:     ${{ secrets.KPI_INBOX_CLIENT_SECRET }}
+          KPI_INBOX_REFRESH_TOKEN:     ${{ secrets.KPI_INBOX_REFRESH_TOKEN }}
+          GMAIL_APP_PASSWORD:          ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_SENDER:                ${{ secrets.GMAIL_SENDER }}
+        run: |
+          python parsers/gmail_attachment_watcher.py
+
+      # ── 6. Run pipeline ───────────────────────────────────────────
       - name: Run KPI Pipeline
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
@@ -77,7 +94,7 @@ jobs:
         run: |
           python main.py
 
-      # ── 6. Push dashboard to GitHub ──────────────────────────────
+      # ── 7. Push dashboard to GitHub ──────────────────────────────
       # Python commits docs/ locally; this step does the actual push.
       # Fetch first so the lease is current, then rebase our commit
       # on top of any remote changes (our fresh KPI data wins conflicts).
@@ -100,7 +117,7 @@ jobs:
           fi
           echo "Push complete."
 
-      # ── 7. Upload pipeline log as artifact ───────────────────────
+      # ── 8. Upload pipeline log as artifact ───────────────────────
       - name: Upload pipeline log
         if: always()
         uses: actions/upload-artifact@v4
