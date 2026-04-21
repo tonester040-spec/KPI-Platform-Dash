@@ -82,6 +82,37 @@ jobs:
         run: |
           python parsers/gmail_attachment_watcher.py
 
+      # ── 5.5 Run Tier 2 PDF Batch Processor (inbox → CURRENT tab) ──
+      # Step 0.5 of the weekly ingest: consumes data/inbox/manifest.json
+      # written by Step 0 (the watcher), parses each PDF with the correct
+      # platform-specific parser (Zenoti v2 or Salon Ultimate v2),
+      # transforms to Karissa-canonical KPIs, and writes the rows into
+      # CURRENT!A2:T before main.py reads the sheet.
+      #
+      # Exit codes (from tier2_pdf_batch.main):
+      #   0 → success / partial_success / no_files (benign)
+      #   1 → hard error (bad config load, unhandled exception)
+      #
+      # continue-on-error: a bad batch (corrupt PDF, Sheets auth issue)
+      # must NEVER block the KPI pipeline. main.py will still run and
+      # regenerate dashboards from whatever CURRENT already holds — it
+      # is the same fail-safe posture as the watcher in Step 0.
+      #
+      # Environment:
+      #   GOOGLE_SERVICE_ACCOUNT_JSON — required to write CURRENT tab.
+      #   ACTIVE_CUSTOMER_ID          — same value main.py uses.
+      #   DRY_RUN                     — mirrors the workflow dispatch
+      #                                  toggle so dry-run runs never
+      #                                  touch the Sheet.
+      - name: Run Tier 2 PDF Batch Processor
+        continue-on-error: true
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          ACTIVE_CUSTOMER_ID:          ${{ secrets.ACTIVE_CUSTOMER_ID || 'karissa_001' }}
+          DRY_RUN:                     ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          python parsers/tier2_pdf_batch.py
+
       # ── 6. Run pipeline ───────────────────────────────────────────
       - name: Run KPI Pipeline
         env:
