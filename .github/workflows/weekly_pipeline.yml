@@ -91,6 +91,13 @@ jobs:
           GMAIL_SENDER:                ${{ secrets.GMAIL_SENDER }}
           ACTIVE_CUSTOMER_ID:          ${{ secrets.ACTIVE_CUSTOMER_ID || 'karissa_001' }}
           DRY_RUN:                     ${{ github.event.inputs.dry_run || 'false' }}
+          # ── v2 Sheets shadow write (parallel build) ──────────────
+          # OFF by default. Set DUAL_WRITE_V2=true in GitHub Secrets to activate.
+          # If V2_MASTER_SHEET_ID is empty, the shadow write is skipped with a warning.
+          # Any v2 failure is caught — legacy pipeline is never affected.
+          DUAL_WRITE_V2:               ${{ secrets.DUAL_WRITE_V2 || 'false' }}
+          V2_MASTER_SHEET_ID:          ${{ secrets.V2_MASTER_SHEET_ID }}
+          V2_COACH_SHEET_ID:           ${{ secrets.V2_COACH_SHEET_ID }}
         run: |
           python main.py
 
