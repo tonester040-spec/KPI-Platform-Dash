@@ -37,5 +37,17 @@ Thumbs.db
 voice/samples/
 data/output/
 data/logs/
-config/noise_senders_found.json
-config/noise_dismissed.json
+config/noise_senders_*.json
+
+# ── Ground-truth sample data — Karissa's private POS exports ──────
+# Real salon data used for parser validation and format comparison.
+# NEVER commit — contains PHI-adjacent business data, stylist names, revenue.
+sample_data/
+data/inbox/
+data/archive/
+data/processed_attachments.json
+**/March */
+**/Weekly Report*
+**/Salon Summary*
+**/Employee KPI*
+**/FS Salon Dashboard*
