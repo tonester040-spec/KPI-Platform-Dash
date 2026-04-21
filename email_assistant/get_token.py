@@ -35,10 +35,11 @@ import urllib.request
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-# Gmail scopes needed by the Email Assistant
+# Gmail scopes needed by the Email Assistant + KPI inbox watcher
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",    # Read emails
     "https://www.googleapis.com/auth/gmail.compose",     # Create drafts
+    "https://www.googleapis.com/auth/gmail.modify",      # Apply labels + archive (watcher)
 ]
 
 AUTH_URL   = "https://accounts.google.com/o/oauth2/v2/auth"
