@@ -369,11 +369,25 @@ class GoogleSheetsStore(DataStore):
         try:
             ws = self._worksheet("AUDIT_LOG")
         except Exception as e:
-            # If AUDIT_LOG doesn't exist, the sheet hasn't been initialized.
+            # If AUDIT_LOG doesn't exist, the sheet hasn't been initialized — OR
+            # V2_MASTER_SHEET_ID points at the wrong sheet. Enumerate what we
+            # actually found so the log shows the real cause.
+            actual_tabs: list[str] = []
+            actual_title: str = "<unknown>"
+            try:
+                sh = self._master_sheet()
+                actual_title = sh.title
+                actual_tabs = [ws.title for ws in sh.worksheets()]
+            except Exception as probe_exc:  # noqa: BLE001
+                log.warning("Probe for actual tabs also failed: %s", probe_exc)
             raise SchemaMismatchError(
                 f"AUDIT_LOG tab not found in master sheet "
-                f"{self._cfg.master_sheet_id}. Run scripts/initialize_sheets_v2.py "
-                f"first. Original error: {e}"
+                f"{self._cfg.master_sheet_id} (title={actual_title!r}). "
+                f"Tabs actually present: {actual_tabs!r}. "
+                f"Likely cause: V2_MASTER_SHEET_ID points at the wrong spreadsheet "
+                f"(e.g. the coach cards sheet instead of the master), OR "
+                f"scripts/initialize_sheets_v2.py has not been run against this sheet. "
+                f"Original error: {e}"
             ) from e
 
         # Use low-level API to get the note on A1.

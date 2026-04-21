@@ -348,7 +348,10 @@ def generate_coach_card(
 
     client = _get_client()
     log.info("Calling Claude for %s coach card (%d locations)...", manager_name, len(mgr_locations))
-    raw = _call(client, SYSTEM_PROMPT, user_msg, max_tokens=2000)
+    # 4000-token ceiling. Observed responses run 6.5k-6.8k chars (~1700 output tokens).
+    # 2000 was cutting them off mid-JSON and triggering the dry-run fallback. 4000 gives
+    # ~2x headroom for the full Observation→Context→Question format across all locations.
+    raw = _call(client, SYSTEM_PROMPT, user_msg, max_tokens=4000)
     log.info("Coach card raw response: %d chars for %s", len(raw), manager_name)
 
     # Parse JSON — strip accidental markdown fences if present
