@@ -328,25 +328,162 @@ def transform_to_current_row(
 
 
 # ---------------------------------------------------------------------------
+# Transform: parser employees[] → STYLISTS_CURRENT row dicts
+# ---------------------------------------------------------------------------
+
+def transform_to_stylist_rows(
+    parsed: Dict[str, Any],
+    platform: str,
+    loc_display_name: str,
+    loc_id: str,
+) -> List[Dict[str, Any]]:
+    """
+    Build STYLISTS_CURRENT row dicts from a parser's `employees[]` output.
+
+    STYLISTS_CURRENT schema (sheets_writer.py write_stylists_current +
+    append_to_stylists_historical, columns A..L):
+
+        A  week_ending           G  cur_pph
+        B  name                  H  cur_rebook
+        C  loc_name              I  cur_product
+        D  loc_id                J  cur_ticket
+        E  status                K  services (count)
+        F  tenure / tenure_yrs   L  color (sales)
+
+    The two writers use slightly different key names for the same fields —
+    `tenure` vs `tenure_yrs`, `weeks[-1]` vs the explicit `week_ending`
+    argument. We populate BOTH so either function can consume our rows.
+
+    Key mapping:
+    ────────────
+                               Zenoti                     Salon Ultimate
+      cur_pph                 net_service_per_hr          pph
+      cur_product (USD)       net_product                 net_retail
+      cur_ticket              avg_invoice_value           avg_ticket
+      services (count)        service_qty                 guests
+                              (Zenoti has no separate
+                              guests field per stylist — use service_qty
+                              which is the productive service count.)
+
+    Fields the PDFs don't expose per-stylist (yet):
+      • cur_rebook (%) → 0.0
+      • tenure / tenure_yrs → 0 (will be populated from employee master file
+                                 in a future phase)
+      • color (per-stylist color sales) → 0.0 (SU Employee Summary and
+        Zenoti Employee Sale Details both aggregate color into service total;
+        per-stylist color split requires a different report)
+
+    Filtered out:
+      • SU phantom "House" row (is_phantom_house=True) — retail-only bucket
+      • Rows with empty / whitespace-only name
+      • Rows whose entire numeric payload is zero (dead roster entries)
+
+    Pure function: no I/O, no logging side effects beyond warnings.
+    """
+    employees = parsed.get("employees") or []
+    if not employees:
+        return []
+
+    week_ending = parsed.get("week_end") or ""
+
+    def _num(x: Any, default: float = 0.0) -> float:
+        if x is None:
+            return default
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return default
+
+    def _int(x: Any, default: int = 0) -> int:
+        if x is None:
+            return default
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            try:
+                return int(float(x))
+            except (TypeError, ValueError):
+                return default
+
+    rows: List[Dict[str, Any]] = []
+    for emp in employees:
+        name = (emp.get("name") or "").strip()
+        if not name:
+            continue
+
+        # SU phantom House row — retail sits in the "House _" bucket, not a
+        # stylist. Skip cleanly.
+        if emp.get("is_phantom_house"):
+            continue
+        # Defensive: some SU exports slip past the parser's House normalization
+        if name.rstrip(" _").lower() == "house":
+            continue
+
+        if platform == ZENOTI:
+            cur_pph     = _num(emp.get("net_service_per_hr"))
+            cur_product = _num(emp.get("net_product"))
+            cur_ticket  = _num(emp.get("avg_invoice_value"))
+            services    = _int(emp.get("service_qty"))
+        else:  # SALON_ULTIMATE
+            cur_pph     = _num(emp.get("pph"))
+            cur_product = _num(emp.get("net_retail"))
+            cur_ticket  = _num(emp.get("avg_ticket"))
+            services    = _int(emp.get("guests"))
+
+        # Drop dead roster rows — all four core metrics zero almost always
+        # means the stylist didn't work this week (off the schedule).
+        if cur_pph == 0 and cur_product == 0 and cur_ticket == 0 and services == 0:
+            continue
+
+        rows.append({
+            "name":        name,
+            "loc_name":    loc_display_name,
+            "loc_id":      loc_id,
+            "status":      "active",
+            # Both writer paths: one reads "tenure", the other "tenure_yrs"
+            "tenure":      0,
+            "tenure_yrs":  0,
+            "cur_pph":     round(cur_pph, 2),
+            "cur_rebook":  0.0,   # not extractable from POS weekly exports
+            "cur_product": round(cur_product, 2),
+            "cur_ticket":  round(cur_ticket, 2),
+            # write_stylists_current reads weeks[-1] as the week label;
+            # append_to_stylists_historical uses its week_ending parameter
+            "weeks":       [week_ending] if week_ending else [],
+            # Both writers pick [-1] off these arrays
+            "services":    [services],
+            "color":       [0.0],  # per-stylist color split not in weekly PDFs
+        })
+
+    return rows
+
+
+# ---------------------------------------------------------------------------
 # Per-file processing
 # ---------------------------------------------------------------------------
 
 def _process_one_pdf(
     record: Dict[str, Any],
     location_lookup: Dict[str, Dict[str, str]],
-) -> Tuple[Optional[Dict[str, Any]], List[str], Optional[str]]:
+) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[str], Optional[str]]:
     """
     Process a single manifest record (one attachment). Returns:
-        (row_dict_or_None, trust_flags, resolved_location_name_or_None)
+        (row_dict_or_None, stylist_rows, trust_flags, resolved_location_name_or_None)
+
+    `stylist_rows` is always a list — empty if parsing failed or the PDF had
+    no employee table. The location row may be None while stylist_rows is
+    non-empty in edge cases (shouldn't happen normally), so callers should
+    treat them independently.
 
     Never raises — all failure modes are captured as trust_layer_flags.
     """
     flags: List[str] = []
+    stylist_rows: List[Dict[str, Any]] = []
     inbox_path = record.get("inbox_path") or ""
     if not inbox_path:
         flags.append(FLAG_PARSE_FAILED)
         logger.warning("Record has no inbox_path: %r", record.get("filename"))
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     # Normalize Windows-style backslashes to forward slashes. The Gmail
     # attachment watcher is run on Windows by Tony and serializes Windows
@@ -371,18 +508,18 @@ def _process_one_pdf(
     if not abs_path.exists():
         flags.append(FLAG_PARSE_FAILED)
         logger.error("PDF not found at %s", abs_path)
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     # ----- 1. Detect platform
     platform = detect_pos_from_file(str(abs_path))
     if platform is None:
         flags.append(FLAG_DETECT_FAILED)
         logger.error("pdf_detect returned None for %s", abs_path.name)
-        return None, flags, None
+        return None, stylist_rows, flags, None
     if platform not in (ZENOTI, SALON_ULTIMATE):
         flags.append(FLAG_UNKNOWN_PLATFORM)
         logger.error("Unknown platform %r for %s", platform, abs_path.name)
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     # ----- 2. Route to parser
     try:
@@ -396,11 +533,11 @@ def _process_one_pdf(
             "Parser crashed on %s: %s\n%s",
             abs_path.name, exc, traceback.format_exc(),
         )
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     if parsed is None:
         flags.append(FLAG_PARSE_FAILED)
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     # Pass through any flags the parser itself raised
     parser_flags = parsed.get("flags") or []
@@ -411,7 +548,7 @@ def _process_one_pdf(
     if not raw_location:
         flags.append(FLAG_NO_LOCATION_RESOLVED)
         logger.error("Parser returned no canonical location for %s", abs_path.name)
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     lookup_hit = location_lookup.get(raw_location.lower())
     if not lookup_hit:
@@ -420,9 +557,10 @@ def _process_one_pdf(
             "Parsed location %r not found in customer config locations[]",
             raw_location,
         )
-        return None, flags, None
+        return None, stylist_rows, flags, None
 
     display_name = lookup_hit["display"]
+    loc_id = lookup_hit.get("id", "")
     # Defense in depth: if the parser's platform disagrees with the config,
     # trust the parser (it inspected PDF content) but record the mismatch.
     cfg_platform = lookup_hit.get("platform")
@@ -440,7 +578,20 @@ def _process_one_pdf(
 
     row = transform_to_current_row(parsed, platform, display_name)
 
-    return row, flags, display_name
+    # ----- 5. Transform employees[] → STYLISTS_CURRENT rows. Failures here
+    # never drop the location row — stylists are a layered enrichment.
+    try:
+        stylist_rows = transform_to_stylist_rows(
+            parsed, platform, display_name, loc_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "Stylist transform crashed on %s: %s\n%s",
+            abs_path.name, exc, traceback.format_exc(),
+        )
+        stylist_rows = []
+
+    return row, stylist_rows, flags, display_name
 
 
 # ---------------------------------------------------------------------------
@@ -584,6 +735,94 @@ def _write_current_tab(
         return False
 
 
+def _write_stylists_tabs(
+    customer_config: Dict[str, Any],
+    stylists: List[Dict[str, Any]],
+    week_ending: str,
+    dry_run: bool,
+) -> bool:
+    """
+    Write the parsed stylist rows to BOTH:
+      • STYLISTS_CURRENT (overwrite — current-week snapshot)
+      • STYLISTS_DATA    (append, idempotent on week_ending)
+
+    Why both:
+      • main.py later reads STYLISTS_DATA as its source of truth for stylist
+        history, so the APPEND must land before main.py runs.
+      • STYLISTS_CURRENT gets overwritten again by main.py with enriched
+        stylist dicts, but writing it here ensures the dashboard has fresh
+        data even if main.py fails mid-run.
+
+    Returns True if BOTH writes succeed (or are skipped cleanly on dry-run
+    / empty stylist list). Returns False if either write raises.
+    Never raises.
+    """
+    if not stylists:
+        logger.info("No stylist rows parsed — skipping STYLISTS_* writes")
+        return True
+
+    if dry_run:
+        logger.info(
+            "DRY RUN: skipping STYLISTS_CURRENT + STYLISTS_DATA writes "
+            "(%d stylist rows prepared for week_ending=%s)",
+            len(stylists), week_ending,
+        )
+        return True
+
+    try:
+        from core.sheets_writer import (
+            _build_service,
+            write_stylists_current,
+            append_to_stylists_historical,
+        )
+    except Exception as exc:
+        logger.error(
+            "Cannot import core.sheets_writer (stylists path): %s", exc,
+        )
+        return False
+
+    ok = True
+    try:
+        service = _build_service(customer_config)
+    except Exception as exc:
+        logger.error(
+            "Cannot build Sheets service for stylists write: %s\n%s",
+            exc, traceback.format_exc(),
+        )
+        return False
+
+    # 1. Overwrite STYLISTS_CURRENT
+    try:
+        write_stylists_current(service, customer_config, stylists, dry_run=False)
+    except Exception as exc:
+        logger.error(
+            "Failed to write STYLISTS_CURRENT tab: %s\n%s",
+            exc, traceback.format_exc(),
+        )
+        ok = False
+
+    # 2. Append to STYLISTS_DATA — idempotent on week_ending, so a second
+    # tier2 run on the same Monday is a safe no-op here.
+    if week_ending:
+        try:
+            append_to_stylists_historical(
+                service, customer_config, stylists, week_ending, dry_run=False,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to append STYLISTS_DATA: %s\n%s",
+                exc, traceback.format_exc(),
+            )
+            ok = False
+    else:
+        logger.warning(
+            "No week_ending available — skipping STYLISTS_DATA append "
+            "(STYLISTS_CURRENT was still written)",
+        )
+
+    return ok
+
+
 # ---------------------------------------------------------------------------
 # Manifest update
 # ---------------------------------------------------------------------------
@@ -679,6 +918,7 @@ def process_manifest(
             "parsed_with_flags": 0,
             "parse_errors": 0,
             "rows_written": 0,
+            "stylist_rows_written": 0,
         },
         "written_locations": [],
         "per_file_flags": {},
@@ -739,6 +979,7 @@ def process_manifest(
 
     # ----- Process each PDF
     fresh_rows: List[Dict[str, Any]] = []
+    fresh_stylists: List[Dict[str, Any]] = []
     per_file_flags: Dict[str, List[str]] = {}
     processed_filenames: List[str] = []
     seen_locations: Dict[str, str] = {}  # display_name -> safe_filename
@@ -747,25 +988,33 @@ def process_manifest(
         safe = rec.get("safe_filename") or rec.get("filename") or "UNKNOWN"
         processed_filenames.append(safe)
 
-        row, flags, display_name = _process_one_pdf(rec, location_lookup)
+        row, stylist_rows, flags, display_name = _process_one_pdf(
+            rec, location_lookup,
+        )
 
         if row is None:
             per_file_flags[safe] = flags
             result["counts"]["parse_errors"] += 1
             continue
 
-        # Duplicate-location guard
+        # Duplicate-location guard — if a second PDF lands for the same
+        # location, the newer one wins for BOTH the CURRENT row and its
+        # stylist rows. Drop the earlier location's stylists too so we
+        # don't double-count Rebecca Follansbee across two exports.
         if display_name in seen_locations:
             flags.append(FLAG_DUPLICATE_LOCATION_OVERWRITTEN)
             logger.warning(
                 "Duplicate location %r: %s overwrites %s",
                 display_name, safe, seen_locations[display_name],
             )
-            # Remove the earlier row from fresh_rows
             fresh_rows = [r for r in fresh_rows if r.get("loc_name") != display_name]
+            fresh_stylists = [
+                s for s in fresh_stylists if s.get("loc_name") != display_name
+            ]
 
         seen_locations[display_name] = safe
         fresh_rows.append(row)
+        fresh_stylists.extend(stylist_rows)
         per_file_flags[safe] = flags
         if flags:
             result["counts"]["parsed_with_flags"] += 1
@@ -793,6 +1042,26 @@ def process_manifest(
         written_ok = _write_current_tab(customer_config, merged, dry_run=dry_run)
         result["counts"]["rows_written"] = len(merged) if written_ok else 0
 
+    # ----- Write stylists — independent of CURRENT write success. Even if
+    # CURRENT failed for some reason, stylist data landing in STYLISTS_DATA
+    # is still useful for the next main.py run.
+    stylists_written_ok = True
+    if fresh_stylists:
+        # Every fresh row this run shares the same week_ending (weekly POS
+        # exports all target the Sunday prior). Pick the first non-empty
+        # one from our freshly-parsed location rows.
+        week_ending = ""
+        for r in fresh_rows:
+            if r.get("week_ending"):
+                week_ending = r["week_ending"]
+                break
+        stylists_written_ok = _write_stylists_tabs(
+            customer_config, fresh_stylists, week_ending, dry_run=dry_run,
+        )
+        result["counts"]["stylist_rows_written"] = (
+            len(fresh_stylists) if stylists_written_ok else 0
+        )
+
     result["written_locations"] = sorted({r["loc_name"] for r in fresh_rows})
     result["per_file_flags"] = per_file_flags
     result["processed_filenames"] = processed_filenames
@@ -801,7 +1070,12 @@ def process_manifest(
     _update_manifest(manifest_path, per_file_flags, processed_filenames)
 
     # ----- Determine status
-    if result["counts"]["parse_errors"] == 0 and fresh_rows and written_ok:
+    # Stylist write is a nice-to-have — a stylist-only failure degrades to
+    # partial_success but does NOT flip an otherwise-clean run to error.
+    if (
+        result["counts"]["parse_errors"] == 0
+        and fresh_rows and written_ok and stylists_written_ok
+    ):
         result["status"] = "success"
     elif fresh_rows and (written_ok or dry_run):
         result["status"] = "partial_success"
@@ -815,7 +1089,8 @@ def process_manifest(
     result["notes"] = (
         f"pdfs={c['records_pdf']} ok={c['parsed_ok']} "
         f"with_flags={c['parsed_with_flags']} errors={c['parse_errors']} "
-        f"rows_written={c['rows_written']}"
+        f"rows_written={c['rows_written']} "
+        f"stylist_rows={c['stylist_rows_written']}"
     )
     result["finished_at"] = dt.datetime.utcnow().isoformat() + "Z"
     return result

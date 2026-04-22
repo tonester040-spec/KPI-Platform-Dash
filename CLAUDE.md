@@ -125,11 +125,12 @@ Definition differs by POS platform:
 
 ### Per-guest KPIs (all use Karissa's guest_count as the denominator)
 
-| Field        | Formula                         | PDF stat to reject?                                                                                                               |
-|--------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| `avg_ticket` | `total_sales / guest_count`     | Matches SU's "TOTAL Avg Ticket". Matches Zenoti's "Avg. invoice value" (Zenoti uses invoice count internally). Compute, don't trust. |
-| `ppg`        | `product_net / guest_count`     | Reject Zenoti's "Net product sales per guest" — it uses unique-guest denominator, not invoice count. SU's PPG stat matches since SU's denominator already matches Karissa's. |
-| `pph`        | PDF direct                      | Net service sales / productive hour. Same on both platforms.                                                                      |
+| Field         | Formula                         | PDF stat to reject?                                                                                                               |
+|---------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `avg_ticket`  | `total_sales / guest_count`     | Matches SU's "TOTAL Avg Ticket". Matches Zenoti's "Avg. invoice value" (Zenoti uses invoice count internally). Compute, don't trust. |
+| `ppg`         | `product_net / guest_count`     | Reject Zenoti's "Net product sales per guest" — it uses unique-guest denominator, not invoice count. SU's PPG stat matches since SU's denominator already matches Karissa's. |
+| `pph`         | PDF direct                      | Net service sales / productive hour. Same on both platforms.                                                                      |
+| `product_pct` | `product_net / total_sales`     | Karissa's "Product %" column. Validated against her master spreadsheet 2026-04-21. Always divide by TOTAL sales here, not service. |
 
 ### Service penetration percentages — counts over guest_count, NOT sales share
 
@@ -145,20 +146,68 @@ Definition differs by POS platform:
 
 **Do NOT use** the "% Sales" or "% Qty" columns from the PDF Service Categories table — those are share-of-sales or share-of-services-line-items, not share-of-guests.
 
-### Color — revenue share, NOT penetration
+### Color — share of SERVICE revenue (NOT total sales, NOT penetration)
 
-**Per Karissa (2026-04-21): `color_pct` is a revenue share, not a penetration rate.** This is the traditional salon industry metric and it intentionally uses a different formula than `wax_pct` and `treatment_pct` above.
+**Per Karissa's master spreadsheet (verified 2026-04-21 by formula inspection): `color_pct` is a share of SERVICE revenue — the denominator is `service_net`, NOT `total_sales`.** This intentionally uses a different formula than `wax_pct` and `treatment_pct` above.
 
 | Field          | Formula                       | Notes                                                                                                              |
 |----------------|-------------------------------|--------------------------------------------------------------------------------------------------------------------|
 | `color_sales`  | PDF direct (Color row, Sales) | Service Categories table (SU) / Service Details (Zenoti). Pre-tax service sales for the Color category.            |
-| `color_pct`    | `color_sales / total_sales`   | Revenue share. Matches the "% Sales" column on the PDF. Do **not** compute `color_count / guest_count` for this field. |
+| `color_pct`    | `color_sales / service_net`   | Share of service revenue. Do **NOT** use `total_sales` as denominator. Do **NOT** compute `color_count / guest_count`. Do **NOT** trust the PDF "% Sales" column — it uses a different denominator. |
+
+Worked example (Blaine, Week 1): `color_sales = $3,964.50`, `service_net = $11,478.25`, so `color_pct = 3964.50 / 11478.25 = 34.54%`. Using `total_sales = $12,485.55` would give 31.75%, which is wrong per Karissa's spreadsheet.
 
 Color parser note: the Service Categories / Service Details table always lists Color. If a PDF genuinely has no color sales (zero-revenue week), `color_sales = 0` and `color_pct = 0`. Never drop the column.
 
 ### Productive hours
 
 Not yet specified by Karissa under this contract. Parser extracts the PDF value directly (SU: "Production Hours"; Zenoti: "Productive Hours" from the dashboard summary) and writes it verbatim. Revisit before any derived KPI uses this field.
+
+### End-of-month projection (weekly field)
+
+Karissa's "Projection (End of month)" column on every weekly sheet.
+
+| Field            | Formula                        | Notes                                                                           |
+|------------------|--------------------------------|---------------------------------------------------------------------------------|
+| `projection_eom` | `(total_sales / 7) * 24`       | This week's sales extrapolated over a 24-day working month. NOT calendar-aware — February's 28 days and March's 31 days both use 24 as the divisor. Validated against her spreadsheet 2026-04-21. |
+
+Worked example (Blaine, Week 1): `$12,485.55 / 7 * 24 = $42,807.60`. Pipeline must compute and write this each week. One column, one formula, no seasonality adjustment.
+
+### Daily Goal / Day Goal (monthly pacing fields)
+
+On Karissa's Year Over Year sheet, every location has two pacing divisors that vary per location and per month:
+
+| Field          | Formula                              | Source of divisor                                                                 |
+|----------------|--------------------------------------|-----------------------------------------------------------------------------------|
+| `daily_goal`   | `monthly_goal / daily_goal_divisor`  | `daily_goal_divisor` varies 22–25 by location-month — Karissa's operating-days figure. |
+| `day_goal`     | `monthly_goal / day_goal_divisor`    | `day_goal_divisor` varies 22–30 by location-month — second pacing divisor she uses. |
+| `we_are_at`    | `= mtd_2026`                         | Month-to-date total sales (aggregated from DATA tab).                             |
+| `goal_pct`     | `we_are_at / day_goal`               | "Where we are ÷ where we should be" — her pace check.                             |
+
+**Divisors are NOT universal.** March 2026 examples: Andover `/25` and `/26`, New Richmond `/24` and `/22`, Apple Valley `/24` and `/30`, Hudson `/24` and `/26`. Karissa enters these manually each month.
+
+**Storage: GOALS tab extended with two columns** — `daily_goal_divisor` and `day_goal_divisor`. Both int, keyed by `(location_id, year_month)`. Karissa updates monthly; pipeline reads them when building MONTHLY_PACING.
+
+### Monthly aggregation — MONTHLY_PACING tab
+
+New tab introduced 2026-04-21 to hold Karissa's Year Over Year / monthly pacing data. Rebuilt every Monday from the DATA tab + GOALS tab.
+
+Schema:
+```
+location_id, location_name, year_month,
+mtd_2026,           -- SUM(DATA.total_sales WHERE year_month matches)
+mtd_2025,           -- prior-year lookup (blank until 12-week backfill lands)
+mtd_2019,           -- blank unless 2019 DATA rows exist
+sales_pct_2025,     -- mtd_2026 / mtd_2025
+sales_pct_2019,     -- mtd_2026 / mtd_2019
+monthly_goal,       -- from GOALS tab
+daily_goal,         -- monthly_goal / daily_goal_divisor
+day_goal,           -- monthly_goal / day_goal_divisor
+we_are_at,          -- = mtd_2026
+goal_pct            -- we_are_at / day_goal
+```
+
+Writer rebuilds the whole tab each Monday (idempotent — full overwrite). Historical preservation lives in DATA tab, not here.
 
 ---
 
