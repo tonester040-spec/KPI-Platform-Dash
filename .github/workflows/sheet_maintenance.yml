@@ -1,0 +1,123 @@
+name: Sheet Maintenance (manual)
+
+# Manual-only. No schedule. Use when you need to audit the current state
+# of V1/V2 or wipe stale/dummy data before a clean pipeline run.
+#
+# Two actions in one workflow, picked via the "action" input:
+#   • audit  — read-only. Prints every tab + row counts + sample rows.
+#   • wipe   — destructive. Requires confirm_token = "WIPE-{customer}".
+#               Dry-run by default unless apply=true.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'What to run'
+        required: true
+        default: 'audit'
+        type: choice
+        options:
+          - audit
+          - wipe
+      include_v2:
+        description: 'Also touch the V2 shadow sheet?'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      apply:
+        description: '(wipe only) Actually delete? false = dry-run.'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      skip_history:
+        description: '(wipe only) Preserve DATA + STYLISTS_DATA?'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      confirm_token:
+        description: '(wipe+apply only) Type WIPE-karissa_001 to confirm.'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Audit sheet state
+        if: ${{ github.event.inputs.action == 'audit' }}
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          ACTIVE_CUSTOMER_ID:          ${{ secrets.ACTIVE_CUSTOMER_ID || 'karissa_001' }}
+          V2_MASTER_SHEET_ID:          ${{ secrets.V2_MASTER_SHEET_ID }}
+        run: |
+          if [ "${{ github.event.inputs.include_v2 }}" = "true" ]; then
+            python scripts/audit_sheets_state.py --include-v2
+          else
+            python scripts/audit_sheets_state.py
+          fi
+
+      - name: Wipe stale data
+        if: ${{ github.event.inputs.action == 'wipe' }}
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          ACTIVE_CUSTOMER_ID:          ${{ secrets.ACTIVE_CUSTOMER_ID || 'karissa_001' }}
+          V2_MASTER_SHEET_ID:          ${{ secrets.V2_MASTER_SHEET_ID }}
+        run: |
+          CMD="python scripts/wipe_all_data.py"
+
+          if [ "${{ github.event.inputs.include_v2 }}" = "true" ]; then
+            CMD="$CMD --include-v2"
+          fi
+
+          if [ "${{ github.event.inputs.skip_history }}" = "true" ]; then
+            CMD="$CMD --skip-history"
+          fi
+
+          if [ "${{ github.event.inputs.apply }}" = "true" ]; then
+            if [ -z "${{ github.event.inputs.confirm_token }}" ]; then
+              echo "::error::apply=true requires confirm_token. Aborting."
+              exit 1
+            fi
+            CMD="$CMD --apply --confirm-wipe ${{ github.event.inputs.confirm_token }}"
+          fi
+
+          echo "Running: $CMD"
+          $CMD
+
+      - name: Upload wipe audit log
+        if: ${{ github.event.inputs.action == 'wipe' && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wipe-log-${{ github.run_id }}
+          path: data/logs/wipe_*.log
+          retention-days: 90
+          if-no-files-found: warn
