@@ -158,7 +158,7 @@ def enrich_stylists(stylists: list[dict], network_summary: dict) -> list[dict]:
     Adds delta fields, network comparison, and star flag to each stylist.
     """
     if not stylists:
-        return stylists
+        return stylists, 0
 
     net_avg_pph = network_summary.get("avg_pph", 0)
     net_avg_prod = network_summary.get("avg_product_pct", 0)
