@@ -52,7 +52,7 @@ Karissa-canonical KPIs (from CLAUDE.md contract)
     wax_count     = Wax.qty + Waxing.qty (sum both if present)
     wax_pct       = wax_count / guest_count
     color_sales   = Color.sales
-    color_pct     = color_sales / total_sales  (revenue share, NOT penetration)
+    color_pct     = color_sales / service_net  (share of service revenue, per Karissa's master spreadsheet 2026-04-21)
     treatment_pct = Treatment.qty / guest_count (penetration)
 """
 
@@ -237,19 +237,27 @@ _RE_SERVICE_DETAILS_HEADER = re.compile(
 )
 
 # ---------------------------------------------------------------------------
-# Regex — HOURLY WORK DETAILS Production Hours line (location-level total)
+# (deleted 2026-05-26) _RE_HOURLY_PRODUCTION_HOURS
 # ---------------------------------------------------------------------------
-# Real line (Andover):
-#   "Production Hours           0 0 0 0 0 0 0 0 0.47 10.13 11.8 12.8 15.73 15.18 12.9 7.82 7 5.07 5 1.98 105.88"
-# The trailing number is the daily total (always the last numeric value on
-# the line). We search a line that starts with "Production Hours" and has
-# hourly buckets, then grab the last float.
-# Must NOT match "Non-Production" (which the HOURLY section never has anyway
-# but we use negative lookbehind for safety).
-_RE_HOURLY_PRODUCTION_HOURS = re.compile(
-    r"^\s*Production\s+Hours\s+([0-9].+)$",
-    re.MULTILINE,
-)
+# The HOURLY WORK DETAILS → "Production Hours" extraction was removed in
+# the 2026-05-26 parser audit (PARSER_AUDIT_2026-05-26.md §6.1 amendment).
+#
+# Two reasons:
+#   1. FINAL_SPEC §6.6 specifies EMPLOYEE PERFORMANCE Total → PRODUCTION
+#      HOURS column as the canonical source. Locations with non-service
+#      staff (Blaine, Crystal, Hudson) have ACTUAL_HOURS that diverge
+#      from PRODUCTION_HOURS; only the latter is correct.
+#   2. The old regex was structurally broken anyway: PyMuPDF renders each
+#      hourly bucket on its own line, so `^Production Hours\s+([0-9].+)$`
+#      captured only the FIRST hourly bucket via \s+ consuming the newline.
+#      For 8/9 Zenoti locations the first bucket was "0" (single char) so
+#      the regex failed and the parser fell through to EMP PERF. For
+#      Roseville (opens 9AM, first bucket = "15.17") it captured 15.17
+#      and shipped that as the location total. Real total = 166.05.
+#      Bug bit Roseville's PPH (recorded 404.88 vs. correct 36.99).
+#
+# _RE_HOURLY_START is kept below — still used to bound the EMPLOYEE
+# PERFORMANCE section in _extract_employees().
 
 # ---------------------------------------------------------------------------
 # Regex — EMPLOYEE SALE DETAILS — individual stylist row
@@ -583,52 +591,42 @@ class ZenotiV2Parser:
 
     def _extract_production_hours_total(self) -> Optional[float]:
         """
-        Pull the location-level production hours from the HOURLY WORK DETAILS
-        'Production Hours' line. The final number on that line is the total.
+        Pull the location-level production hours from the EMPLOYEE PERFORMANCE
+        DETAILS table's Total row, PRODUCTION_HOURS column.
 
-        Line shape (Andover):
-            "Production Hours  0 0 0 0 0 0 0 0 0.47 10.13 11.8 12.8 15.73
-            15.18 12.9 7.82 7 5.07 5 1.98 105.88"
+        Per FINAL_SPEC §6.6 (and the 2026-05-26 parser audit): this is the
+        only source we use. Locations with non-service staff have
+        ACTUAL_HOURS that diverge from PRODUCTION_HOURS — we always want
+        the latter. The HOURLY WORK DETAILS path was deleted (see the
+        deletion note above _RE_HOURLY_START).
 
-        We deliberately anchor on the HOURLY WORK section (not the employee
-        PERFORMANCE table) because the hourly section has a single clean
-        location total and no name-wrap risk.
+        EMP PERF Total row shape after PyMuPDF extraction:
+            "Total  0.20 21.16 105.88 105.88 0.00 2.00 36.61 37.80 36.61 51"
 
-        Fallback: if the HOURLY section can't be found, we look for the
-        EMPLOYEE PERFORMANCE "Total" row and pull its production_hours field.
+        Field map (1-indexed):
+            1. in_service_productivity
+            2. in_service_hours
+            3. actual_hours
+            4. PRODUCTION_HOURS    ← what we want
+            5. non_production_hours
+            6. blocked_hours
+            7-9. per-hour rates
+            10. req_services count
         """
-        # Locate HOURLY WORK section
-        m_start = _RE_HOURLY_START.search(self.text)
-        if m_start:
-            section = self.text[m_start.start():m_start.start() + 2000]
-            m = _RE_HOURLY_PRODUCTION_HOURS.search(section)
-            if m:
-                tail = m.group(1)
-                # Last float in the tail is the location total
-                nums = re.findall(r"-?\d+(?:\.\d+)?", tail)
-                if nums:
-                    try:
-                        return round(float(nums[-1]), 4)
-                    except ValueError:
-                        pass
-
-        # Fallback: EMPLOYEE PERFORMANCE Total row
-        # Shape: "Total  0.20 21.16 105.88 105.88 0.00 2.00 36.61 37.80 36.61 51"
-        # Column 3 (0-indexed: 2) is "actual_hours" which equals production
-        # hours at the location level.
         m_perf = _RE_EMP_PERF_START.search(self.text)
-        if m_perf:
-            section = self.text[m_perf.start():m_perf.start() + 5000]
-            m = re.search(
-                r"^\s*Total\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)",
-                section,
-                re.MULTILINE | re.IGNORECASE,
-            )
-            if m:
-                # Field 4 (group 4) is production hours
-                return safe_parse_money(m.group(4), default=None) or None
+        if not m_perf:
+            return None
 
-        return None
+        section = self.text[m_perf.start():m_perf.start() + 5000]
+        m = re.search(
+            r"^\s*Total\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)",
+            section,
+            re.MULTILINE | re.IGNORECASE,
+        )
+        if not m:
+            return None
+
+        return safe_parse_money(m.group(4), default=None) or None
 
     # ---- service categories ----------------------------------------------
 
@@ -1108,8 +1106,8 @@ class ZenotiV2Parser:
             wax_pct = round(wax["qty"] / guest_count, 4)
             treatment_pct = round(treatment["qty"] / guest_count, 4)
 
-        if total_sales > 0:
-            color_pct = round(color["sales"] / total_sales, 4)
+        if service_net > 0:
+            color_pct = round(color["sales"] / service_net, 4)
 
         # Rebook % — Karissa uses the PDF's "Rebooked (%)" when available.
         # Returned as a fraction so consumers can format consistently.

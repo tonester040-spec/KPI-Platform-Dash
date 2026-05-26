@@ -220,8 +220,8 @@ class SalonUltimateV2Parser:
       The caller decides whether to accept or reject the partial result.
     • Karissa-canonical KPIs are recomputed from raw fields — never copied
       from the PDF's pre-computed stat rows — because Karissa's definitions
-      differ subtly from the PDF (e.g. color_pct uses revenue share, PPG
-      uses her guest_count denominator which already matches SU's).
+      differ subtly from the PDF (e.g. color_pct is share of service revenue,
+      not share of total revenue; PPG uses her guest_count denominator).
     """
 
     def __init__(self, text: str) -> None:
@@ -647,7 +647,7 @@ class SalonUltimateV2Parser:
             wax_count        = categories["wax"]["qty"]   (+ "waxing" if present)
             wax_pct          = wax_count / guest_count
             color_sales      = categories["color"]["sales"]
-            color_pct        = color_sales / total_sales          (REVENUE SHARE)
+            color_pct        = color_sales / service_net          (SHARE OF SERVICE REVENUE)
             treatment_count  = categories["treatment"]["qty"]
             treatment_pct    = treatment_count / guest_count
             haircut_count    = categories["haircut"]["qty"]
@@ -730,8 +730,8 @@ class SalonUltimateV2Parser:
         color = categories.get("color", {"qty": 0, "sales": 0.0})
         k["color_sales"] = color.get("sales", 0.0)
         k["color_pct"] = (
-            round(k["color_sales"] / total_sales, 4)
-            if (total_sales and total_sales > 0)
+            round(k["color_sales"] / service_net, 4)
+            if (service_net and service_net > 0)
             else None
         )
 

@@ -97,7 +97,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        10,
         "wax_pct":          0.1053,
         "color_sales":      944.00,
-        "color_pct":        0.2236,
+        "color_pct":        0.2435,
         "treatment_count":  4,
         "treatment_pct":    0.0421,
         "flags":            [],
@@ -118,7 +118,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        27,
         "wax_pct":          0.1709,
         "color_sales":      3917.75,
-        "color_pct":        0.3869,
+        "color_pct":        0.4035,
         "treatment_count":  35,
         "treatment_pct":    0.2215,
         "flags":            [],
@@ -139,7 +139,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        18,
         "wax_pct":          0.1000,
         "color_sales":      2239.50,
-        "color_pct":        0.2338,
+        "color_pct":        0.2417,
         "treatment_count":  37,
         "treatment_pct":    0.2056,
         "flags":            [],
@@ -160,7 +160,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        18,
         "wax_pct":          0.1364,
         "color_sales":      1473.45,
-        "color_pct":        0.2585,
+        "color_pct":        0.2714,
         "treatment_count":  4,
         "treatment_pct":    0.0303,
         "flags":            [],
@@ -181,7 +181,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        13,
         "wax_pct":          0.1161,
         "color_sales":      2035.50,
-        "color_pct":        0.3132,
+        "color_pct":        0.3458,
         "treatment_count":  19,
         "treatment_pct":    0.1696,
         "flags":            [],
@@ -202,7 +202,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        24,
         "wax_pct":          0.1257,
         "color_sales":      2976.08,
-        "color_pct":        0.3029,
+        "color_pct":        0.3263,
         "treatment_count":  19,
         "treatment_pct":    0.0995,
         "flags":            [],
@@ -225,7 +225,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        6,
         "wax_pct":          0.0896,
         "color_sales":      1461.00,
-        "color_pct":        0.3743,
+        "color_pct":        0.3973,
         "treatment_count":  9,
         "treatment_pct":    0.1343,
         "flags":            [],
@@ -249,7 +249,7 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "wax_count":        5,
         "wax_pct":          0.0365,
         "color_sales":      2684.00,
-        "color_pct":        0.3278,
+        "color_pct":        0.3554,
         "treatment_count":  41,
         "treatment_pct":    0.2993,
         "flags":            [],
@@ -258,9 +258,15 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         # Roseville: exercises the Waxing-only case — this PDF has a
         # "Waxing" row with NO "Wax" row at all. Parser must sum
         # wax + waxing into wax_count via wax_combined without crashing
-        # when Wax is absent. Also: Roseville's pph is legitimately high
-        # (404.88) because production_hours is only 15.17 — verified
-        # against the raw PDF, not a parser bug.
+        # when Wax is absent.
+        #
+        # production_hours = 166.05 from EMPLOYEE PERFORMANCE Total row,
+        # PRODUCTION_HOURS column (field 4) per FINAL_SPEC §6.6. Earlier
+        # golden pinned 15.17 / pph=404.88 — that was the first hourly
+        # bucket from the buggy HOURLY WORK regex (which captured only
+        # the first multi-char number after "Production Hours\n", not
+        # the location total). Fixed in PARSER_AUDIT_2026-05-26.md §6.1
+        # amendment; the buggy regex was deleted entirely.
         "fixture":          "e7b9a5_Roseville.pdf",
         "location":         "Roseville",
         "week_start":       "2026-04-01",
@@ -270,13 +276,13 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "product_net":      63.99,
         "total_sales":      6205.99,
         "avg_ticket":       39.03,
-        "pph":              404.88,
+        "pph":              36.99,
         "ppg":              0.4025,
-        "production_hours": 15.17,
+        "production_hours": 166.05,
         "wax_count":        5,
         "wax_pct":          0.0314,
         "color_sales":      1695.00,
-        "color_pct":        0.2731,
+        "color_pct":        0.2760,
         "treatment_count":  14,
         "treatment_pct":    0.0881,
         "flags":            [],
@@ -300,7 +306,7 @@ GOLDEN_SU: List[Dict[str, Any]] = [
         "wax_count":        38,
         "wax_pct":          0.1352,
         "color_sales":      5883.25,
-        "color_pct":        0.3237,
+        "color_pct":        0.3662,
         "treatment_count":  113,
         "treatment_pct":    0.4021,
         "flags":            [],
@@ -321,7 +327,7 @@ GOLDEN_SU: List[Dict[str, Any]] = [
         "wax_count":        20,
         "wax_pct":          0.0881,
         "color_sales":      1847.00,
-        "color_pct":        0.1728,
+        "color_pct":        0.1906,
         "treatment_count":  39,
         "treatment_pct":    0.1718,
         "flags":            [],
@@ -346,7 +352,7 @@ GOLDEN_SU: List[Dict[str, Any]] = [
         "wax_count":        16,
         "wax_pct":          0.1081,
         "color_sales":      1507.00,
-        "color_pct":        0.2914,
+        "color_pct":        0.3250,
         "treatment_count":  21,
         "treatment_pct":    0.1419,
         "flags":            ["PARTIAL_WEEK"],
@@ -606,14 +612,18 @@ class TestKarissaCanonicalContracts(unittest.TestCase):
     """
 
     def test_color_pct_is_revenue_share_not_penetration(self):
-        # Andover: color_sales=944, total_sales=4222.20 → 0.2236
+        # Andover: color_sales=944, service_net=3876.20 → 0.2435
         # If someone ever changed color_pct to color_count/guest_count,
         # the number would be 12/95 = 0.1263 — fail.
+        # Note: "revenue share" here means SHARE OF SERVICE REVENUE, NOT
+        # share of total revenue. Per Karissa's tracker F19=E19/D3 and
+        # her voice memo (Round 1, Q5): "Color percent is the color net
+        # divided by the service net." See PARSER_AUDIT_2026-05-26.md §3.1.
         parsed = zenoti_parse_file(_fixture_path("1232b9_Andover.pdf"))
         k = parsed["karissa"]
-        expected = round(k["color_sales"] / k["total_sales"], 4)
+        expected = round(k["color_sales"] / k["service_net"], 4)
         self.assertAlmostEqual(k["color_pct"], expected, delta=RATIO_TOL,
-                               msg="color_pct must be color_sales / total_sales (revenue share)")
+                               msg="color_pct must be color_sales / service_net (share of service revenue)")
 
     def test_wax_pct_is_count_over_guests(self):
         # Blaine: 27 wax guests / 158 total = 0.1709

@@ -1,6 +1,11 @@
 """
 Data Merger — Combine Excel + PDF data, distribute service categories to stylists.
 
+Spec alignment: this module is the implementation of "salon-level supremacy"
+described in FINAL_SPEC v1.0.0 §5 (PDF Parser Final Spec). Salon-level PDF
+totals are sacred; stylist values are derived proportionally from them. See
+CLAUDE.md "Vocabulary Map" for the terminology cross-reference.
+
 Architecture:
   Phase 1 (Excel) → stylist-level totals: guest_count, service_net, product_net, ppg_net
   Phase 2 (PDF)   → location-level totals: wax_count, color_net, treatment_count, etc.
