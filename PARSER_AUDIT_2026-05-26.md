@@ -252,15 +252,17 @@ Until we decide, here's the entry I would write when the Color % fix commits:
 
 **Existing code [pdf_salon_ultimate_v2.py:66,334,372,683](parsers/pdf_salon_ultimate_v2.py:66):** Only extracts `Total Retail` from header. Uses it directly as `product_net`. **Does not extract the product-lines detail section, does not compute a line-item sum, does not cross-check.**
 
-**Status:** **UNBUILT.** Spec's Lakeville example ($534.50 header vs $623.25 detail sum) cannot be detected by the current parser.
+**Status (original audit):** **UNBUILT.** Spec's Lakeville example ($534.50 header vs $623.25 detail sum) cannot be detected by the current parser.
 
-**Scope to build:**
-- New regex to extract the SU "Top Product Lines" detail table
-- New helper that sums per-line $$ values
-- New comparison + flag (`PRODUCT_TOTAL_MISMATCH`) when |header - sum| > $0.01
-- New CompletenessCheck or audit log entry
+**Status (2026-05-26, Branch 1 RESOLVED):** **IMPLEMENTED** in branch `product-mismatch-detection-2026-05-26`, commit `d5dbd4c`. The Lakeville fixture was confirmed as the canonical real-world example — same numbers the spec cited ($534.50 vs $623.25). See §12 "Branch 1 completion record" below for full details.
 
-**Estimate:** ~150-200 lines, including tests. Not blocking the Color % fix.
+**Scope as built:**
+- New regex `_RE_PRODUCT_LINES_TOTALS` in `pdf_salon_ultimate_v2.py` extracts the existing PDF-provided TOTALS row of the Top Product Lines table (simpler + safer than re-summing line items — the PDF computes it for us)
+- New flag `FLAG_PRODUCT_TOTAL_MISMATCH` fires when `|product_net - product_lines_sum| > $0.01`
+- Header stays canonical `product_net` per spec (DO NOT switch to line-sum)
+- 6 new tests in `TestProductTotalMismatch`: Lakeville positive cases + Apple Valley/Farmington negative cases
+
+**Final scope:** ~50 lines parser + ~90 lines tests + ~140 lines docs (CLAUDE.md + this audit + addendum §H) = ~280 lines. Hit the lower end of the original 150-200 estimate for code.
 
 ### 6.4 Gap D — Unclosed-day workflow (Spec §6.1)
 
@@ -505,6 +507,65 @@ This subsection documents the real-world impact of the Roseville production_hour
 - An audit against the spec, with Python clearance to actually run the parsers against real fixtures and compare against intended canonical sources, surfaced both within a single session.
 
 **Reference for the Karissa summary (§5):** the framing "we caught a formula difference during pre-launch validation and fixed it before anything reached you" remains accurate and sufficient. Adding "and also a 10x PPH bug" would shift the tone from "validation worked" to "we found two bugs," which doesn't match the actual story (the validation step is supposed to find bugs — finding two of them confirms the gate is calibrated correctly).
+
+---
+
+### Branch 1 completion record — `product-mismatch-detection-2026-05-26`
+
+**Started:** 2026-05-26 (after parser-audit-2026-05-26 was committed locally).
+**Status:** ✅ DONE. Commit `d5dbd4c` on branch `product-mismatch-detection-2026-05-26`.
+**Acceptance criteria from "Follow-up branch sequence plan":** all met.
+
+**What was investigated before any code was written:**
+
+All 3 SU fixtures were inspected end-to-end against the spec's claim. Header vs TOTALS-row comparison:
+
+| Location | Header `Total Retail` | TOTALS row sales | Match? |
+|---|---|---|---|
+| Apple Valley | $2,112.00 | $2,112.00 | ✅ |
+| Farmington | $1,000.85 | $1,000.85 | ✅ |
+| Lakeville | $534.50 | $623.25 | ❌ off by $88.75 |
+
+Lakeville's PDF prints the TOTALS row's "% Sales" as 116.60% — that percentage is computed against the header value (623.25 / 534.50 = 1.166), meaning the PDF itself signals the discrepancy in its rendering.
+
+**Implementation decisions made:**
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Compare against | PDF's own TOTALS row (not re-sum line items) | Simpler regex, PDF already computes the value, all 3 fixtures show TOTALS == sum of lines |
+| Tolerance | $0.01 (matches FINAL_SPEC §7 rounding tier + existing `TOTAL_SALES_MISMATCH`) | Consistency with the parser's existing strictness; Lakeville's $88.75 gap is loudly above the threshold |
+| Scope additions | None | Stuck to the plan: detection + flag + tests + docs |
+| Header vs line-sum precedence | Header is canonical (per spec) — `product_net` does NOT change | FINAL_SPEC §6.2 is explicit: header is the canonical value, flag is for audit |
+
+**Test results:**
+
+- 186 passed, 24 subtests passed (was 180 before Branch 1; +6 in `TestProductTotalMismatch`)
+- New tests: Lakeville positive (3 — flag fires, product_net stays at $534.50, raw `product_lines_sum` extracts to $623.25), Apple Valley negative (2 — no flag, raw value matches header at $2,112.00), Farmington negative (1 — no flag)
+- All pre-existing tests still green
+
+**Files touched (this branch only):**
+
+```
+M  parsers/pdf_salon_ultimate_v2.py    +53 lines (regex + flag + raw field + comparison + docstrings)
+M  tests/test_pdf_parsers_golden.py    +91 lines (Lakeville flags array + new TestProductTotalMismatch class with 6 tests)
+M  CLAUDE.md                           +1 line (Vocabulary Map row)
+M  PARSER_AUDIT_2026-05-26.md          this section
+M  PARSER_SPEC_v1.0.1_ADDENDUM.md      §E status update + new §H
+```
+
+**Spec-doc reconciliation:**
+
+- FINAL_SPEC v1.0.0 §6.2 — fully implemented as written. No deltas.
+- Addendum v1.0.1 §E — entry moved from "UNBUILT, scoped to follow-up" to "IMPLEMENTED in commit `d5dbd4c`"
+- Addendum v1.0.1 §H (new) — dedicated section for this implementation, matching the pattern of §B (Color %) and §C (Zenoti hours)
+
+**What's NOT in Branch 1 (deferred to later branches per the original plan):**
+
+1. Writing PRODUCT_TOTAL_MISMATCH events to `truth_mediation_log.json` → Branch 3 (`truth-mediation-log-serializer`)
+2. Per-incident email alerts to Karissa for product mismatches → not planned (the trust layer's surfacing via CompletenessChecks is enough for v1)
+3. Catching the case where the PDF's TOTALS row itself disagrees with the sum of its own line items → not required by spec, not observed in any fixture
+
+**Gap C is closed. Branch 1 is ready for review and PR.**
 
 ---
 
