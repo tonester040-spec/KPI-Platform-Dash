@@ -274,9 +274,11 @@ Until we decide, here's the entry I would write when the Color % fix commits:
 - Rerun workflow: ❌ Not built (would need cooperation with Elaina anyway)
 - "Leave blank by Mon EOD": ❌ Not built — current behavior is to write the partial values with a flag
 
-**Status:** **PARTIAL.** Detection + flag exist. The operational workflow (alert + rerun + Mon EOD blank-out) does not.
+**Status (original audit):** **PARTIAL.** Detection + flag exist. The operational workflow (alert + rerun + Mon EOD blank-out) does not.
 
-**Open question:** Is the spec's full workflow required for go-live? Or is "parse what we have, flag it, dashboard shows the flag" acceptable for Phase 1? The current behavior is arguably safer (data + warning) vs the spec's behavior (no data + alert).
+**Status (2026-05-26, Branch 2 RESOLVED Phase 1):** **Alert hook IMPLEMENTED** in branch `unclosed-day-alert-hook-2026-05-26`, commit `c73ecaa`. Per Tony's Q3 (2026-05-26 chat): detection + alert is required for go-live (Karissa voice memo Round 1 Q7 hard requirement); automated rerun and Mon-EOD blank-out remain Phase 1.1. See §12 "Branch 2 completion record" below.
+
+**Open question (resolved):** Tony chose Hybrid — alert built now, automation deferred. The alert function defensively handles `[REPLACE_BEFORE_GO_LIVE]` placeholder recipients in `config/inbox_config.json` (skip + log WARN if nothing real remains), so the code is correct today and starts firing emails the moment Karissa's real address is added.
 
 ---
 
@@ -503,3 +505,68 @@ This subsection documents the real-world impact of the Roseville production_hour
 - An audit against the spec, with Python clearance to actually run the parsers against real fixtures and compare against intended canonical sources, surfaced both within a single session.
 
 **Reference for the Karissa summary (§5):** the framing "we caught a formula difference during pre-launch validation and fixed it before anything reached you" remains accurate and sufficient. Adding "and also a 10x PPH bug" would shift the tone from "validation worked" to "we found two bugs," which doesn't match the actual story (the validation step is supposed to find bugs — finding two of them confirms the gate is calibrated correctly).
+
+---
+
+### Branch 2 completion record — `unclosed-day-alert-hook-2026-05-26`
+
+**Started:** 2026-05-26 (after `parser-audit-2026-05-26` was merged via PR #2).
+**Status:** ✅ DONE. Commit `c73ecaa` on branch `unclosed-day-alert-hook-2026-05-26`.
+**Acceptance criteria from the follow-up branch sequence plan:** all met.
+
+**What was built:**
+
+The Salon Ultimate parser already emitted the `PARTIAL_WEEK` flag when it saw an unclosed day in the weekly POS export. Branch 2 added the alert hook that turns that flag into an outbound email:
+
+1. New `core/email_sender.py::send_partial_week_alert()` — mirrors the existing `send_inbox_notification()` pattern: same SMTP plumbing (GMAIL_APP_PASSWORD + GMAIL_SENDER), same `[REPLACE` placeholder filter, same try/except discipline. Never raises.
+2. New `core/email_sender.py::_build_partial_week_alert_html()` — mobile-readable body with one row per affected location.
+3. `parsers/tier2_pdf_batch.py::_process_one_pdf()` now returns a 5-tuple — added `parsed` (the parser's full output dict) so `process_manifest` can extract `unclosed_days` for the alert without re-parsing.
+4. `process_manifest` collects `partial_week_records` during the per-PDF loop and fires `send_partial_week_alert` once after `_update_manifest` succeeds.
+5. 7 new tests in `TestPartialWeekAlert` — all SMTP-mocked, no network calls.
+
+**Implementation decisions made:**
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Alert function location | `core/email_sender.py` (not in parser) | Parsers stay pure text-in/dict-out. Matches existing `send_inbox_notification` placement |
+| Trigger point | `process_manifest` after `_update_manifest` succeeds | Manifest is the source of truth for flags; alert dispatch waits until manifest write completes |
+| Recipient placeholder handling | Filter `[REPLACE` substring, log WARN if nothing remains | Matches existing project pattern in `send_inbox_notification`. Defensive against pre-go-live state |
+| `_process_one_pdf` return shape | 5-tuple (added `parsed`) | Cleaner than re-parsing the PDF inside the alert flow. All 9 early-return paths updated to match |
+| Failure mode | Log error, return cleanly; pipeline never crashes on alert path | Defense-in-depth — alert failure must not break dashboards |
+| Dedup | Implicit (one alert per workflow run) | Each Tier 2 run rebuilds the manifest fresh; one PDF per location per run; one email per run with all affected locations bundled |
+
+**Test results:**
+
+- 187 passed, 24 subtests passed in 1.45s (was 180 baseline on main; +7 in `TestPartialWeekAlert`)
+- New tests: skip-on-empty, skip-on-placeholder-only, filter-real-from-placeholder, body-contains-location-week-and-days, SMTP-failure-non-raising, dry-run-no-SMTP, multiple-records-rendered
+
+**Files touched (this branch only):**
+
+```
+M  core/email_sender.py                +145 lines (helper + send function)
+M  parsers/tier2_pdf_batch.py          +65/-12 lines (5-tuple sig, in-loop collection, alert dispatch)
+M  tests/test_pdf_parsers_golden.py    +132 lines (TestPartialWeekAlert with 7 tests)
+M  CLAUDE.md                           Vocabulary Map row updated
+M  PARSER_AUDIT_2026-05-26.md          §6.4 status flip + this completion record
+M  PARSER_SPEC_v1.0.1_ADDENDUM.md      §E status flip + new §I
+```
+
+**Karissa's email — intentionally NOT added:**
+
+Per Tony's explicit direction (2026-05-26 chat), `config/inbox_config.json` was NOT modified. Both placeholder emails (`karissa@[REPLACE_BEFORE_GO_LIVE]`) remain. When Tier 2 fires the alert today, the placeholder filter drops everything and logs `WARN: send_partial_week_alert — no real recipients after placeholder filter`. The PARTIAL_WEEK info is still captured in Tier 2's run log artifact. When fresh-PDF validation confirms parser accuracy and Tony updates the config with Karissa's real email, alerts start flowing with zero code change.
+
+**Spec-doc reconciliation:**
+
+- FINAL_SPEC v1.0.0 §6.1 — Phase 1 (detection + alert) implemented. Phase 1.1 (rerun + blank-out) explicitly deferred.
+- Addendum v1.0.1 §E — entry status flipped from "detection + alert only built for v1.0 launch" to "Phase 1 IMPLEMENTED in commit `c73ecaa`".
+- Addendum v1.0.1 §I (new) — dedicated section for this implementation, matching the pattern of §B (Color %) and §C (Zenoti hours).
+
+**What's NOT in Branch 2 (deferred per Tony's original Q3 + sequence plan):**
+
+1. Automated rerun-request workflow (Phase 1.1)
+2. Auto-blank-out-by-Mon-EOD (Phase 1.1)
+3. Alert retry on SMTP failure (over-engineering)
+4. Cross-run alert deduplication (not needed — natural per-run dedup)
+5. Writing alert events to `truth_mediation_log.json` (Branch 3 will handle)
+
+**Gap D Phase 1 is closed. Branch 2 is ready for review and PR.**
