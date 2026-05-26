@@ -1,10 +1,10 @@
 # STYLIST / EMPLOYEE EXTRACTION INVESTIGATION
 
-**Status:** 🔴 ACTIVE — launch-blocking
+**Status:** 🟢 RESOLVED — see [`STYLIST_EXTRACTION_ROOT_CAUSE_2026-05-26.md`](STYLIST_EXTRACTION_ROOT_CAUSE_2026-05-26.md) for diagnosis and `fix-stylist-extraction-2026-05-26` branch for the fix.
+**Resolution summary:** Day-1 bug since v2 parser commit `7abe5c3` (2026-04-21). PyMuPDF renders the per-stylist tables in vertical column order (one field per line); both parsers' per-row regexes assumed a columnar layout (`pdftotext -layout` style) and walked `splitlines()` + `.match()` per line — which can never see a full row when each field is on its own line. Golden tests never asserted employee presence so the bug shipped silently. Fix replaces the per-line walker with `re.finditer()` over the section + multi-line name lookback + role-keyword tagging. Tests go from 207 → 215 (8 new in `tests/test_pdf_employee_extraction.py`). Validation confirms both frozen Apr 21 fixtures and fresh May 26 MTD PDFs now produce non-zero employees per location.
 **Started by:** Tony Grant, 2026-05-26 (end of audit session)
-**Reason for handoff:** prior session approached context max; new session needed for the debugging cycle
-**Severity:** MASSIVE per Tony's framing — without stylist data, coach cards / Visit Prep / per-stylist dashboards all break
-**This doc lives on main** so any worktree can read it.
+**Severity:** MASSIVE per Tony's framing — without stylist data, coach cards / Visit Prep / per-stylist dashboards all break. (Resolved before launch — no production impact.)
+**This doc lives on main** so any worktree can read the history.
 
 ---
 
