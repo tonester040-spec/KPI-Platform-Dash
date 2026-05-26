@@ -630,7 +630,7 @@ The watcher tracks every message's result in a `message_outcomes` dict (`success
 
 ### Manifest contract
 
-Tier 2 (`parsers/tier2_batch_processor.py`) reads `data/inbox/manifest.json` — a single file overwritten each run. It's a JSON array of per-attachment records (one row per attachment, not per email):
+Tier 2 (`parsers/tier2_pdf_batch.py`) reads `data/inbox/manifest.json` — a single file overwritten each run. It's a JSON array of per-attachment records (one row per attachment, not per email):
 
 ```json
 [
@@ -673,6 +673,31 @@ If the script dies with an unhandled exception, a top-level `try/except` guarant
 | `data/archive/YYYY-MM-DD/{hash[:6]}_*`  | Permanent audit copy of every accepted attachment.    |
 | `data/processed_attachments.json`       | SHA256 idempotency ledger (append-only).              |
 | `data/logs/inbox_run_*.json`            | Per-run execution summary.                            |
+
+### Ledger persistence (committed to git)
+
+GitHub Actions runners are ephemeral — every workflow run starts on a fresh filesystem. To keep the SHA256 dedup ledger durable across Mondays, **`data/processed_attachments.json` is intentionally un-gitignored and committed by the weekly pipeline**.
+
+How it works:
+
+- `.gitignore` has an explicit `!data/processed_attachments.json` exception (everything else under `data/` stays ignored).
+- After Step 5 (`Run Gmail Attachment Watcher`), the workflow runs **Step 5.1 `Commit inbox ledger`** — it stages the ledger file, and if `git diff --cached` shows changes, creates a `chore(inbox): update SHA256 dedup ledger` commit. No-op weeks (no new attachments) produce no commit.
+- The existing Step 7 `Push dashboard changes` then rebases and pushes the ledger commit alongside main.py's dashboard commit in a single push.
+- The ledger commit is skipped under `workflow_dispatch` with `dry_run=true` to avoid polluting git history with test runs.
+
+Contents committed:
+
+```json
+{
+  "<sha256_hex>": {
+    "filename": "Weekly_Report.xlsx",
+    "processed_at": "2026-05-26T12:03:17.482912+00:00",
+    "message_id": "18f5d2a0c3e1b4f7"
+  }
+}
+```
+
+No PHI — filenames may reveal report cadence, but location names are already public in `config/customers/karissa_001.json` and the dashboards. Annual ledger size is bounded at ~300 KB (52 weeks × ~12 locations × 2 formats). See `INBOX_LEDGER_PERSISTENCE_DECISION.md` at repo root for the option-evaluation that led to this design.
 
 ### Dry run
 

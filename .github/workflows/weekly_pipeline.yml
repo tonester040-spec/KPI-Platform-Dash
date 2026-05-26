@@ -82,6 +82,33 @@ jobs:
         run: |
           python parsers/gmail_attachment_watcher.py
 
+      # ── 5.1 Commit inbox dedup ledger ─────────────────────────────
+      # The SHA256 ledger at data/processed_attachments.json must persist
+      # across runs (GitHub Actions runners are ephemeral). Step 7 below
+      # rebases-and-pushes everything together, so this commit lands in
+      # the same push as the dashboard commit produced by main.py.
+      #
+      # Guards:
+      #   - dry_run dispatch: skip (don't pollute git history with test runs)
+      #   - missing file: skip (watcher may have exited early on missing OAuth secrets)
+      #   - no changes: skip (no new attachments this week → no commit)
+      #
+      # See INBOX_LEDGER_PERSISTENCE_DECISION.md for the full rationale.
+      - name: Commit inbox ledger
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          if [ -f data/processed_attachments.json ]; then
+            git add data/processed_attachments.json
+            if git diff --cached --quiet; then
+              echo "Inbox ledger unchanged this run — nothing to commit."
+            else
+              git commit -m "chore(inbox): update SHA256 dedup ledger"
+              echo "Committed inbox ledger update."
+            fi
+          else
+            echo "No ledger file found — watcher likely skipped (missing OAuth secrets)."
+          fi
+
       # ── 5.5 Run Tier 2 PDF Batch Processor (inbox → CURRENT tab) ──
       # Step 0.5 of the weekly ingest: consumes data/inbox/manifest.json
       # written by Step 0 (the watcher), parses each PDF with the correct
