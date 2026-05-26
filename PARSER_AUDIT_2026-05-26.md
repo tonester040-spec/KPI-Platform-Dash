@@ -447,8 +447,59 @@ M  CLAUDE.md                            # Vocabulary Map section
 ?? PARSER_SPEC_v1.0.1_ADDENDUM.md       # New addendum file
 ```
 
-### Outstanding decisions before commit
+### Outstanding decisions before commit (RESOLVED)
 
-1. **Commit grouping:** single commit, or split into 3 logical commits (Color % / Bug #2 / docs)?
-2. **Commit message style:** any preferred prefix (e.g. `fix:`, `chore:`, conventional commits) or trailer style?
-3. **Spawn-task timing:** spawn now (before commit), or after commit lands?
+1. **Commit grouping:** Three logical commits — Color %, Bug #2, docs+audit (per Tony 2026-05-26).
+2. **Commit message style:** Project-existing pattern — sentence-case subject, descriptive body, `Co-Authored-By` trailer.
+3. **Spawn-task timing:** After commit. Done in next message.
+
+### Commits landed on `parser-audit-2026-05-26`
+
+```
+5bd213a  Add parser audit deliverables and Vocabulary Map
+465432d  Fix Zenoti production_hours per FINAL_SPEC §6.6 and delete buggy HOURLY WORK extraction
+7be79bf  Fix Color % to use service_net denominator per FINAL_SPEC §3.2
+```
+
+3 commits, branch not pushed, 180 tests green on HEAD.
+
+---
+
+### Bug #2 magnitude — internal record (do NOT include in Karissa-facing summary)
+
+This subsection documents the real-world impact of the Roseville production_hours bug that was caught and fixed on this branch. It is for our internal records as evidence that the pre-launch validation step worked as designed. **The Karissa-facing impact summary (§5) intentionally omits this detail — she does not need it.**
+
+**The buggy value:** Roseville production_hours was being reported as 15.17 hours/week. Combined with `service_net = $6,142.00`, this produced `pph = $404.88 / hour`.
+
+**Network context — actual PPH values for week ending 2026-04-05, all 9 Zenoti locations (now corrected):**
+
+| Location | PPH | Production hours |
+|---|---|---|
+| Andover | $36.61 | 105.88 |
+| Blaine | $51.17 | 189.73 |
+| Crystal | $48.96 | 189.27 |
+| Elk River | $37.23 | 145.83 |
+| Forest Lake | $50.97 | 115.50 |
+| Hudson | $67.60 | 134.93 |
+| New Richmond | $29.11 | 126.35 |
+| Prior Lake | $37.37 | 202.10 |
+| **Roseville (corrected)** | **$36.99** | **166.05** |
+| Roseville (buggy, would have shipped) | $404.88 | 15.17 |
+
+**Network PPH range (corrected values): $29.11 – $67.60 per hour.** Roseville's bugged $404.88 was ~6× the network maximum and ~10× the network mean. The value is physically implausible for a salon: it implies $405 in service revenue per hour of stylist productive time, which would require an unrealistic combination of premium service mix, perfect capacity utilization, and either no-show absorption or shorter average service times than any other location in the network.
+
+**What would have happened if this had reached production:**
+
+1. Roseville would have appeared as the network's runaway top performer in Karissa's dashboard.
+2. Jenn (Roseville's coach) would have received AI-generated coach-card commentary treating Roseville as an outlier success story — possibly recommending replication of "Roseville's playbook" to her other 4 locations (Andover, Blaine, Crystal, Elk River).
+3. The visible PPH variance would have contradicted Karissa's lived experience of Roseville's actual performance, eroding her trust in the platform on day one.
+4. The Color % bug would have compounded the problem — every location's color performance would have been ~8–13% relative under-reported, with no obvious tell.
+
+**Why this is concrete evidence of the validation step working:**
+
+- The Color % bug had been hiding in the test suite via a `test_color_pct_is_revenue_share_not_penetration` test that pinned the wrong values with a name that sounded right.
+- The Roseville PPH bug was masked by 8 other locations getting the right answer through an accidental fallback path (HOURLY WORK regex returned None for them, parser silently fell through to EMP PERF).
+- A code review of "the Color % fix" alone would not have surfaced either.
+- An audit against the spec, with Python clearance to actually run the parsers against real fixtures and compare against intended canonical sources, surfaced both within a single session.
+
+**Reference for the Karissa summary (§5):** the framing "we caught a formula difference during pre-launch validation and fixed it before anything reached you" remains accurate and sufficient. Adding "and also a 10x PPH bug" would shift the tone from "validation worked" to "we found two bugs," which doesn't match the actual story (the validation step is supposed to find bugs — finding two of them confirms the gate is calibrated correctly).
