@@ -890,6 +890,95 @@ def _write_run_log(payload: Dict[str, Any]) -> Optional[Path]:
 
 
 # ---------------------------------------------------------------------------
+# Truth Mediation Log dispatch (FINAL_SPEC §10, Branch 3)
+# ---------------------------------------------------------------------------
+
+def _write_truth_mediation_events(
+    parsed: Dict[str, Any],
+    flags: List[str],
+    display_name: Optional[str],
+) -> None:
+    """
+    Write reconciliation events to the truth-mediation log for any flags
+    in `flags` that correspond to FINAL_SPEC §10 reconciliation events.
+
+    Currently handles:
+      - PRODUCT_TOTAL_MISMATCH (Branch 1, FINAL_SPEC §6.2)
+      - PARTIAL_WEEK           (Branch 2, FINAL_SPEC §6.1)
+
+    Future: salon_level_supremacy when stylist proportional adjustment is
+    implemented (the spec's primary use case).
+
+    Never raises — log-write failures are logged and swallowed so the
+    pipeline can't be broken by audit-log issues.
+    """
+    try:
+        from trust_layer.truth_mediation_log import (
+            write_event,
+            RULE_PRODUCT_TOTAL_MISMATCH,
+            RULE_PARTIAL_WEEK_DETECTED,
+        )
+    except Exception as exc:
+        logger.error("truth_mediation_log import failed (skipping log): %s", exc)
+        return
+
+    week_start = parsed.get("week_end") or "(unknown)"
+    location_id = display_name or parsed.get("location") or "(unknown)"
+    raw = parsed.get("raw", {}) or {}
+
+    if "PRODUCT_TOTAL_MISMATCH" in flags:
+        header = raw.get("total_retail")
+        line_sum = raw.get("product_lines_sum")
+        if header is not None and line_sum is not None:
+            try:
+                header_f = float(header)
+                line_sum_f = float(line_sum)
+                drift = abs(header_f - line_sum_f)
+                write_event(
+                    rule_applied=RULE_PRODUCT_TOTAL_MISMATCH,
+                    location_id=location_id,
+                    week_start=week_start,
+                    field="product_net (Total Retail header vs Top Product Lines TOTALS row)",
+                    salon_level_value=round(header_f, 2),
+                    stylist_sum_before=round(line_sum_f, 2),
+                    drift_amount=round(drift, 2),
+                    drift_pct=round(drift / header_f, 4) if header_f > 0 else None,
+                    hypothesis="Likely refund timing — header is post-refund, line items are pre-refund",
+                    action="header_kept_as_canonical_per_FINAL_SPEC_§6.2",
+                    human_review_required=False,
+                )
+            except Exception as exc:
+                logger.error(
+                    "truth_mediation_log write failed for PRODUCT_TOTAL_MISMATCH: %s", exc,
+                )
+
+    if "PARTIAL_WEEK" in flags:
+        unclosed = parsed.get("unclosed_days") or []
+        hypothesis = (
+            f"Unclosed POS day(s): {', '.join(unclosed)}"
+            if unclosed else "Unclosed day detected"
+        )
+        try:
+            write_event(
+                rule_applied=RULE_PARTIAL_WEEK_DETECTED,
+                location_id=location_id,
+                week_start=week_start,
+                field="data_completeness (unclosed day in POS export)",
+                salon_level_value=None,
+                stylist_sum_before=None,
+                drift_amount=None,
+                drift_pct=None,
+                hypothesis=hypothesis,
+                action="alert_email_queued_for_dispatch",
+                human_review_required=True,
+            )
+        except Exception as exc:
+            logger.error(
+                "truth_mediation_log write failed for PARTIAL_WEEK: %s", exc,
+            )
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
@@ -1029,6 +1118,13 @@ def process_manifest(
             result["counts"]["parsed_with_flags"] += 1
         else:
             result["counts"]["parsed_ok"] += 1
+
+        # FINAL_SPEC §10 (Branch 3): write reconciliation events to the
+        # truth-mediation log for any flags that correspond to recognized
+        # event types. Currently handles PRODUCT_TOTAL_MISMATCH and
+        # PARTIAL_WEEK. Defensive: never raises.
+        if parsed is not None and flags:
+            _write_truth_mediation_events(parsed, flags, display_name)
 
         # FINAL_SPEC §6.1 collection: if this PDF carried a PARTIAL_WEEK
         # flag, capture the (location, week, unclosed_days) trio for the
