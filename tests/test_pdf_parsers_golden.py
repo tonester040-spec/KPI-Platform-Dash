@@ -355,7 +355,14 @@ GOLDEN_SU: List[Dict[str, Any]] = [
         "color_pct":        0.3250,
         "treatment_count":  21,
         "treatment_pct":    0.1419,
-        "flags":            ["PARTIAL_WEEK"],
+        # Two flags expected:
+        #   PARTIAL_WEEK             — unclosed day marker in the PDF
+        #   PRODUCT_TOTAL_MISMATCH   — Total Retail header ($534.50) ≠
+        #                               Top Product Lines TOTALS ($623.25),
+        #                               implemented in branch
+        #                               product-mismatch-detection-2026-05-26
+        #                               per FINAL_SPEC §6.2 + addendum §E.
+        "flags":            ["PARTIAL_WEEK", "PRODUCT_TOTAL_MISMATCH"],
     },
 ]
 
@@ -658,6 +665,88 @@ class TestKarissaCanonicalContracts(unittest.TestCase):
             k["total_sales"], k["service_net"] + k["product_net"], delta=MONEY_TOL,
             msg="total_sales must equal service_net + product_net (pre-tax). "
                 "If this drifts, someone is reading the 'Sales(Inc. Tax)' field.",
+        )
+
+
+class TestProductTotalMismatch(unittest.TestCase):
+    """
+    SU PDFs occasionally show a discrepancy between the Sales-block
+    "Total Retail" header and the "Top Product Lines" TOTALS row. Per
+    FINAL_SPEC v1.0.0 §6.2 (and v1.0.1 addendum §E), the header stays
+    canonical (product_net), but a PRODUCT_TOTAL_MISMATCH flag fires so
+    the trust layer can surface the discrepancy.
+
+    Lakeville is the canonical example:
+      Total Retail header:                 $534.50
+      Top Product Lines TOTALS row sales:  $623.25
+      Delta:                               $88.75 (header is lower)
+
+    Lakeville's PDF even prints the row's "% Sales" as 116.60% — that
+    percentage is computed against the header value (623.25 / 534.50),
+    which is the PDF telling us it knows there's a discrepancy.
+
+    Likely cause: header is post-refund, line items are pre-refund.
+    The parser does not speculate or correct — it just flags.
+
+    Apple Valley and Farmington both have header == TOTALS exactly, so
+    no flag should fire there. These act as no-false-positive guards.
+    """
+
+    LAKEVILLE_FIXTURE     = "7071b3_Lakeville.pdf"
+    APPLE_VALLEY_FIXTURE  = "c73c34_Apple Valley.pdf"
+    FARMINGTON_FIXTURE    = "3f7bca_Farmington.pdf"
+
+    def test_lakeville_emits_product_total_mismatch_flag(self):
+        parsed = su_parse_file(_fixture_path(self.LAKEVILLE_FIXTURE))
+        self.assertIn(
+            "PRODUCT_TOTAL_MISMATCH", parsed.get("flags", []),
+            "Lakeville header $534.50 ≠ Top Product Lines TOTALS $623.25 — "
+            "PRODUCT_TOTAL_MISMATCH flag must fire.",
+        )
+
+    def test_lakeville_product_net_remains_header_value(self):
+        # Per FINAL_SPEC §6.2: even when mismatch is detected, the header
+        # stays canonical. product_net MUST be $534.50, NOT $623.25.
+        parsed = su_parse_file(_fixture_path(self.LAKEVILLE_FIXTURE))
+        k = parsed["karissa"]
+        self.assertAlmostEqual(
+            k["product_net"], 534.50, delta=MONEY_TOL,
+            msg="product_net must stay at header value $534.50 even when "
+                "PRODUCT_TOTAL_MISMATCH fires — header is canonical per spec.",
+        )
+
+    def test_lakeville_raw_product_lines_sum_extracted(self):
+        parsed = su_parse_file(_fixture_path(self.LAKEVILLE_FIXTURE))
+        raw = parsed.get("raw", {})
+        self.assertAlmostEqual(
+            raw.get("product_lines_sum"), 623.25, delta=MONEY_TOL,
+            msg="Lakeville Top Product Lines TOTALS row should extract to $623.25.",
+        )
+
+    def test_apple_valley_no_mismatch_flag(self):
+        parsed = su_parse_file(_fixture_path(self.APPLE_VALLEY_FIXTURE))
+        self.assertNotIn(
+            "PRODUCT_TOTAL_MISMATCH", parsed.get("flags", []),
+            "Apple Valley header $2,112.00 equals TOTALS row exactly — "
+            "no flag should fire (no false positive).",
+        )
+
+    def test_farmington_no_mismatch_flag(self):
+        parsed = su_parse_file(_fixture_path(self.FARMINGTON_FIXTURE))
+        self.assertNotIn(
+            "PRODUCT_TOTAL_MISMATCH", parsed.get("flags", []),
+            "Farmington header $1,000.85 equals TOTALS row exactly — "
+            "no flag should fire (no false positive).",
+        )
+
+    def test_apple_valley_product_lines_sum_matches_header(self):
+        # Regression guard: if the regex ever breaks for the non-mismatch case
+        # (e.g., starts capturing the wrong number), this catches it.
+        parsed = su_parse_file(_fixture_path(self.APPLE_VALLEY_FIXTURE))
+        raw = parsed.get("raw", {})
+        self.assertAlmostEqual(
+            raw.get("product_lines_sum"), 2112.00, delta=MONEY_TOL,
+            msg="Apple Valley TOTALS row extraction should be $2,112.00.",
         )
 
 
