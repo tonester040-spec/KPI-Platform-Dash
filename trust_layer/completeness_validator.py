@@ -157,6 +157,11 @@ class CompletenessValidator:
         """
         Verify PDF service totals reconcile with Excel service total.
 
+        Spec alignment: this implements the cross-file reconciliation check
+        from FINAL_SPEC v1.0.0 §5 (PDF Parser Final Spec). The spec calls
+        this the "reconciliation engine"; see CLAUDE.md "Vocabulary Map"
+        for the terminology cross-reference.
+
         PDF wax+color+treatment is a SUBSET of Excel's total service revenue.
         If PDF subset > Excel total (beyond rounding) → data integrity issue.
         If PDF subset < 30% of Excel total → likely missing categories.

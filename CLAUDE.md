@@ -777,6 +777,31 @@ Chat        → AI assistant chat scoped per manager
 
 ---
 
+## Vocabulary Map — spec terminology ↔ existing modules
+
+The PDF Parser Final Spec v1.0.0 (LOCKED) uses some terminology that maps to existing code under different names. This table is the canonical translation. Created 2026-05-26 per PARSER_AUDIT_2026-05-26.md §6.2 and Tony's decision matrix Q2.
+
+| Spec term | Existing module / pattern | Notes |
+|---|---|---|
+| "Salon-level supremacy" (FINAL_SPEC §5) | `utils/data_merger.py` — Karissa-approved proportional distribution; salon-level PDF totals are sacred, stylist values are derived from them | Verified by KPI_AUDIT_REPORT_2026-04-20.md §4.1 |
+| "Reconciliation engine" / cross-file totals | `trust_layer/completeness_validator.py::_check_cross_file_totals` | Returns `CompletenessCheck` objects with severity scores |
+| "Same-week file verification" | `trust_layer/cross_file_verifier.py` | Hard-raises ValueError on location/period/system mismatch |
+| "Truth Mediation Log" (FINAL_SPEC §10) | **Hybrid (per Tony 2026-05-26):** in-memory = `trust_layer/severity.py::CompletenessCheck` + `IntegrityReporter`; on-disk JSON = `trust_layer/truth_mediation_log.py` serializer (follow-up branch) | See follow-up branch `truth-mediation-log-serializer-2026-05-XX` |
+| "Trust Layer flags" (general spec language) | (a) `trust_layer_flags[]` per record in `data/inbox/manifest.json`; (b) parser `FLAG_*` constants in `pdf_zenoti_v2.py` / `pdf_salon_ultimate_v2.py`; (c) Tier 2 flags in `tier2_pdf_batch.py` | Three layers — parser, orchestrator, manifest |
+| "Atomic batch processing" | `trust_layer/atomic_processor.py::AtomicProcessor` | Staging Phase 4 stubs in place |
+| "Stylist identity / canonical IDs" | `trust_layer/stylist_identity_resolver.py` | Phase 3B; Sheets I/O stubbed pending implementation |
+| "Chunked architecture" (FINAL_SPEC §8) | `ZenotiV2Parser.parse()` / `SalonUltimateV2Parser.parse()` orchestrating `_extract_raw_fields` → `_extract_service_categories` → `_extract_employees` → `_compute_karissa_kpis` | Conceptually chunked but not structurally gated; functional equivalence to spec's 4-chunk model |
+| "Unclosed-day detection" (FINAL_SPEC §6.1) | `parsers/pdf_common.py::detect_unclosed_days` + `PARTIAL_WEEK` parser flag | Detection only; alert hook + rerun workflow are follow-up branches |
+| "Color % = Color Net / Service Net" (FINAL_SPEC §3.2) | Implemented in both `pdf_zenoti_v2.py` and `pdf_salon_ultimate_v2.py` `_compute_karissa_kpis()` as of 2026-05-26 (was incorrectly using `total_sales` denominator prior) | See PARSER_AUDIT_2026-05-26.md §3 |
+| "Production hours" (FINAL_SPEC §6.6) Zenoti source | `pdf_zenoti_v2.py::_extract_production_hours_total` reads EMPLOYEE PERFORMANCE Total → PRODUCTION_HOURS column (field 4). HOURLY WORK extraction deleted 2026-05-26 (was buggy + spec-non-compliant) | See PARSER_AUDIT_2026-05-26.md §6.1 amendment |
+
+**Use this table when:**
+- Reading FINAL_SPEC and wondering "is that built? where?"
+- Writing new code — prefer existing module names, not spec vocabulary
+- Updating PARSER_SPEC_v1.0.1_ADDENDUM.md — cross-reference the modules here
+
+---
+
 ## Latest audit
 
 **2026-04-20 senior-level technical audit** — see `KPI_AUDIT_REPORT_2026-04-20.md` at repo root. 14 sections covering architecture, parsers, data merger, Sheets integration, trust layer, tests, production readiness. Verdict: SHIP-READY for Phase 1. Findings resolved same session:
