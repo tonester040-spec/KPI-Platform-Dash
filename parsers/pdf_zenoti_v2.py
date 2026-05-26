@@ -52,7 +52,7 @@ Karissa-canonical KPIs (from CLAUDE.md contract)
     wax_count     = Wax.qty + Waxing.qty (sum both if present)
     wax_pct       = wax_count / guest_count
     color_sales   = Color.sales
-    color_pct     = color_sales / total_sales  (revenue share, NOT penetration)
+    color_pct     = color_sales / service_net  (share of service revenue, per Karissa's master spreadsheet 2026-04-21)
     treatment_pct = Treatment.qty / guest_count (penetration)
 """
 
@@ -1108,8 +1108,8 @@ class ZenotiV2Parser:
             wax_pct = round(wax["qty"] / guest_count, 4)
             treatment_pct = round(treatment["qty"] / guest_count, 4)
 
-        if total_sales > 0:
-            color_pct = round(color["sales"] / total_sales, 4)
+        if service_net > 0:
+            color_pct = round(color["sales"] / service_net, 4)
 
         # Rebook % — Karissa uses the PDF's "Rebooked (%)" when available.
         # Returned as a fraction so consumers can format consistently.

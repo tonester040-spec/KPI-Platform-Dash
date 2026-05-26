@@ -243,7 +243,7 @@ def transform_to_current_row(
         E  total_sales         N  wax (sales)
         F  service             O  wax_pct (penetration)
         G  product             P  color (sales)
-        H  product_pct         Q  color_pct (revenue share!)
+        H  product_pct         Q  color_pct (share of service revenue)
         I  ppg                 R  treat_count
                                S  treat (sales)
                                T  treat_pct (penetration)
