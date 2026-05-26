@@ -465,15 +465,21 @@ def transform_to_stylist_rows(
 def _process_one_pdf(
     record: Dict[str, Any],
     location_lookup: Dict[str, Dict[str, str]],
-) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[str], Optional[str]]:
+) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[str], Optional[str], Optional[Dict[str, Any]]]:
     """
     Process a single manifest record (one attachment). Returns:
-        (row_dict_or_None, stylist_rows, trust_flags, resolved_location_name_or_None)
+        (row_dict_or_None, stylist_rows, trust_flags, resolved_location_name_or_None,
+         parsed_dict_or_None)
 
     `stylist_rows` is always a list — empty if parsing failed or the PDF had
     no employee table. The location row may be None while stylist_rows is
     non-empty in edge cases (shouldn't happen normally), so callers should
     treat them independently.
+
+    `parsed_dict_or_None` (5th element, added 2026-05-26 for Branch 2 /
+    FINAL_SPEC §6.1) is the parser's full output dict — used by
+    process_manifest to build PARTIAL_WEEK alert records without re-parsing.
+    It is `None` for any case where parsing didn't complete successfully.
 
     Never raises — all failure modes are captured as trust_layer_flags.
     """
@@ -483,7 +489,7 @@ def _process_one_pdf(
     if not inbox_path:
         flags.append(FLAG_PARSE_FAILED)
         logger.warning("Record has no inbox_path: %r", record.get("filename"))
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     # Normalize Windows-style backslashes to forward slashes. The Gmail
     # attachment watcher is run on Windows by Tony and serializes Windows
@@ -508,18 +514,18 @@ def _process_one_pdf(
     if not abs_path.exists():
         flags.append(FLAG_PARSE_FAILED)
         logger.error("PDF not found at %s", abs_path)
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     # ----- 1. Detect platform
     platform = detect_pos_from_file(str(abs_path))
     if platform is None:
         flags.append(FLAG_DETECT_FAILED)
         logger.error("pdf_detect returned None for %s", abs_path.name)
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
     if platform not in (ZENOTI, SALON_ULTIMATE):
         flags.append(FLAG_UNKNOWN_PLATFORM)
         logger.error("Unknown platform %r for %s", platform, abs_path.name)
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     # ----- 2. Route to parser
     try:
@@ -533,11 +539,11 @@ def _process_one_pdf(
             "Parser crashed on %s: %s\n%s",
             abs_path.name, exc, traceback.format_exc(),
         )
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     if parsed is None:
         flags.append(FLAG_PARSE_FAILED)
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     # Pass through any flags the parser itself raised
     parser_flags = parsed.get("flags") or []
@@ -548,7 +554,7 @@ def _process_one_pdf(
     if not raw_location:
         flags.append(FLAG_NO_LOCATION_RESOLVED)
         logger.error("Parser returned no canonical location for %s", abs_path.name)
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     lookup_hit = location_lookup.get(raw_location.lower())
     if not lookup_hit:
@@ -557,7 +563,7 @@ def _process_one_pdf(
             "Parsed location %r not found in customer config locations[]",
             raw_location,
         )
-        return None, stylist_rows, flags, None
+        return None, stylist_rows, flags, None, None
 
     display_name = lookup_hit["display"]
     loc_id = lookup_hit.get("id", "")
@@ -591,7 +597,7 @@ def _process_one_pdf(
         )
         stylist_rows = []
 
-    return row, stylist_rows, flags, display_name
+    return row, stylist_rows, flags, display_name, parsed
 
 
 # ---------------------------------------------------------------------------
@@ -983,12 +989,15 @@ def process_manifest(
     per_file_flags: Dict[str, List[str]] = {}
     processed_filenames: List[str] = []
     seen_locations: Dict[str, str] = {}  # display_name -> safe_filename
+    # FINAL_SPEC §6.1 (Branch 2): collect PARTIAL_WEEK alert records during
+    # the iteration; fire the alert email once after _update_manifest succeeds.
+    partial_week_records: List[Dict[str, Any]] = []
 
     for rec in ready_pdfs:
         safe = rec.get("safe_filename") or rec.get("filename") or "UNKNOWN"
         processed_filenames.append(safe)
 
-        row, stylist_rows, flags, display_name = _process_one_pdf(
+        row, stylist_rows, flags, display_name, parsed = _process_one_pdf(
             rec, location_lookup,
         )
 
@@ -1020,6 +1029,16 @@ def process_manifest(
             result["counts"]["parsed_with_flags"] += 1
         else:
             result["counts"]["parsed_ok"] += 1
+
+        # FINAL_SPEC §6.1 collection: if this PDF carried a PARTIAL_WEEK
+        # flag, capture the (location, week, unclosed_days) trio for the
+        # post-processing alert email.
+        if "PARTIAL_WEEK" in flags and parsed is not None:
+            partial_week_records.append({
+                "location":      display_name or parsed.get("location") or "(unknown)",
+                "week_ending":   parsed.get("week_end") or "(unknown)",
+                "unclosed_days": parsed.get("unclosed_days") or [],
+            })
 
     # ----- Merge with existing CURRENT + write
     written_ok = False
@@ -1068,6 +1087,28 @@ def process_manifest(
 
     # ----- Update manifest
     _update_manifest(manifest_path, per_file_flags, processed_filenames)
+
+    # ----- Send partial-week alert (FINAL_SPEC §6.1, Branch 2)
+    # Fires only when at least one location was flagged PARTIAL_WEEK. The
+    # alert function defensively handles placeholder recipients and SMTP
+    # failures, so this try/except is a defense-in-depth catch only.
+    if partial_week_records:
+        try:
+            from core.email_sender import send_partial_week_alert
+            inbox_config = _safe_load_json(
+                _REPO_ROOT / "config" / "inbox_config.json"
+            ) or {}
+            run_date = dt.datetime.utcnow().strftime("%Y-%m-%d")
+            send_partial_week_alert(
+                inbox_config=inbox_config,
+                partial_week_records=partial_week_records,
+                run_date=run_date,
+                dry_run=dry_run,
+            )
+        except Exception as exc:
+            logger.error(
+                "Partial-week alert dispatch failed (non-fatal): %s", exc,
+            )
 
     # ----- Determine status
     # Stylist write is a nice-to-have — a stylist-only failure degrades to

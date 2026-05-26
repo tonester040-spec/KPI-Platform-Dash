@@ -85,7 +85,7 @@ FINAL_SPEC v1.0.0 §1 and §13 reference "13 weekly PDFs" in passing. The §2 ta
 
 The following FINAL_SPEC items are real but deferred past 2026-05-26 launch readiness. Tracked for a future v1.1.0 base spec revision rather than addended in-flight:
 
-- **§6.1 unclosed-day automated rerun + leave-blank workflow** — detection + alert only built for v1.0 launch per Tony's decision; full automation deferred to Phase 1.1. Follow-up branch: `unclosed-day-alert-hook-2026-05-XX`.
+- **§6.1 unclosed-day workflow** — **Phase 1 (detection + alert) IMPLEMENTED** in branch `unclosed-day-alert-hook-2026-05-26`, commit `c73ecaa`. See new Section I below. Phase 1.1 (automated rerun + Mon-EOD blank-out) still deferred.
 - **§6.2 product line-item mismatch detection** — UNBUILT. Scoped to follow-up branch `product-mismatch-detection-2026-05-XX` per Tony's decision (build before launch, separate branch).
 - **§10 literal `truth_mediation_log.json` file** — hybrid build planned on follow-up branch `truth-mediation-log-serializer-2026-05-XX`; existing in-memory `CompletenessCheck` pattern continues in parallel.
 - **§11 single config.json** — current implementation splits across `config/inbox_config.json`, `config/zenoti_schema.json`, `config/salon_ultimate_schema.json`, `config/drift_config.json`. Decision: leave split, no v1.1.0 change planned (each file has a single clear concern).
@@ -111,6 +111,43 @@ Tracked in PARSER_AUDIT_2026-05-26.md §7. Not spec items per se, but blockers f
 4. `parsers/tier2_batch_processor.py` (legacy) needs rename → `.DEPRECATED.py` after parity verification
 
 Spawn-tasks pending. None impact spec correctness directly.
+
+---
+
+## Section I — Unclosed-day detection + alert (2026-05-26)
+
+**Source:** PARSER_AUDIT_2026-05-26.md §6.4 (Phase 1 resolved) + §12 Branch 2 completion record; FINAL_SPEC v1.0.0 §6.1; Karissa voice memo Round 1 Q7; Tony's Q3 decision matrix (2026-05-26 chat).
+
+FINAL_SPEC v1.0.0 §6.1 specifies that when a PDF contains an unclosed day, the system must alert Karissa immediately so she can decide whether to rerun the POS export. Per Karissa's voice memo Q7, this is a hard requirement for go-live.
+
+**Resolution — Phase 1 (2026-05-26 on branch `unclosed-day-alert-hook-2026-05-26`):**
+
+- Detection already existed (`parsers/pdf_common.py::detect_unclosed_days` + `PARTIAL_WEEK` parser flag).
+- New alert hook: `core/email_sender.py::send_partial_week_alert()`. Same SMTP plumbing, same `[REPLACE` placeholder filter, same try/except discipline as `send_inbox_notification`.
+- New HTML body builder: `_build_partial_week_alert_html()`. Mobile-readable.
+- `parsers/tier2_pdf_batch.py::_process_one_pdf` extended to return a 5-tuple (added `parsed` dict) so the orchestrator can extract `unclosed_days` without re-parsing.
+- `process_manifest` collects records during the per-PDF loop and fires the alert once after `_update_manifest` succeeds.
+- 7 new tests in `TestPartialWeekAlert` — all SMTP-mocked, no network calls.
+
+**Lakeville is the canonical real-world fixture** — the golden test already asserts the `PARTIAL_WEEK` flag fires for the 2026-04-05 week.
+
+**Defensive recipient handling:** if `config/inbox_config.json::notification_recipients` contains only `[REPLACE_BEFORE_GO_LIVE]` placeholders, the alert function logs WARN and skips the email send. This is the current state (pre-go-live) — the alert code is correct today and starts firing the moment Karissa's real email is added to the config.
+
+**Production impact:** None. Pipeline still dormant (CURRENT tab empty, awaiting OAuth refresh + fresh-PDF validation).
+
+**Phase 1.1 — explicitly deferred:**
+
+- Automated rerun-request workflow (today's alert is one-way; rerun is manual)
+- Auto-blank-out-by-Mon-EOD (today: parse what we have, flag PARTIAL_WEEK, dashboard surfaces the flag)
+- Alert retry on SMTP failure
+- Cross-run alert deduplication
+
+These will move from "deferred" to "implemented" if/when Karissa's operational experience surfaces a real need.
+
+**Cross-references:**
+- Vocabulary Map (CLAUDE.md): "Unclosed-day detection + alert" row updated to add the alert hook.
+- Section E above: entry status flipped from "detection + alert only built for v1.0 launch" to "Phase 1 IMPLEMENTED in commit `c73ecaa`".
+- Branch 3 (`truth-mediation-log-serializer`) will wire `PARTIAL_WEEK` alert events into `data/logs/truth_mediation_log.json` per FINAL_SPEC §10.
 
 ---
 
