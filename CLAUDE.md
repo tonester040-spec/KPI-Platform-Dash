@@ -274,6 +274,8 @@ Source of truth: `config/customers/karissa_001.json`
 | `STYLISTS_DATA`   | Historical stylist data (append ledger)                    |
 | `WEEKLY_DATA`     | Weekly aggregates                                          |
 | `WEEK_ENDING`     | Manual reference tab — **not read by pipeline code** (pipeline reads week_ending from row data in CURRENT/DATA tabs) |
+| `DATA_MONTHLY`    | **Monthly grain historical backfill.** 23 cols A-W keyed by `(loc_name, year_month)`. Mirrors DATA's KPIs plus `source` / `period_start` / `period_end` provenance. Append-only, idempotent. Populated for backfill (Mar/Apr/May 2026) and intended to back YOY / MTD / pacing features. **Not read by the weekly pipeline** — exists in parallel to DATA, never to replace it. Auto-created by `core/sheets_writer.py::_ensure_data_monthly_tab()` on first write. |
+| `STYLISTS_DATA_MONTHLY` | **Monthly stylist roster historical backfill.** 16 cols A-P keyed by `(year_month, name, loc_name)`. Append-only, idempotent. Auto-created. Source column distinguishes `zenoti_xlsx` (March, from Employee KPI .xlsx exports), `zenoti_monthly_pdf`, and `su_monthly_pdf` (April/May, from monthly POS PDFs). |
 
 **Data flow:** Karissa's team enters current week data into CURRENT tab manually. The pipeline reads CURRENT (current week) + DATA (location history) + STYLISTS_DATA (stylist history), enriches everything, then writes back to CURRENT + STYLISTS_CURRENT + ALERTS, and appends to DATA + STYLISTS_DATA.
 
@@ -445,6 +447,63 @@ The app is installable on iPhone (Add to Home Screen). Components:
 - **Voice profile** — `build_profile.py` and `voice_profile.py` are written and wired in. Awaiting Karissa's sample emails to be placed in `voice/samples/` and `build_profile.py` run once.
 - **Manager coach card emails** — `send_manager_coach_cards()` is built and wired into `main.py` Step 7b. Awaiting Tony to fill in real email addresses for Jess and Jenn in `config/customers/karissa_001.json` → `managers[].email`. Currently empty strings — coach cards generate but emails silently skip.
 - **Manager coach cards (pipeline)** — `core/ai_coach_cards.py` is built and wired into `main.py` Steps 4b and 5. Coach card JSON is injected into `COACH_CARD_DATA` in jess.html / jenn.html on every Monday pipeline run. Coach briefs also written to ALERTS!A100 (JESS_BRIEF) and ALERTS!A101 (JENN_BRIEF).
+
+## Historical backfill — `scripts/backfill/`
+
+One-off loaders that populate **DATA_MONTHLY** and **STYLISTS_DATA_MONTHLY** from 3 months of Karissa's pre-pipeline POS data (Mar/Apr/May 2026). Built 2026-05-26, branch `backfill-data-monthly-2026-05-26`.
+
+### Why monthly tabs (and not weekly DATA)
+
+The original goal was weekly backfill, but the data shape forced a redesign:
+
+- **March:** Karissa's tracker `March 2026.xlsx` has 5 weekly tabs, but they are **cumulative MTD** (Week 5 = full March), not independent weekly snapshots. Only Week 1 is cleanly weekly-derivable. Week 2 is empty, Week 4 has a column shift, Week 5 = full month.
+- **April/May:** Only monthly POS Salon Dashboard PDFs are available — no weekly source exists for those months.
+
+Bending the weekly DATA tab to hold monthly rows would silently break every downstream consumer that assumes 7-day grain (projection_eom math, WoW deltas, the Monday pipeline append path). So backfill writes to a **parallel** DATA_MONTHLY tab, leaving DATA untouched for the live pipeline to grow organically.
+
+### Modules
+
+| File | Purpose |
+|------|---------|
+| `scripts/backfill/tracker_loader.py` | Reads Karissa's tracker Week 5 tab → 12 March DATA_MONTHLY rows |
+| `scripts/backfill/zenoti_xlsx_loader.py` | Reads 9 Zenoti Employee KPI .xlsxes from March folder. (a) Cross-validates against tracker (Δ must be ≤ $0.01 on service+product). (b) Emits active March stylist roster |
+| `scripts/backfill/monthly_pdf_loader.py` | Wraps existing `pdf_zenoti_v2` / `pdf_salon_ultimate_v2` parsers for April/May monthly PDFs. Verified Δ$0.00 reconciliation on 11/12 April PDFs and 12/12 May PDFs (Prior Lake April has a known $34 stylist-sum anomaly requiring `--accept`) |
+| `scripts/backfill/render_review.py` | Pretty-prints per-location KPI tables + validation summaries for dry-run human review |
+| `scripts/backfill/run_batch.py` | CLI orchestrator with `--dry-run` / `--write` / `--accept "LOC:CODE"` flags |
+
+### Usage
+
+Local-dev: requires `GOOGLE_SERVICE_ACCOUNT_JSON` (base64) exported in shell. The CLI tries `python-dotenv` automatically; `.env` may also supply it (must be the base64 string, not a file path).
+
+```bash
+# Dry-run March (loads tracker + xlsx cross-validation, prints diff)
+python -m scripts.backfill.run_batch --month 2026-03 --dry-run
+
+# Write March (12 location rows + 93 stylist rows)
+python -m scripts.backfill.run_batch --month 2026-03 --write
+
+# Write April (12 location + 143 stylist rows) — accept known Prior Lake $34 stylist-sum anomaly
+python -m scripts.backfill.run_batch --month 2026-04 --write --accept "Prior Lake:STYLIST_SUM_MISMATCH"
+
+# Write May partial month 5/1-5/24 (12 location + 144 stylist rows)
+python -m scripts.backfill.run_batch --month 2026-05 --write
+```
+
+### Safety contract
+
+- **Dry-run is default.** `--write` is required to actually call Sheets API.
+- **Error severity blocks writes** unless explicitly `--accept`ed by `LOC:CODE`.
+- **Idempotent.** Re-running is safe — existing `(loc_name, year_month)` or `(year_month, name, loc_name)` rows are skipped.
+- **Parsers untouched.** All May-26 parser fixes preserved.
+- **No SU March stylist data loaded.** The 3 `Stylist_Tracking_Report (NN).xls` files (real Excel 97-2003) remain on disk un-processed pending future need; would require adding `xlrd<2` dependency.
+
+### What's NOT backfilled
+
+- Weekly DATA rows for March/April/May (no clean weekly source for the latter two; tracker is cumulative for the former)
+- Weekly STYLISTS_DATA rows for any backfill month (same reason)
+- SU March stylist roster (skipped pending xlrd<2 dependency decision)
+
+These weekly tabs populate organically starting with the first Monday post-go-live.
 
 ## What's paused / future state
 
