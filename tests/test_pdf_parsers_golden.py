@@ -52,6 +52,11 @@ from parsers.tier2_pdf_batch import (
     _build_location_lookup,
     _load_customer_config,
 )
+# Branch 2 (FINAL_SPEC §6.1, addendum §I) — partial-week alert
+from core.email_sender import (
+    _build_partial_week_alert_html,
+    send_partial_week_alert,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -659,6 +664,133 @@ class TestKarissaCanonicalContracts(unittest.TestCase):
             msg="total_sales must equal service_net + product_net (pre-tax). "
                 "If this drifts, someone is reading the 'Sales(Inc. Tax)' field.",
         )
+
+
+class TestPartialWeekAlert(unittest.TestCase):
+    """
+    SU PDFs may contain an "unclosed day" marker, which the parser surfaces
+    via the PARTIAL_WEEK flag. Per FINAL_SPEC v1.0.0 §6.1 (and v1.0.1
+    addendum §I, Branch 2 implementation): Tier 2 fires an alert email so
+    Karissa+Elaina can decide whether to rerun the POS export.
+
+    The alert function defensively handles the case where the inbox_config
+    still has placeholder recipients (pre-go-live), and handles SMTP
+    failures without crashing the pipeline. These tests cover those paths
+    using mocked SMTP — no network calls.
+    """
+
+    SAMPLE_RECORDS = [{
+        "location": "Lakeville",
+        "week_ending": "2026-04-05",
+        "unclosed_days": ["2026-04-04"],
+    }]
+
+    def test_alert_skips_silently_when_no_records(self):
+        """Empty input → no SMTP call. Function should just return."""
+        from unittest.mock import patch
+        import core.email_sender as es
+        with patch.object(es.smtplib, "SMTP") as mock_smtp:
+            send_partial_week_alert(
+                inbox_config={"notification_recipients": ["real@example.com"]},
+                partial_week_records=[],
+                run_date="2026-05-26",
+            )
+            mock_smtp.assert_not_called()
+
+    def test_alert_skips_when_only_placeholder_recipients(self):
+        """All recipients are placeholders → no SMTP call (logs WARN)."""
+        from unittest.mock import patch
+        import core.email_sender as es
+        with patch.object(es.smtplib, "SMTP") as mock_smtp:
+            send_partial_week_alert(
+                inbox_config={"notification_recipients": [
+                    "karissa@[REPLACE_BEFORE_GO_LIVE]",
+                    "operator@[REPLACE_BEFORE_GO_LIVE]",
+                ]},
+                partial_week_records=self.SAMPLE_RECORDS,
+                run_date="2026-05-26",
+            )
+            mock_smtp.assert_not_called()
+
+    def test_alert_filters_placeholder_and_keeps_real_recipients(self):
+        """Mixed recipients → SMTP called with only the real ones."""
+        from unittest.mock import patch
+        import core.email_sender as es
+        with patch.dict(os.environ, {
+            "GMAIL_APP_PASSWORD": "fake-app-password",
+            "GMAIL_SENDER": "kpi-bot@example.com",
+        }):
+            with patch.object(es.smtplib, "SMTP") as mock_smtp:
+                mock_instance = mock_smtp.return_value.__enter__.return_value
+                send_partial_week_alert(
+                    inbox_config={"notification_recipients": [
+                        "real@example.com",
+                        "karissa@[REPLACE_BEFORE_GO_LIVE]",
+                    ]},
+                    partial_week_records=self.SAMPLE_RECORDS,
+                    run_date="2026-05-26",
+                )
+                mock_smtp.assert_called_once()
+                self.assertTrue(mock_instance.sendmail.called)
+                call_args = mock_instance.sendmail.call_args
+                # sendmail signature: (from_addr, to_addrs, msg)
+                _, recipients_arg, _ = call_args[0]
+                self.assertEqual(recipients_arg, ["real@example.com"])
+
+    def test_alert_body_contains_location_week_and_unclosed_days(self):
+        """HTML body must include Lakeville, the week date, and the unclosed-day date."""
+        html = _build_partial_week_alert_html(self.SAMPLE_RECORDS, "2026-05-26")
+        self.assertIn("Lakeville", html)
+        self.assertIn("2026-04-05", html)
+        self.assertIn("2026-04-04", html)
+        self.assertIn("PARTIAL_WEEK", html)
+        # Sanity: must include the subject-conveying header phrase
+        self.assertIn("Partial Week Detected", html)
+
+    def test_alert_smtp_failure_does_not_raise(self):
+        """SMTP raises → function logs and returns cleanly."""
+        from unittest.mock import patch
+        import core.email_sender as es
+        import smtplib
+        with patch.dict(os.environ, {
+            "GMAIL_APP_PASSWORD": "fake-app-password",
+            "GMAIL_SENDER": "kpi-bot@example.com",
+        }):
+            with patch.object(es.smtplib, "SMTP") as mock_smtp:
+                mock_smtp.side_effect = smtplib.SMTPException("simulated SMTP failure")
+                # Should NOT raise — pipeline never crashes on alert failure.
+                send_partial_week_alert(
+                    inbox_config={"notification_recipients": ["real@example.com"]},
+                    partial_week_records=self.SAMPLE_RECORDS,
+                    run_date="2026-05-26",
+                )
+
+    def test_alert_dry_run_does_not_call_smtp(self):
+        """dry_run=True → no SMTP call regardless of recipient state."""
+        from unittest.mock import patch
+        import core.email_sender as es
+        with patch.object(es.smtplib, "SMTP") as mock_smtp:
+            send_partial_week_alert(
+                inbox_config={"notification_recipients": ["real@example.com"]},
+                partial_week_records=self.SAMPLE_RECORDS,
+                run_date="2026-05-26",
+                dry_run=True,
+            )
+            mock_smtp.assert_not_called()
+
+    def test_alert_html_handles_multiple_records(self):
+        """HTML body must render multiple location records."""
+        multi = [
+            {"location": "Lakeville",   "week_ending": "2026-04-05",
+             "unclosed_days": ["2026-04-04"]},
+            {"location": "Apple Valley", "week_ending": "2026-04-05",
+             "unclosed_days": ["2026-04-03", "2026-04-04"]},
+        ]
+        html = _build_partial_week_alert_html(multi, "2026-05-26")
+        self.assertIn("Lakeville", html)
+        self.assertIn("Apple Valley", html)
+        self.assertIn("2026-04-03", html)
+        self.assertIn("2026-04-04", html)
 
 
 # ---------------------------------------------------------------------------

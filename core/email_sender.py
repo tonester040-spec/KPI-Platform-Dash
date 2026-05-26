@@ -608,6 +608,151 @@ def send_inbox_notification(
         log.error("Inbox notification email failed: %s", exc)
 
 
+def _build_partial_week_alert_html(
+    partial_week_records: list[dict],
+    run_date: str,
+) -> str:
+    """Build the HTML body for a partial-week alert email.
+
+    `partial_week_records` is a list of dicts:
+        [{"location": "Lakeville", "week_ending": "2026-04-05",
+          "unclosed_days": ["2026-04-04"]}, ...]
+    """
+    if not partial_week_records:
+        rows = (
+            '<tr><td colspan="3" style="padding:12px;color:#7A8BA0;">'
+            'No location-level details available.'
+            '</td></tr>'
+        )
+    else:
+        rows = ""
+        for r in partial_week_records:
+            days = r.get("unclosed_days") or []
+            days_str = ", ".join(days) if days else "(unspecified)"
+            rows += f"""
+            <tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #E8ECF0;font-weight:600;">{r.get('location','(unknown)')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #E8ECF0;">{r.get('week_ending','(unknown)')}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #E8ECF0;color:#B45309;">{days_str}</td>
+            </tr>"""
+
+    return f"""<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;color:#333;max-width:680px;margin:0 auto;">
+  <div style="background:#B45309;color:#fff;padding:16px 20px;border-radius:6px 6px 0 0;">
+    <div style="font-size:18px;font-weight:700;">⚠️ KPI — Partial Week Detected</div>
+    <div style="font-size:13px;opacity:0.9;margin-top:4px;">Run date: {run_date}</div>
+  </div>
+  <div style="border:1px solid #FDE68A;border-top:none;padding:20px;border-radius:0 0 6px 6px;">
+    <p style="margin-top:0;">One or more locations submitted a POS export with at least one unclosed day. The parsed totals reflect only the closed days, so the affected locations will display reduced numbers until corrected.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#F9FAFB;">
+          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;">Location</th>
+          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;">Week ending</th>
+          <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #E8ECF0;">Unclosed day(s)</th>
+        </tr>
+      </thead>
+      <tbody>{rows}</tbody>
+    </table>
+    <p style="margin-top:20px;font-size:13px;color:#374151;">
+      <strong>What to do:</strong> For each location above, either<br/>
+      &nbsp;&nbsp;(a) Re-run the POS export after closing the day(s), then forward the new PDF to the inbox — the next pipeline run will pick it up, OR<br/>
+      &nbsp;&nbsp;(b) Accept the partial values for this week. They'll appear on the dashboard tagged <code>PARTIAL_WEEK</code>.
+    </p>
+    <p style="margin-top:12px;font-size:11px;color:#7A8BA0;">
+      Automatic alert fired by the KPI Platform's Tier 2 batch processor when a Salon Ultimate weekly export contains an "unclosed day" marker. (FINAL_SPEC §6.1 detection. Phase 1.1 will add automated rerun-request and Mon-EOD blank-out workflows.)
+    </p>
+  </div>
+</body></html>"""
+
+
+def send_partial_week_alert(
+    inbox_config: dict,
+    partial_week_records: list[dict],
+    run_date: str,
+    dry_run: bool = False,
+) -> None:
+    """
+    Send a partial-week alert email when one or more locations submitted a
+    POS export with an unclosed day. Per FINAL_SPEC §6.1 (and v1.0.1
+    addendum §I, Branch 2 implementation): detection + alert is required
+    for go-live; the automated rerun + leave-blank workflow stays as
+    Phase 1.1.
+
+    `partial_week_records` is a list of dicts:
+        [{"location": "Lakeville", "week_ending": "2026-04-05",
+          "unclosed_days": ["2026-04-04"]}, ...]
+
+    Behavior:
+        - Empty list → log info, return (no email).
+        - Placeholder-only recipients (e.g. config has only
+          "karissa@[REPLACE_BEFORE_GO_LIVE]") → log WARN, return cleanly.
+          The PARTIAL_WEEK info is still in Tier 2's run log.
+        - SMTP failure → log error, return cleanly. Never raises.
+
+    Mirrors the structure of send_inbox_notification — same SMTP plumbing
+    and the same recipient placeholder filter pattern.
+    """
+    if not partial_week_records:
+        log.info("send_partial_week_alert — no partial-week records; skipping email")
+        return
+
+    recipients = inbox_config.get("notification_recipients", [])
+    # Same placeholder filter as send_inbox_notification
+    recipients = [r for r in recipients if "[REPLACE" not in r]
+
+    if not recipients:
+        log.warning(
+            "send_partial_week_alert — no real recipients after placeholder filter "
+            "(%d records held back). Update config/inbox_config.json before go-live. "
+            "Partial-week info is still in Tier 2's run log.",
+            len(partial_week_records),
+        )
+        return
+
+    subject = f"⚠️ KPI — Partial Week Detected ({run_date})"
+    html_body = _build_partial_week_alert_html(partial_week_records, run_date)
+
+    if dry_run:
+        log.info(
+            "DRY RUN: Would send partial-week alert to %s (%d records)",
+            recipients, len(partial_week_records),
+        )
+        log.info("DRY RUN: Subject: %s", subject)
+        return
+
+    app_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip()
+    sender_email = os.environ.get("GMAIL_SENDER", "").strip()
+
+    if not app_password or not sender_email:
+        log.warning(
+            "GMAIL_APP_PASSWORD or GMAIL_SENDER not set — skipping partial-week alert. "
+            "Tier 2 run log still contains the per-file PARTIAL_WEEK flags."
+        )
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = sender_email
+    msg["To"]      = ", ".join(recipients)
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(sender_email, app_password)
+            smtp.sendmail(sender_email, recipients, msg.as_string())
+        log.info(
+            "Partial-week alert sent to %d recipient(s) for %d location(s)",
+            len(recipients), len(partial_week_records),
+        )
+    except smtplib.SMTPAuthenticationError:
+        log.error("Gmail authentication failed sending partial-week alert.")
+    except Exception as exc:
+        log.error("Partial-week alert email failed: %s", exc)
+
+
 def send_manager_coach_cards(
     config: dict,
     coach_cards: dict,
