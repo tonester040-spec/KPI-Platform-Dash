@@ -86,7 +86,7 @@ FINAL_SPEC v1.0.0 §1 and §13 reference "13 weekly PDFs" in passing. The §2 ta
 The following FINAL_SPEC items are real but deferred past 2026-05-26 launch readiness. Tracked for a future v1.1.0 base spec revision rather than addended in-flight:
 
 - **§6.1 unclosed-day automated rerun + leave-blank workflow** — detection + alert only built for v1.0 launch per Tony's decision; full automation deferred to Phase 1.1. Follow-up branch: `unclosed-day-alert-hook-2026-05-XX`.
-- **§6.2 product line-item mismatch detection** — UNBUILT. Scoped to follow-up branch `product-mismatch-detection-2026-05-XX` per Tony's decision (build before launch, separate branch).
+- **§6.2 product line-item mismatch detection** — **IMPLEMENTED** in branch `product-mismatch-detection-2026-05-26`, commit `d5dbd4c`. See new Section H below.
 - **§10 literal `truth_mediation_log.json` file** — hybrid build planned on follow-up branch `truth-mediation-log-serializer-2026-05-XX`; existing in-memory `CompletenessCheck` pattern continues in parallel.
 - **§11 single config.json** — current implementation splits across `config/inbox_config.json`, `config/zenoti_schema.json`, `config/salon_ultimate_schema.json`, `config/drift_config.json`. Decision: leave split, no v1.1.0 change planned (each file has a single clear concern).
 - **§8 chunked architecture (4 explicit chunks)** — current parsers are functionally chunked but not structurally gated. Decision: leave as-is unless future test surface area justifies the refactor cost.
@@ -111,6 +111,36 @@ Tracked in PARSER_AUDIT_2026-05-26.md §7. Not spec items per se, but blockers f
 4. `parsers/tier2_batch_processor.py` (legacy) needs rename → `.DEPRECATED.py` after parity verification
 
 Spawn-tasks pending. None impact spec correctness directly.
+
+---
+
+## Section H — Product header vs detail mismatch detection (2026-05-26)
+
+**Source:** PARSER_AUDIT_2026-05-26.md §6.3 (resolved) + Branch 1 completion record in §12; FINAL_SPEC v1.0.0 §6.2; Tony's Branch 1 decision matrix (2026-05-26 chat).
+
+FINAL_SPEC v1.0.0 §6.2 specifies that SU PDFs occasionally show a discrepancy between the Sales-block "Total Retail" header and the "Top Product Lines" detail table, and that:
+
+1. The header stays canonical (`product_net`).
+2. The line-item sum is a cross-check.
+3. A flag fires when they disagree by more than the rounding tolerance.
+
+**Resolution (2026-05-26 on branch `product-mismatch-detection-2026-05-26`):**
+
+- New regex `_RE_PRODUCT_LINES_TOTALS` in `parsers/pdf_salon_ultimate_v2.py` extracts the existing PDF-provided TOTALS row sales value (no need to re-sum line items — the PDF computes it).
+- New flag `FLAG_PRODUCT_TOTAL_MISMATCH = "PRODUCT_TOTAL_MISMATCH"` fires from `_compute_karissa_kpis()` when `|product_net - product_lines_sum| > $0.01`.
+- `product_net` continues to be the header value (`raw["total_retail"]`) per spec — even when mismatch is detected.
+- 6 new tests in `TestProductTotalMismatch` covering Lakeville (positive case, where the mismatch lives) plus Apple Valley and Farmington (negative cases, no false positives).
+
+**Lakeville is the canonical real-world example:** header $534.50 vs TOTALS row $623.25 (delta $88.75, likely refund timing — header post-refund, line items pre-refund). The PDF prints the TOTALS row's "% Sales" as 116.60% (= 623.25 / 534.50), itself a signal of the discrepancy.
+
+**Tolerance:** $0.01 — matches FINAL_SPEC §7 rounding tier and the parser's existing `TOTAL_SALES_MISMATCH` threshold.
+
+**Production impact:** None. Pipeline still dormant. When the pipeline goes live (Branch 4 — `tier2-go-live-activation`), Lakeville will display $534.50 as `product_net` and the trust layer will see `PRODUCT_TOTAL_MISMATCH` in the manifest's `trust_layer_flags`, available for downstream surfacing.
+
+**Cross-references:**
+- Vocabulary Map (CLAUDE.md): new row added for "Product header vs detail mismatch detection (FINAL_SPEC §6.2)".
+- Section E above: entry status flipped from "UNBUILT" to "IMPLEMENTED in commit `d5dbd4c`".
+- Branch 3 (`truth-mediation-log-serializer`) will wire `PRODUCT_TOTAL_MISMATCH` events into `data/logs/truth_mediation_log.json` per FINAL_SPEC §10.
 
 ---
 

@@ -794,6 +794,7 @@ The PDF Parser Final Spec v1.0.0 (LOCKED) uses some terminology that maps to exi
 | "Unclosed-day detection" (FINAL_SPEC §6.1) | `parsers/pdf_common.py::detect_unclosed_days` + `PARTIAL_WEEK` parser flag | Detection only; alert hook + rerun workflow are follow-up branches |
 | "Color % = Color Net / Service Net" (FINAL_SPEC §3.2) | Implemented in both `pdf_zenoti_v2.py` and `pdf_salon_ultimate_v2.py` `_compute_karissa_kpis()` as of 2026-05-26 (was incorrectly using `total_sales` denominator prior) | See PARSER_AUDIT_2026-05-26.md §3 |
 | "Production hours" (FINAL_SPEC §6.6) Zenoti source | `pdf_zenoti_v2.py::_extract_production_hours_total` reads EMPLOYEE PERFORMANCE Total → PRODUCTION_HOURS column (field 4). HOURLY WORK extraction deleted 2026-05-26 (was buggy + spec-non-compliant) | See PARSER_AUDIT_2026-05-26.md §6.1 amendment |
+| "Product header vs detail mismatch detection" (FINAL_SPEC §6.2) | `pdf_salon_ultimate_v2.py::_RE_PRODUCT_LINES_TOTALS` + `FLAG_PRODUCT_TOTAL_MISMATCH`. Compares Sales-block `Total Retail` header vs Top Product Lines TOTALS row. Header stays canonical `product_net` per spec; flag fires on mismatch | Implemented 2026-05-26 in branch `product-mismatch-detection-2026-05-26`. Lakeville is the canonical test case (header $534.50 vs TOTALS $623.25). See PARSER_SPEC_v1.0.1_ADDENDUM.md §H |
 
 **Use this table when:**
 - Reading FINAL_SPEC and wondering "is that built? where?"
