@@ -405,6 +405,260 @@ def append_to_stylists_historical(
     )
 
 
+# ─── DATA_MONTHLY tab (historical backfill, monthly grain) ────────────────────
+#
+# DATA_MONTHLY parallels DATA at monthly grain. It exists so backfill / YOY /
+# MTD pacing features have history without polluting weekly-grain consumers
+# (projection_eom math, WoW deltas, the Monday pipeline append path).
+#
+# Idempotency key is (loc_name, year_month). Schema mirrors DATA except
+# `week_ending` is replaced by `year_month`, and three provenance columns
+# are appended:
+#     U source        — "tracker" | "zenoti_monthly_pdf" | "su_monthly_pdf"
+#     V period_start  — actual YYYY-MM-DD start date covered
+#     W period_end    — actual YYYY-MM-DD end date covered (may be < last
+#                       day of month for partial months like May 2026 5/1-5/24)
+
+DATA_MONTHLY_HEADERS = [
+    "loc_name", "year_month", "platform",
+    "guests", "total_sales", "service", "product", "product_pct",
+    "ppg", "pph", "avg_ticket", "prod_hours",
+    "wax_count", "wax", "wax_pct",
+    "color", "color_pct",
+    "treat_count", "treat", "treat_pct",
+    "source", "period_start", "period_end",
+]
+
+
+def _ensure_data_monthly_tab(service, sheet_id: str) -> None:
+    """Create DATA_MONTHLY with a header row if the tab doesn't exist."""
+    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing_titles = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if "DATA_MONTHLY" in existing_titles:
+        return
+
+    log.info("DATA_MONTHLY tab not found — creating with header row")
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"addSheet": {"properties": {"title": "DATA_MONTHLY"}}}]},
+    ).execute()
+    service.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range="DATA_MONTHLY!A1:W1",
+        valueInputOption="USER_ENTERED",
+        body={"values": [DATA_MONTHLY_HEADERS]},
+    ).execute()
+
+
+def append_to_data_monthly(
+    service,
+    config: dict,
+    rows: list[dict],
+    dry_run: bool = False,
+):
+    """Append monthly aggregate rows to DATA_MONTHLY (idempotent on loc_name+year_month).
+
+    Each row dict supplies the 23 fields named in ``DATA_MONTHLY_HEADERS``.
+    Missing fields default to "" for strings and 0 for numerics.
+
+    Reads DATA_MONTHLY!A2:B to find existing (loc_name, year_month) keys and
+    skips rows whose key is already present — safe to re-run on the same
+    month.
+    """
+    if not rows:
+        log.info("append_to_data_monthly: no rows — skipping")
+        return
+
+    year_months = sorted({r.get("year_month", "") for r in rows if r.get("year_month")})
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_data_monthly — would append %d rows for year_months=%s",
+            len(rows), year_months,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    _ensure_data_monthly_tab(service, sheet_id)
+
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="DATA_MONTHLY!A2:B",
+    ).execute()
+    existing_keys = {
+        (r[0], r[1]) for r in existing.get("values", []) if len(r) >= 2
+    }
+
+    new_rows = []
+    for r in rows:
+        key = (r.get("loc_name", ""), r.get("year_month", ""))
+        if key in existing_keys:
+            log.info(
+                "append_to_data_monthly: skipping existing (loc=%s, year_month=%s)",
+                key[0], key[1],
+            )
+            continue
+        new_rows.append([
+            r.get("loc_name", ""),
+            r.get("year_month", ""),
+            r.get("platform", ""),
+            r.get("guests", 0),
+            r.get("total_sales", 0),
+            r.get("service", 0),
+            r.get("product", 0),
+            r.get("product_pct", 0),
+            r.get("ppg", 0),
+            r.get("pph", 0),
+            r.get("avg_ticket", 0),
+            r.get("prod_hours", 0),
+            r.get("wax_count", 0),
+            r.get("wax", 0),
+            r.get("wax_pct", 0),
+            r.get("color", 0),
+            r.get("color_pct", 0),
+            r.get("treat_count", 0),
+            r.get("treat", 0),
+            r.get("treat_pct", 0),
+            r.get("source", ""),
+            r.get("period_start", ""),
+            r.get("period_end", ""),
+        ])
+
+    if not new_rows:
+        log.info("append_to_data_monthly: all rows already present — nothing to write")
+        return
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="DATA_MONTHLY!A2:W",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": new_rows},
+    ).execute()
+
+    log.info(
+        "DATA_MONTHLY tab: appended %d location-month rows (year_months=%s)",
+        len(new_rows), year_months,
+    )
+
+
+# ─── STYLISTS_DATA_MONTHLY tab (historical backfill, monthly stylist grain) ───
+#
+# Mirrors DATA_MONTHLY but at stylist grain. Idempotency key is
+# (year_month, name, loc_name) — three columns. Same dry-run + auto-create
+# semantics as append_to_data_monthly.
+#
+# Fields that aren't supplied by all sources (e.g. SU PDFs don't have
+# per-stylist invoices count, Zenoti xlsxes don't have production_hours)
+# default to 0 or "". The `source` column records provenance.
+
+STYLISTS_DATA_MONTHLY_HEADERS = [
+    "year_month", "name", "loc_name", "loc_id", "platform",
+    "invoices", "guests", "net_service", "net_product",
+    "avg_ticket", "pph", "ppg", "production_hours",
+    "source", "period_start", "period_end",
+]
+
+
+def _ensure_stylists_data_monthly_tab(service, sheet_id: str) -> None:
+    """Create STYLISTS_DATA_MONTHLY with a header row if the tab is missing."""
+    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing_titles = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if "STYLISTS_DATA_MONTHLY" in existing_titles:
+        return
+
+    log.info("STYLISTS_DATA_MONTHLY tab not found — creating with header row")
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"addSheet": {"properties": {"title": "STYLISTS_DATA_MONTHLY"}}}]},
+    ).execute()
+    service.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_DATA_MONTHLY!A1:P1",
+        valueInputOption="USER_ENTERED",
+        body={"values": [STYLISTS_DATA_MONTHLY_HEADERS]},
+    ).execute()
+
+
+def append_to_stylists_data_monthly(
+    service,
+    config: dict,
+    rows: list[dict],
+    dry_run: bool = False,
+):
+    """Append stylist-monthly rows. Idempotent on (year_month, name, loc_name)."""
+    if not rows:
+        log.info("append_to_stylists_data_monthly: no rows — skipping")
+        return
+
+    year_months = sorted({r.get("year_month", "") for r in rows if r.get("year_month")})
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_stylists_data_monthly — would append %d rows for year_months=%s",
+            len(rows), year_months,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    _ensure_stylists_data_monthly_tab(service, sheet_id)
+
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_DATA_MONTHLY!A2:C",
+    ).execute()
+    existing_keys = {
+        (r[0], r[1], r[2]) for r in existing.get("values", []) if len(r) >= 3
+    }
+
+    new_rows = []
+    for r in rows:
+        key = (r.get("year_month", ""), r.get("name", ""), r.get("loc_name", ""))
+        if key in existing_keys:
+            log.info(
+                "append_to_stylists_data_monthly: skipping existing (ym=%s, name=%s, loc=%s)",
+                *key,
+            )
+            continue
+        new_rows.append([
+            r.get("year_month", ""),
+            r.get("name", ""),
+            r.get("loc_name", ""),
+            r.get("loc_id", ""),
+            r.get("platform", ""),
+            r.get("invoices", 0),
+            r.get("guests", 0),
+            r.get("net_service", 0),
+            r.get("net_product", 0),
+            r.get("avg_ticket", 0),
+            r.get("pph", 0),
+            r.get("ppg", 0),
+            r.get("production_hours", 0),
+            r.get("source", ""),
+            r.get("period_start", ""),
+            r.get("period_end", ""),
+        ])
+
+    if not new_rows:
+        log.info("append_to_stylists_data_monthly: all rows already present — nothing to write")
+        return
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_DATA_MONTHLY!A2:P",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": new_rows},
+    ).execute()
+
+    log.info(
+        "STYLISTS_DATA_MONTHLY tab: appended %d stylist-month rows (year_months=%s)",
+        len(new_rows), year_months,
+    )
+
+
 # ─── Dual-write shadow hook (v2 parallel Sheet) ───────────────────────────────
 #
 # This is the bridge between the legacy pipeline and the new v2 Sheets. It is
