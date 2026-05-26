@@ -631,3 +631,68 @@ Per Tony's explicit direction (2026-05-26 chat), `config/inbox_config.json` was 
 5. Writing alert events to `truth_mediation_log.json` (Branch 3 will handle)
 
 **Gap D Phase 1 is closed. Branch 2 is ready for review and PR.**
+
+---
+
+### Branch 3 completion record — `truth-mediation-log-serializer-2026-05-26`
+
+**Started:** 2026-05-26 (after PR #5 — Branch 1 rebased — and PR #6 — OAuth addendum — both merged).
+**Status:** ✅ DONE. Branch 3 work landed; commit SHA recorded in addendum §J.
+**Acceptance criteria from the follow-up branch sequence plan:** all met.
+
+**What was built:**
+
+The "Truth Mediation Log" the spec describes (FINAL_SPEC v1.0.0 §10) is now implemented as the on-disk half of the hybrid model Tony chose in Q1:
+
+1. New module `trust_layer/truth_mediation_log.py` with `write_event(...)` and `read_events(...)` functions, plus four canonical `RULE_*` constants for `rule_applied`.
+2. **NDJSON file format** at `data/logs/truth_mediation_log.json` — append-only, one event per line, parseable line-by-line. Already gitignored via `data/logs/`.
+3. **Schema locked to FINAL_SPEC §10** — 12 exact fields. A test asserts the schema for every emitted event.
+4. **Tier 2 dispatch** via new private helper `parsers/tier2_pdf_batch.py::_write_truth_mediation_events`. Called inside `process_manifest`'s per-PDF loop whenever recognized flags are present. Never raises.
+5. **Wired for** `PRODUCT_TOTAL_MISMATCH` (Branch 1) and `PARTIAL_WEEK` (Branch 2). `salon_level_supremacy` and `cross_file_reconciled` constants are defined for future use but no callsites emit them yet.
+6. **14 new tests** in `tests/test_truth_mediation_log.py` — 9 module unit tests (schema lock, NDJSON format, filters, malformed-line handling, missing-file safety, optional-field defaults, ISO timestamp shape) + 5 Tier 2 wiring tests (correct event shapes per flag type, both-flags case, unrecognized-flag silent skip, missing raw fields don't crash). All use `tempfile` for isolation.
+
+**Implementation decisions made:**
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| File format | NDJSON (one JSON object per line) despite `.json` extension | Append-only without parsing the whole file. Standard for audit logs. Tests verify line independence. |
+| Atomicity | `open("a") + flush()` (not temp-file-rename per event) | POSIX guarantees atomic appends under PIPE_BUF (4KB) — well above our ~500-byte events. Low-volume runs (≤12 events/week) don't justify the temp-rename overhead. |
+| `rule_applied` extensibility | Constants + free-form strings | Spec example only shows `salon_level_supremacy`, but Branch 1 / Branch 2 flags are also reconciliation events. Extended to a small named set; future callsites can use new strings. |
+| Path override | `TRUTH_MEDIATION_LOG_PATH` env var | Tests can redirect to a tempfile. Operators can redirect for debugging. Production default is `data/logs/truth_mediation_log.json`. |
+| Wiring location | New helper `_write_truth_mediation_events` in tier2_pdf_batch, called per-PDF | Keeps parsers pure (text-in/dict-out). Centralizes flag-to-event mapping in one place. Defensive try/except — broken log never breaks pipeline. |
+| Defensive behavior | `write_event` returns False on any failure; `read_events` returns [] on any failure; never raises | Audit log must not be a single point of failure. Callers can log+continue on False. |
+
+**Test results:**
+
+- 207 passed in 1.74s (was 193 baseline before Branch 3 = 180 original + 7 Branch 2 + 6 Branch 1; +14 from `TestTruthMediationLogModule` + `TestTier2TruthMediationWiring`)
+- New tests verified schema-lock against FINAL_SPEC §10
+- New tests verify Lakeville's $534.50 / $623.25 / $88.75 drift values produce correct PRODUCT_TOTAL_MISMATCH event payload
+- Deprecation warnings about `datetime.utcnow()` — matches existing project pattern in `tier2_pdf_batch.py`; out-of-scope cleanup for Branch 3
+
+**Files touched (this branch only):**
+
+```
+A  trust_layer/truth_mediation_log.py    +228 lines (serializer module)
+M  parsers/tier2_pdf_batch.py            +94 lines (new helper + call site)
+A  tests/test_truth_mediation_log.py     +275 lines (14 tests across 2 classes)
+M  CLAUDE.md                             Vocabulary Map row updated
+M  PARSER_AUDIT_2026-05-26.md            this section
+M  PARSER_SPEC_v1.0.1_ADDENDUM.md        §E status flip + new §J
+```
+
+**Spec-doc reconciliation:**
+
+- FINAL_SPEC v1.0.0 §10 — implemented to spec (schema-locked, NDJSON on disk).
+- Addendum v1.0.1 §E — `§10 literal truth_mediation_log.json file` entry flipped from "hybrid build planned on follow-up branch" to "IMPLEMENTED".
+- Addendum v1.0.1 §J (new) — dedicated section, matching the pattern of §B/§C/§H/§I.
+- CLAUDE.md Vocabulary Map — "(follow-up branch)" qualifier removed; lists the four `RULE_*` constants and the Tier 2 dispatch helper.
+
+**What's NOT in Branch 3 (deferred per the original plan):**
+
+1. Wiring `cross_file_reconciled` events from `trust_layer/completeness_validator.py` — that file produces `CompletenessCheck` objects but doesn't write to the log. A future small change could add the wire-up; no consumer needs it for v1.0.
+2. Emitting `salon_level_supremacy` events when stylist proportional adjustment is implemented — nothing in the codebase performs this adjustment today. The constant + schema slot are reserved.
+3. Log rotation — not a concern at ≤12 events per weekly run, but worth revisiting if event volume grows.
+
+**Truth Mediation Log (§10) is closed. Branch 3 is ready for review and PR.**
+
+**All three spec-compliance branches (1, 2, 3) are now done. Only Branch 4 (`tier2-go-live-activation`) remains.**

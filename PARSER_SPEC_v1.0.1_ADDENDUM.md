@@ -87,7 +87,7 @@ The following FINAL_SPEC items are real but deferred past 2026-05-26 launch read
 
 - **§6.1 unclosed-day workflow** — **Phase 1 (detection + alert) IMPLEMENTED** in branch `unclosed-day-alert-hook-2026-05-26`, commit `c73ecaa`. See new Section I below. Phase 1.1 (automated rerun + Mon-EOD blank-out) still deferred.
 - **§6.2 product line-item mismatch detection** — **IMPLEMENTED** in branch `product-mismatch-detection-2026-05-26`, commit `d5dbd4c`. See new Section H below.
-- **§10 literal `truth_mediation_log.json` file** — hybrid build planned on follow-up branch `truth-mediation-log-serializer-2026-05-XX`; existing in-memory `CompletenessCheck` pattern continues in parallel.
+- **§10 literal `truth_mediation_log.json` file** — **IMPLEMENTED** in branch `truth-mediation-log-serializer-2026-05-26`, see new Section J below. NDJSON format; existing in-memory `CompletenessCheck` pattern continues in parallel (hybrid model per Tony's Q1).
 - **§11 single config.json** — current implementation splits across `config/inbox_config.json`, `config/zenoti_schema.json`, `config/salon_ultimate_schema.json`, `config/drift_config.json`. Decision: leave split, no v1.1.0 change planned (each file has a single clear concern).
 - **§8 chunked architecture (4 explicit chunks)** — current parsers are functionally chunked but not structurally gated. Decision: leave as-is unless future test surface area justifies the refactor cost.
 
@@ -187,6 +187,44 @@ These will move from "deferred" to "implemented" if/when Karissa's operational e
 - Vocabulary Map (CLAUDE.md): "Unclosed-day detection + alert" row updated to add the alert hook.
 - Section E above: entry status flipped from "detection + alert only built for v1.0 launch" to "Phase 1 IMPLEMENTED in commit `c73ecaa`".
 - Branch 3 (`truth-mediation-log-serializer`) will wire `PARTIAL_WEEK` alert events into `data/logs/truth_mediation_log.json` per FINAL_SPEC §10.
+
+---
+
+## Section J — Truth Mediation Log serializer (2026-05-26)
+
+**Source:** PARSER_AUDIT_2026-05-26.md §6.2 (Gap B Truth Mediation Log resolution) + §12 Branch 3 completion record; FINAL_SPEC v1.0.0 §10; Tony's Q1 hybrid decision (2026-05-26 chat).
+
+FINAL_SPEC v1.0.0 §10 specifies a durable on-disk audit trail of reconciliation events as JSON. Per Tony's Q1 hybrid choice, the in-memory `CompletenessCheck` primitive (existing in `trust_layer/severity.py`) is preserved and a new serializer drains events to disk.
+
+**Resolution (2026-05-26 on branch `truth-mediation-log-serializer-2026-05-26`):**
+
+- New module `trust_layer/truth_mediation_log.py` with `write_event(...)` and `read_events(...)` functions.
+- **NDJSON format** — one JSON object per line at `data/logs/truth_mediation_log.json`. Despite the `.json` extension, the file is newline-delimited so writes can append without parsing the whole file. Gitignored via the existing `data/logs/` rule.
+- **Schema per FINAL_SPEC §10 exactly:** 12 fields — `timestamp, location_id, week_start, rule_applied, field, salon_level_value, stylist_sum_before, drift_amount, drift_pct, hypothesis, action, human_review_required`. A schema-lock test asserts every event has exactly these keys.
+- **Recognized `rule_applied` values** (constants in the module — free-form strings also accepted):
+  - `salon_level_supremacy` — the spec's primary use case (stylist proportional adjustment); not yet emitted by any callsite, available for future use.
+  - `product_total_mismatch` — Branch 1 / FINAL_SPEC §6.2. `salon_level_value` = header (canonical), `stylist_sum_before` = line-item sum (observed).
+  - `partial_week_detected` — Branch 2 / FINAL_SPEC §6.1. Reconciliation-numeric fields stay null; `hypothesis` carries the unclosed-day date(s); `human_review_required=True`.
+  - `cross_file_reconciled` — placeholder for Excel↔PDF reconciliation events from `trust_layer/completeness_validator.py` (not yet wired in this branch).
+- **Tier 2 dispatch:** `parsers/tier2_pdf_batch.py::_write_truth_mediation_events` is called inside the per-PDF loop of `process_manifest` whenever a parsed PDF carries recognized flags. It bridges flag detection to log writes. Never raises — defensive try/except so a broken log path can't crash the pipeline.
+- 14 new tests in `tests/test_truth_mediation_log.py` — 9 module unit tests + 5 tier2 wiring tests. All use `tempfile` for isolation; no real disk writes outside the temp dir.
+
+**Override the log path** via the `TRUTH_MEDIATION_LOG_PATH` environment variable (used in tests; useful for operators who want to redirect during debugging).
+
+**Tolerance + atomicity:** writes are append-only with explicit flush. POSIX guarantees atomic appends for writes under `PIPE_BUF` (4KB) — well above our typical event size (~500 bytes). On Windows we accept the slightly weaker guarantee since the alternative (temp-file-rename per event) is wasteful for low-volume runs (≤12 events/week).
+
+**Production impact:** None — pipeline still dormant. When Tier 2 activates (Branch 4), the log file will start accumulating one row per reconciliation event per weekly run.
+
+**Cross-references:**
+- Vocabulary Map (CLAUDE.md): "Truth Mediation Log" row updated — removed "(follow-up branch)" qualifier, added the four recognized `rule_applied` constants.
+- Section E above: `§10 literal truth_mediation_log.json file` entry flipped from "hybrid build planned on follow-up branch" to "IMPLEMENTED in commit `<sha>`".
+- PARSER_AUDIT_2026-05-26.md §12 — Branch 3 completion record.
+
+**Future work (not in Branch 3):**
+
+1. Wire `cross_file_reconciled` events from `trust_layer/completeness_validator.py::_check_cross_file_totals` (currently produces CompletenessCheck objects only; doesn't write to the log).
+2. Emit `salon_level_supremacy` events when stylist proportional adjustment is implemented (the spec's primary use case — currently nothing in the codebase performs this adjustment).
+3. Log rotation when the file gets large (not a concern at ≤12 events/week, but worth revisiting if event volume grows).
 
 ---
 
