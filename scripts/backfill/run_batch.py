@@ -38,6 +38,14 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+# Local-dev convenience: load .env from repo root if present.
+# Production (GitHub Actions) sets env vars directly and skips this path.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_REPO_ROOT / ".env")
+except ImportError:
+    pass
+
 from scripts.backfill.monthly_pdf_loader import load_monthly_pdfs
 from scripts.backfill.render_review import (
     render_cross_check,
