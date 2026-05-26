@@ -43,6 +43,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from parsers.pdf_zenoti_v2 import parse_file as zenoti_parse_file
+from parsers.pdf_zenoti_v2 import _unwrap_pymupdf_number_wraps
 from parsers.pdf_salon_ultimate_v2 import parse_file as su_parse_file
 
 
@@ -203,6 +204,94 @@ class TestSalonUltimateEmployeeExtraction(unittest.TestCase):
                         f"{spec['fixture']}: 'House' row exists but "
                         f"is_phantom_house was not set: {house_rows}"
                     )
+
+
+class TestZenotiColumnWrapUnwrap(unittest.TestCase):
+    """Regression coverage for the PyMuPDF column-overflow wrap bug.
+
+    Bug discovered 2026-05-26 in fresh-PDF validation: when a Zenoti report
+    has a numeric value too wide for its visual column (typically money
+    >= $1,000.00 in narrow money columns), PyMuPDF wraps the trailing digit
+    to the next line. The parser's row regexes expect one numeric field per
+    line, so the wrap injects an extra "field," shifts the field count by
+    one, and the entire row silently fails to match. Production impact at
+    discovery: 3 Hudson stylists + 1 Blaine stylist dropped from
+    STYLISTS_CURRENT ($30,644.85 of service revenue silently zeroed), and
+    Crystal's location-level production_hours flagged as
+    PRODUCTION_HOURS_NOT_IDENTIFIED.
+
+    Apr 21 fixtures never triggered the bug because weekly tips don't
+    reach $1,000. Tests here use synthetic strings so they don't depend on
+    any specific fixture wrap pattern.
+    """
+
+    def test_unwraps_tips_value_in_sale_row(self):
+        """Hudson 2026-05-26 pattern: Jessica Stoik's $1,490.48 tips."""
+        section = (
+            "Jessica Stoik\n"
+            "9,929.50\n"
+            "9,929.50\n"
+            "10.00\n"
+            "1,490.4\n"
+            "8\n"
+            "253\n"
+            "154\n"
+        )
+        out = _unwrap_pymupdf_number_wraps(section)
+        self.assertIn("1,490.48", out)
+        self.assertNotIn("1,490.4\n8\n", out)
+        # Other lines untouched
+        self.assertIn("9,929.50", out)
+        self.assertIn("253", out)
+
+    def test_unwraps_hours_value_in_total_row(self):
+        """Crystal 2026-05-26 pattern: PERF Total row actual_hours 1011.22."""
+        section = "Total\n0.40 382.38 1011.2\n2\n950.88\n"
+        out = _unwrap_pymupdf_number_wraps(section)
+        self.assertIn("1011.22", out)
+        self.assertNotIn("1011.2\n2\n", out)
+        self.assertIn("950.88", out)
+
+    def test_leaves_legitimate_two_decimal_values_alone(self):
+        """A two-decimal money value like `602.41` on its own line followed
+        by a count is the normal case and must not be merged."""
+        section = "Crystal Riley\n2,601.00\n2,601.00\n0.00\n602.41\n104\n86\n"
+        out = _unwrap_pymupdf_number_wraps(section)
+        self.assertEqual(out, section)
+
+    def test_leaves_value_followed_by_multi_digit_count_alone(self):
+        """`1,047.8` followed by `67` (multi-digit) is NOT a wrap signature;
+        the lookahead requires the next line to be a single digit only."""
+        section = "1,047.8\n67\n"
+        out = _unwrap_pymupdf_number_wraps(section)
+        self.assertEqual(out, section)
+
+    def test_blaine_heather_murto_row_now_parses(self):
+        """End-to-end against the synthetic Blaine row that previously failed.
+        After unwrap, the 12-field row matches the SALE row regex."""
+        from parsers.pdf_zenoti_v2 import _RE_EMPLOYEE_SALE_INDIV
+        section = (
+            "Heather Murto\n"
+            "6,516.20\n"     # net_service
+            "6,539.60\n"     # comm_service
+            "193.40\n"       # comm_disc
+            "1,047.8\n"      # tips (wrapped)
+            "6\n"            # wrapped tail
+            "183\n"          # service_qty
+            "115\n"          # invoice_count
+            "169.00\n"       # net_product
+            "169.00\n"       # comm_product
+            "1.47\n"         # net_prod_per_pi
+            "58.13\n"        # avg_invoice_value
+            "94.80\n"        # disc_$
+            "14.51\n"        # disc_pct
+        )
+        unwrapped = _unwrap_pymupdf_number_wraps(section)
+        m = _RE_EMPLOYEE_SALE_INDIV.search(unwrapped)
+        self.assertIsNotNone(m, f"Row should match after unwrap. Unwrapped section: {unwrapped!r}")
+        self.assertEqual(m.group("name"), "Heather Murto")
+        self.assertEqual(m.group("tips"), "1,047.86")
+        self.assertEqual(m.group("service_qty"), "183")
 
 
 if __name__ == "__main__":

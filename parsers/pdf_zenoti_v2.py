@@ -389,6 +389,45 @@ FLAG_PARSE_CRASH          = "PARSE_CRASH"
 
 
 # ---------------------------------------------------------------------------
+# PyMuPDF column-wrap unwrapper
+# ---------------------------------------------------------------------------
+# When a Zenoti report PDF has a numeric value too wide for its visual
+# column (typically money >= $1,000.00 in narrow money columns, or hours
+# >= 1000.0), PyMuPDF wraps the trailing digit to the next line. Example:
+# $1,047.86 renders as:
+#
+#     1,047.8
+#     6
+#
+# Any regex that expects one numeric field per line then misaligns by a
+# field on the affected row and silently fails to match. In the
+# 2026-05-26 fresh-PDF validation, this dropped 4 stylists' SALE DETAILS
+# rows (3 in Hudson, 1 in Blaine — combined $30,644.85 of service
+# revenue silently zeroed) and corrupted Crystal's PERFORMANCE Total row
+# so production_hours couldn't be read. Apr 21 weekly fixtures didn't
+# trigger it because no individual stylist's weekly tips reached $1,000;
+# the May 26 PDFs were 24-day MTD reports where tips accumulated past
+# the column-width threshold.
+#
+# Detection signature is unambiguous: a value of the shape "X[,XXX...].D"
+# (single trailing decimal) immediately followed by a line containing a
+# single digit only. In the SALE DETAILS and PERFORMANCE DETAILS tables
+# every money field renders with exactly 2 decimal places when not
+# wrapped (e.g., "602.41", "474.00"), so a standalone "X.D" line followed
+# by a single-digit-only line is always a wrap, never a legitimate
+# adjacent pair of values. The lookahead `(?=\n|$)` confirms the digit
+# is standalone (not part of a multi-digit count like "67").
+_RE_PYMUPDF_NUMBER_WRAP = re.compile(r"(\d[\d,]*\.\d)\n(\d)(?=\n|$)")
+
+
+def _unwrap_pymupdf_number_wraps(section: str) -> str:
+    """Merge `X.D\\nY\\n` back to `X.DY\\n` in a Zenoti employee section.
+    See _RE_PYMUPDF_NUMBER_WRAP for the detection signature and rationale.
+    """
+    return _RE_PYMUPDF_NUMBER_WRAP.sub(lambda m: m.group(1) + m.group(2), section)
+
+
+# ---------------------------------------------------------------------------
 # Multi-line name lookback helper (shared by SALE and PERF section walkers)
 # ---------------------------------------------------------------------------
 _RE_LETTERS_ONLY_LINE = re.compile(r"^[A-Za-z][A-Za-z\.\'\-_ ]*$")
@@ -684,6 +723,10 @@ class ZenotiV2Parser:
             return None
 
         section = self.text[m_perf.start():m_perf.start() + 5000]
+        # Undo PyMuPDF column-overflow line wraps so the Total row's 4-field
+        # head parses even when actual_hours wraps (Crystal 2026-05-26 case:
+        # `1011.2\n2\n` -> `1011.22\n`). See _RE_PYMUPDF_NUMBER_WRAP.
+        section = _unwrap_pymupdf_number_wraps(section)
         m = re.search(
             r"^\s*Total\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)\s+(-?[\d,]+\.\d+)",
             section,
@@ -889,6 +932,12 @@ class ZenotiV2Parser:
 
         sale_section = self.text[sale_start.start():sale_end] if sale_start else ""
         perf_section = self.text[perf_start.start():perf_end] if perf_start else ""
+
+        # Undo PyMuPDF column-overflow line wraps before regex parsing.
+        # See _RE_PYMUPDF_NUMBER_WRAP — wraps drop rows whose tips/hours
+        # values overflow the narrow PDF column.
+        sale_section = _unwrap_pymupdf_number_wraps(sale_section)
+        perf_section = _unwrap_pymupdf_number_wraps(perf_section)
 
         sale_rows = self._parse_sale_section(sale_section)
         perf_rows = self._parse_perf_section(perf_section)
