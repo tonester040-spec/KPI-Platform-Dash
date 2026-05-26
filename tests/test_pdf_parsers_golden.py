@@ -258,9 +258,15 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         # Roseville: exercises the Waxing-only case — this PDF has a
         # "Waxing" row with NO "Wax" row at all. Parser must sum
         # wax + waxing into wax_count via wax_combined without crashing
-        # when Wax is absent. Also: Roseville's pph is legitimately high
-        # (404.88) because production_hours is only 15.17 — verified
-        # against the raw PDF, not a parser bug.
+        # when Wax is absent.
+        #
+        # production_hours = 166.05 from EMPLOYEE PERFORMANCE Total row,
+        # PRODUCTION_HOURS column (field 4) per FINAL_SPEC §6.6. Earlier
+        # golden pinned 15.17 / pph=404.88 — that was the first hourly
+        # bucket from the buggy HOURLY WORK regex (which captured only
+        # the first multi-char number after "Production Hours\n", not
+        # the location total). Fixed in PARSER_AUDIT_2026-05-26.md §6.1
+        # amendment; the buggy regex was deleted entirely.
         "fixture":          "e7b9a5_Roseville.pdf",
         "location":         "Roseville",
         "week_start":       "2026-04-01",
@@ -270,9 +276,9 @@ GOLDEN_ZENOTI: List[Dict[str, Any]] = [
         "product_net":      63.99,
         "total_sales":      6205.99,
         "avg_ticket":       39.03,
-        "pph":              404.88,
+        "pph":              36.99,
         "ppg":              0.4025,
-        "production_hours": 15.17,
+        "production_hours": 166.05,
         "wax_count":        5,
         "wax_pct":          0.0314,
         "color_sales":      1695.00,
