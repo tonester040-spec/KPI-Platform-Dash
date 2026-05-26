@@ -3,6 +3,22 @@
 
 ---
 
+## 🔴 ACTIVE INVESTIGATION (2026-05-26) — read this FIRST
+
+**Parser is not picking up employees / stylists.** Tony flagged this at the end of the 2026-05-26 audit session as launch-blocking ("MASSIVE problem"). The previous session was at context max so the investigation was handed off to a new session.
+
+**Read [`STYLIST_EXTRACTION_INVESTIGATION_2026-05-26.md`](STYLIST_EXTRACTION_INVESTIGATION_2026-05-26.md) before doing anything else.** That doc contains:
+- §1: the specific observation (may still be a TODO awaiting Tony's input — ask him if so)
+- §2: current state of main (HEAD `0ac005a`, 207 tests, pipeline intentionally dormant)
+- §3: what the parser SHOULD do (file paths + line numbers for employee extraction)
+- §4: 5 hypotheses ranked by likelihood
+- §5: first-hour investigation plan
+- §6: existing test coverage gap (golden tests don't assert employee presence)
+
+This callout stays until the investigation is RESOLVED. When resolved, delete this section.
+
+---
+
 ## What this project is
 
 A weekly salon analytics platform for **Karissa**, a multi-location salon owner in Minnesota. Two automated pipelines run via GitHub Actions:
