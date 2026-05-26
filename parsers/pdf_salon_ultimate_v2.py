@@ -103,6 +103,30 @@ _RE_TOTAL_HOURS_SAMELINE     = re.compile(r"Total\s+Hours\s+(\d+h\s*\d+m|\d+(?:\
 
 
 # ---------------------------------------------------------------------------
+# Regex: Top Product Lines TOTALS row (FINAL_SPEC §6.2 cross-check)
+# ---------------------------------------------------------------------------
+# The "Top Product Lines" table ends with a TOTALS row whose sales column
+# is the PDF's own sum of the individual product lines. Per FINAL_SPEC §6.2
+# this is cross-checked against the Sales-block "Total Retail" header. When
+# they disagree (Lakeville is the canonical example: header $534.50 vs
+# TOTALS $623.25), the header stays canonical product_net and a flag fires.
+#
+# PyMuPDF renders the row as:
+#   "TOTALS\n<qty> 100.00% $<sales> <pct>%"
+# (e.g. "TOTALS\n19 100.00% $623.25\n116.60%" for Lakeville — the 116.60%
+# is itself a tell that the PDF knows the row's % is computed against the
+# header value, not against itself).
+#
+# The Employee Summary section also has a "TOTALS" row but with a different
+# shape ("TOTALS $<net_service> $<net_retail> ..." on a single line) and
+# is covered by _EMPLOYEE_TOTALS_ROW below — no collision.
+_RE_PRODUCT_LINES_TOTALS = re.compile(
+    r"^\s*TOTALS\s*\n\s*\d+\s+100\.00%\s+\$\s*([\d,]+(?:\.\d+)?)",
+    re.MULTILINE,
+)
+
+
+# ---------------------------------------------------------------------------
 # Regex: Service Categories table
 # ---------------------------------------------------------------------------
 # Rows we care about, matched case-insensitively at the start of a line.
@@ -203,6 +227,11 @@ FLAG_NO_SERVICE_NET = "SERVICE_NET_NOT_IDENTIFIED"
 FLAG_NO_PRODUCT_NET = "PRODUCT_NET_NOT_IDENTIFIED"
 FLAG_GUEST_COUNT_MISMATCH = "GUEST_COUNT_MISMATCH"
 FLAG_TOTAL_SALES_MISMATCH = "TOTAL_SALES_MISMATCH"
+# Top Product Lines TOTALS row disagrees with Total Retail header.
+# Per FINAL_SPEC §6.2 the header stays canonical; this flag surfaces the
+# discrepancy for audit. Lakeville is the canonical example (header
+# $534.50, TOTALS $623.25 — likely refund timing).
+FLAG_PRODUCT_TOTAL_MISMATCH = "PRODUCT_TOTAL_MISMATCH"
 
 
 class SalonUltimateV2Parser:
@@ -332,6 +361,9 @@ class SalonUltimateV2Parser:
         out: Dict[str, Any] = {
             "total_service": self._find_money(_RE_TOTAL_SERVICE),
             "total_retail":  self._find_money(_RE_TOTAL_RETAIL),
+            # Top Product Lines TOTALS row sales — for cross-check against
+            # total_retail per FINAL_SPEC §6.2. None if section absent.
+            "product_lines_sum": self._find_money(_RE_PRODUCT_LINES_TOTALS),
             "total_revenue": self._find_money(_RE_TOTAL_REVENUE),
             "tips":          self._find_money(_RE_TIPS),
             "sales_tax":     self._find_money(_RE_SALES_TAX),
@@ -702,6 +734,27 @@ class SalonUltimateV2Parser:
                 total_sales, total_revenue_pdf,
             )
             self.flags.append(FLAG_TOTAL_SALES_MISMATCH)
+
+        # Cross-check: product line-items TOTALS row vs Total Retail header.
+        # Per FINAL_SPEC §6.2: the header is canonical (already assigned to
+        # product_net above). If the PDF's own Top Product Lines TOTALS row
+        # disagrees with the header by more than the rounding tolerance,
+        # flag PRODUCT_TOTAL_MISMATCH so the trust layer can surface it.
+        # Likely cause is refund timing — header is post-refund, line items
+        # are pre-refund — but the parser doesn't speculate; it just flags.
+        product_lines_sum = raw.get("product_lines_sum")
+        if (
+            product_net is not None
+            and product_lines_sum is not None
+            and abs(product_net - product_lines_sum) > 0.01
+        ):
+            logger.warning(
+                "SalonUltimateV2Parser: product_net header (%.2f) != "
+                "Top Product Lines TOTALS row (%.2f). Keeping header as "
+                "canonical product_net per FINAL_SPEC §6.2.",
+                product_net, product_lines_sum,
+            )
+            self.flags.append(FLAG_PRODUCT_TOTAL_MISMATCH)
 
         # Per-guest KPIs — use Karissa's guest_count as denominator
         k["avg_ticket"] = (
