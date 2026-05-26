@@ -537,70 +537,87 @@ class SalonUltimateV2Parser:
         """
         Parse the Employee Summary table.
 
-        Multi-line names (Apple Valley: "Magdalene\\nYork", Farmington:
-        "Ashley Master\\nStylist Spaulding") are joined: we look for a
-        trailing line with no numeric tail and treat it as a continuation.
+        PyMuPDF renders this table in vertical column order — every numeric
+        field is on its own line, names are on their own line. The
+        `_EMPLOYEE_DATA_ROW` regex uses `\\s+` between every field, so it
+        traverses newlines correctly under `re.finditer`. The original
+        implementation walked `splitlines()` and called `.match(line)` per
+        line — which can never see a full row when each field is on its
+        own line. That bug was found 2026-05-26 (see
+        STYLIST_EXTRACTION_ROOT_CAUSE_2026-05-26.md). The fix is to use
+        `finditer` over the truncated section.
 
-        Returns list in the order they appear. TOTALS row is excluded.
+        Multi-line names ("Magdalene\\nYork", "Ashley Master\\nStylist
+        Spaulding") get the FIRST word matched by the row regex (the second
+        word is captured as the `name` group because the previous line
+        contains only the prefix). A lookback pass prepends the prefix to
+        the captured name when the line immediately above the match is a
+        pure-letters line sitting BETWEEN two matches (so it's not a
+        header).
+
+        Returns list in document order. TOTALS row is excluded.
         """
-        # First, find the section boundaries to keep our continuation logic
-        # from picking up stray lines from other tables.
         section = self._locate_employee_section()
         if section is None:
             return []
 
-        lines = section.splitlines()
+        # Truncate at TOTALS — anything after is the location-total row.
+        m_totals = re.search(r"^\s*TOTALS\b", section, re.MULTILINE | re.IGNORECASE)
+        if m_totals:
+            section = section[: m_totals.start()]
+
+        matches = list(_EMPLOYEE_DATA_ROW.finditer(section))
+        if not matches:
+            return []
+
         employees: List[Dict[str, Any]] = []
+        prev_match_end = -1  # sentinel: first match has no preceding match
+        for m in matches:
+            name = m.group("name").strip()
 
-        i = 0
-        while i < len(lines):
-            line = lines[i]
+            # Multi-line name lookback. Only valid when a previous match
+            # exists — the lines above the first match are headers
+            # ("Avg / Ticket"), not name continuations.
+            if prev_match_end >= 0:
+                line_start = section.rfind("\n", 0, m.start()) + 1
+                if line_start > 0:
+                    prev_line_end = line_start - 1
+                    prev_line_start = section.rfind("\n", 0, prev_line_end) + 1
+                    # Only treat as continuation if the previous line
+                    # sits AFTER the previous match's end (i.e., it's in
+                    # the inter-match gap, not part of the previous row).
+                    if prev_line_start >= prev_match_end:
+                        candidate = section[prev_line_start:prev_line_end].strip()
+                        if (
+                            candidate
+                            and not re.search(r"[\d$]", candidate)
+                            and re.match(r"^[A-Za-z][A-Za-z\.\'\-_ ]*$", candidate)
+                            and candidate.upper() not in {"TOTALS"}
+                        ):
+                            name = f"{candidate} {name}".strip()
 
-            # Stop at TOTALS — that ends the employee block.
-            if re.match(r"^\s*TOTALS\b", line, re.IGNORECASE):
-                break
+            # Normalise the "House _" placeholder — the retail-only phantom
+            # bucket every SU export carries.
+            if name.rstrip(" _").lower() == "house":
+                name = "House"
 
-            m = _EMPLOYEE_DATA_ROW.match(line)
-            if m:
-                name = m.group("name").strip()
-
-                # Check the NEXT line for a continuation: any short line that
-                # is not a new employee data row, not TOTALS, not blank, and
-                # contains only word-like tokens.
-                if i + 1 < len(lines):
-                    peek = lines[i + 1]
-                    if (
-                        peek.strip()
-                        and not _EMPLOYEE_DATA_ROW.match(peek)
-                        and not re.match(r"^\s*TOTALS\b", peek, re.IGNORECASE)
-                        and re.match(r"^\s*[A-Za-z][A-Za-z\.\'\-_ ]*\s*$", peek)
-                    ):
-                        continuation = peek.strip()
-                        name = f"{name} {continuation}".strip()
-                        i += 1  # consume continuation line
-
-                # Normalise the "House _" placeholder — this is the retail-
-                # only phantom bucket that appears on every SU export.
-                if name.rstrip(" _").lower() == "house":
-                    name = "House"
-
-                employees.append({
-                    "name": name,
-                    "net_service": safe_parse_money(m.group("net_service")),
-                    "net_retail":  safe_parse_money(m.group("net_retail")),
-                    "total_hours": safe_parse_hours(m.group("total_hours")),
-                    "production_hours": safe_parse_hours(m.group("prod_hours")),
-                    "pph":              safe_parse_money(m.group("pph")),
-                    "retail_per_hour":  safe_parse_money(m.group("retail_per_hour")),
-                    "guests":       safe_parse_int(m.group("guests")),
-                    "requests":     safe_parse_int(m.group("requests")),
-                    "request_pct":  safe_parse_percent(m.group("req_pct"), default=0.0, as_fraction=True),
-                    "ppg":              safe_parse_money(m.group("ppg")),
-                    "avg_service_time_min": float(m.group("avg_time")),
-                    "avg_ticket":   safe_parse_money(m.group("avg_ticket")),
-                    "is_phantom_house": name.lower() == "house",
-                })
-            i += 1
+            employees.append({
+                "name": name,
+                "net_service": safe_parse_money(m.group("net_service")),
+                "net_retail":  safe_parse_money(m.group("net_retail")),
+                "total_hours": safe_parse_hours(m.group("total_hours")),
+                "production_hours": safe_parse_hours(m.group("prod_hours")),
+                "pph":              safe_parse_money(m.group("pph")),
+                "retail_per_hour":  safe_parse_money(m.group("retail_per_hour")),
+                "guests":       safe_parse_int(m.group("guests")),
+                "requests":     safe_parse_int(m.group("requests")),
+                "request_pct":  safe_parse_percent(m.group("req_pct"), default=0.0, as_fraction=True),
+                "ppg":              safe_parse_money(m.group("ppg")),
+                "avg_service_time_min": float(m.group("avg_time")),
+                "avg_ticket":   safe_parse_money(m.group("avg_ticket")),
+                "is_phantom_house": name.lower() == "house",
+            })
+            prev_match_end = m.end()
 
         return employees
 

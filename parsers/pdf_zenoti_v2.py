@@ -278,13 +278,17 @@ _RE_SERVICE_DETAILS_HEADER = re.compile(
 #  11. disc_$
 #  12. disc_%
 #
-# Anchored at 5-space indent (`^ {4,5}`) — the SALE DETAILS section uses 5
-# spaces for individuals, 3 for group headers. We'll accept 4-5 to be safe.
-# Name is 1-N tokens of letters/dots/apostrophes/hyphens.
+# Shape (12 numeric fields after name). PyMuPDF renders this table in
+# vertical column order — each field on its own line — so `\s+` separators
+# traverse newlines. The regex authors originally pinned `^ {4,6}` indent
+# and `\s{2,}` separators for a columnar layout that PyMuPDF doesn't
+# produce; that incompatibility silently broke per-stylist extraction from
+# the v2 commit on Apr 21 until 2026-05-26. See
+# STYLIST_EXTRACTION_ROOT_CAUSE_2026-05-26.md for the diagnosis.
 _RE_EMPLOYEE_SALE_INDIV = re.compile(
-    r"^ {4,6}"
+    r"^\s*"
     r"(?P<name>[A-Za-z][A-Za-z\.\'\-_ ]+?)"
-    r"\s{2,}"
+    r"\s+"
     r"(?P<net_service>-?[\d,]+\.\d+)\s+"
     r"(?P<comm_service>-?[\d,]+\.\d+)\s+"
     r"(?P<comm_disc>-?[\d,]+\.\d+)\s+"
@@ -301,16 +305,26 @@ _RE_EMPLOYEE_SALE_INDIV = re.compile(
 )
 
 # Role-group header row (9 numeric fields — skips invoice_count,
-# net_prod_per_pi, avg_invoice_value). Shape:
-#   "   MANAGER  694.00  694.00  0.00  89.00  15   0.00  0.00   19.00  14.98"
-# Not needed for KPI extraction but useful for role classification.
+# net_prod_per_pi, avg_invoice_value). Shape (vertical layout — keyword
+# on its own line, 9 numeric fields each on their own line):
+#   MANAGER\n694.00\n694.00\n0.00\n89.00\n15\n0.00\n0.00\n19.00\n14.98
+# We only care about the keyword for role classification, not the
+# numerics — so we match the keyword as a standalone line and read its
+# position to tag subsequent stylist rows.
 _RE_EMPLOYEE_SALE_GROUP = re.compile(
-    r"^ {2,3}"
-    r"(?P<role>MANAGER|STYLIST|Shift\s+Leader|Master\s+Stylist|Senior\s+Stylist|Total)"
-    r"\s{2,}"
-    r"(?P<net_service>-?[\d,]+\.\d+)",
+    r"^\s*"
+    r"(?P<role>MANAGER|STYLIST|Shift\s+Leader|Master\s+Stylist|Senior\s+Stylist)"
+    r"\s*$",
     re.MULTILINE | re.IGNORECASE,
 )
+
+# Role keywords (uppercase set) — used to filter out role-row matches
+# that the individual-row regex accidentally accepts (some role rows
+# happen to have the right field count to match the individual regex).
+_ROLE_KEYWORDS_UPPER = frozenset({
+    "MANAGER", "STYLIST", "SHIFT LEADER",
+    "MASTER STYLIST", "SENIOR STYLIST", "TOTAL",
+})
 
 # SALE DETAILS section bounds
 _RE_EMP_SALE_START = re.compile(r"EMPLOYEE\s+SALE", re.IGNORECASE)
@@ -338,9 +352,9 @@ _RE_HOURLY_START   = re.compile(r"HOURLY\s+WORK", re.IGNORECASE)
 # Followed on the NEXT line by: "(x.xx)" — req_services_pct. We match the
 # 10 numeric fields here; the percent is picked up as a forward-scan hit.
 _RE_EMPLOYEE_PERF_INDIV = re.compile(
-    r"^ {3,5}"
+    r"^\s*"
     r"(?P<name>[A-Za-z][A-Za-z\.\'\-_ ]+?)"
-    r"\s{2,}"
+    r"\s+"
     r"(?P<in_svc_prod>-?[\d,]+\.\d+)\s+"
     r"(?P<in_svc_hours>-?[\d,]+\.\d+)\s+"
     r"(?P<actual_hours>-?[\d,]+\.\d+)\s+"
@@ -372,6 +386,58 @@ FLAG_TOTAL_SALES_MISMATCH = "TOTAL_SALES_MISMATCH"
 FLAG_GUEST_COUNT_MISMATCH = "GUEST_COUNT_MISMATCH"
 FLAG_SERVICE_NET_MISMATCH = "SERVICE_NET_MISMATCH"
 FLAG_PARSE_CRASH          = "PARSE_CRASH"
+
+
+# ---------------------------------------------------------------------------
+# Multi-line name lookback helper (shared by SALE and PERF section walkers)
+# ---------------------------------------------------------------------------
+_RE_LETTERS_ONLY_LINE = re.compile(r"^[A-Za-z][A-Za-z\.\'\-_ ]*$")
+
+
+def _multi_line_name_lookback(
+    section: str, match_start: int, prev_match_end: int
+) -> str:
+    """
+    PyMuPDF renders multi-word stylist names across multiple lines:
+        "Rebecca"          <- prefix line
+        "Follansbee"       <- where the row regex starts matching
+        "192.00"
+        ...
+    The row regex captures `name="Follansbee"` because its `[A-Za-z...]+?`
+    character class doesn't span newlines. We recover the prefix by walking
+    backward from the match start, accumulating contiguous letters-only
+    lines until we hit either a non-letters line (digit / paren / blank /
+    role keyword) or the previous match's end (so we don't cross into the
+    previous stylist's territory).
+
+    For the FIRST match in a section, `prev_match_end == -1` is a sentinel
+    that disables the lookback — the lines above the first match are
+    headers ("MANAGER" / "SERVICE QTY" / etc.), not name continuations.
+
+    Returns the joined prefix in original line order, or "" if no prefix.
+    """
+    if prev_match_end < 0:
+        return ""
+
+    match_line_start = section.rfind("\n", 0, match_start) + 1
+    if match_line_start <= prev_match_end:
+        return ""
+
+    inter = section[prev_match_end:match_line_start]
+    parts: List[str] = []
+    for line in reversed(inter.splitlines()):
+        stripped = line.strip()
+        if (
+            stripped
+            and not re.search(r"[\d$()]", stripped)
+            and _RE_LETTERS_ONLY_LINE.match(stripped)
+            and stripped.upper() not in _ROLE_KEYWORDS_UPPER
+        ):
+            parts.append(stripped)
+        else:
+            break
+
+    return " ".join(reversed(parts))
 
 
 # ---------------------------------------------------------------------------
@@ -863,78 +929,79 @@ class ZenotiV2Parser:
 
     def _parse_sale_section(self, section: str) -> List[Dict[str, Any]]:
         """
-        Walk the EMPLOYEE SALE DETAILS section line-by-line. Identify:
-         • Role group rows (MANAGER / STYLIST / Shift Leader / Total)
-         • Individual stylist rows (name + 12 numeric fields)
-         • Continuation lines (just a second name chunk — merge with prior)
+        Walk the EMPLOYEE SALE DETAILS section using `finditer` over the
+        individual-row regex. PyMuPDF renders this table in vertical column
+        order (one field per line); the regex's `\\s+` separators traverse
+        newlines, so each match captures a full 12-field stylist row across
+        multiple lines.
 
-        The continuation-line handling mirrors the SU v2 parser: if the
-        previous "name" captured ends in a single token and the next line
-        is purely word-chars (no numeric tail), append it. Real example:
-            "     Rebecca               192.00  ..."
-            "     Follansbee"                        ← continuation
+        Role tagging: scan for role-keyword lines (MANAGER / STYLIST /
+        Shift Leader / Master Stylist / Senior Stylist) and tag each
+        stylist with the most recent role keyword position above it.
+
+        Multi-word names spanning multiple lines (e.g. Rebecca / Follansbee
+        renders as "Rebecca\\nFollansbee\\n192.00\\n...") get the LAST word
+        captured by the row regex as the `name` group. A lookback over the
+        contiguous letters-only lines in the gap to the previous match's
+        end then prepends the prefix to the captured name.
+
+        Role rows themselves may have field counts that accidentally match
+        the individual-row regex; we filter them out post-hoc by checking
+        the captured name against `_ROLE_KEYWORDS_UPPER`.
         """
         if not section:
             return []
 
+        # Role keyword positions for role tagging (sorted by start position).
+        role_positions: List[Tuple[int, str]] = [
+            (m.start(), re.sub(r"\s+", " ", m.group("role").strip()).upper())
+            for m in _RE_EMPLOYEE_SALE_GROUP.finditer(section)
+        ]
+
+        matches = list(_RE_EMPLOYEE_SALE_INDIV.finditer(section))
+        if not matches:
+            return []
+
         out: List[Dict[str, Any]] = []
-        current_role = "UNKNOWN"
-        prev_row_ref: Optional[Dict[str, Any]] = None
+        prev_match_end = -1  # sentinel: first match has no preceding match
+        for m in matches:
+            name = re.sub(r"\s+", " ", m.group("name").strip())
 
-        lines = section.splitlines()
-        for line in lines:
-            # Role group detection: starts with 2-3 spaces + ROLE + whitespace
-            m_role = re.match(
-                r"^ {2,3}(MANAGER|STYLIST|Shift\s+Leader|Master\s+Stylist|Senior\s+Stylist)\b",
-                line,
-                re.IGNORECASE,
-            )
-            if m_role:
-                current_role = m_role.group(1).upper().replace("  ", " ")
-                prev_row_ref = None
+            # Skip role-row matches (MANAGER, STYLIST, Total, etc.)
+            if name.upper() in _ROLE_KEYWORDS_UPPER:
+                prev_match_end = m.end()
                 continue
 
-            # Total row — end of useful data in this section
-            if re.match(r"^ {2,3}Total\b", line):
-                prev_row_ref = None
-                continue
+            # Multi-line name lookback
+            prefix = _multi_line_name_lookback(section, m.start(), prev_match_end)
+            if prefix:
+                name = f"{prefix} {name}".strip()
 
-            # Individual row?
-            m_indiv = _RE_EMPLOYEE_SALE_INDIV.match(line)
-            if m_indiv:
-                row = {
-                    "name": re.sub(r"\s+", " ", m_indiv.group("name").strip()),
-                    "role_group": current_role,
-                    "net_service": safe_parse_money(m_indiv.group("net_service")),
-                    "comm_service": safe_parse_money(m_indiv.group("comm_service")),
-                    "comm_disc": safe_parse_money(m_indiv.group("comm_disc")),
-                    "tips": safe_parse_money(m_indiv.group("tips")),
-                    "service_qty": safe_parse_int(m_indiv.group("service_qty")),
-                    "invoice_count": safe_parse_int(m_indiv.group("invoice_count")),
-                    "net_product": safe_parse_money(m_indiv.group("net_product")),
-                    "comm_product": safe_parse_money(m_indiv.group("comm_product")),
-                    "net_prod_per_product_inv": safe_parse_money(m_indiv.group("net_prod_per_pi")),
-                    "avg_invoice_value": safe_parse_money(m_indiv.group("avg_invoice_value")),
-                    "disc_dollars": safe_parse_money(m_indiv.group("disc_dollars")),
-                    "disc_pct": safe_parse_percent(m_indiv.group("disc_pct"), as_fraction=False),
-                }
-                out.append(row)
-                prev_row_ref = row
-                continue
+            # Most recent role keyword before this match (default UNKNOWN)
+            current_role = "UNKNOWN"
+            for pos, role in role_positions:
+                if pos < m.start():
+                    current_role = role
+                else:
+                    break
 
-            # Continuation line detection: only word tokens, 4+ char
-            # indent matching an individual row's indent, no numeric tail.
-            if prev_row_ref is not None:
-                stripped = line.strip()
-                if (
-                    stripped
-                    and not re.search(r"\d", stripped)
-                    and re.match(r"^[A-Za-z][A-Za-z\.\'\-_ ]+$", stripped)
-                    and re.match(r"^ {4,6}", line)
-                ):
-                    prev_row_ref["name"] = re.sub(
-                        r"\s+", " ", f"{prev_row_ref['name']} {stripped}"
-                    )
+            out.append({
+                "name": name,
+                "role_group": current_role,
+                "net_service": safe_parse_money(m.group("net_service")),
+                "comm_service": safe_parse_money(m.group("comm_service")),
+                "comm_disc": safe_parse_money(m.group("comm_disc")),
+                "tips": safe_parse_money(m.group("tips")),
+                "service_qty": safe_parse_int(m.group("service_qty")),
+                "invoice_count": safe_parse_int(m.group("invoice_count")),
+                "net_product": safe_parse_money(m.group("net_product")),
+                "comm_product": safe_parse_money(m.group("comm_product")),
+                "net_prod_per_product_inv": safe_parse_money(m.group("net_prod_per_pi")),
+                "avg_invoice_value": safe_parse_money(m.group("avg_invoice_value")),
+                "disc_dollars": safe_parse_money(m.group("disc_dollars")),
+                "disc_pct": safe_parse_percent(m.group("disc_pct"), as_fraction=False),
+            })
+            prev_match_end = m.end()
 
         return out
 
@@ -942,107 +1009,94 @@ class ZenotiV2Parser:
 
     def _parse_perf_section(self, section: str) -> List[Dict[str, Any]]:
         """
-        Walk the EMPLOYEE PERFORMANCE DETAILS section line-by-line. The
-        shape is an individual row followed by a percent-only continuation
-        line holding req_services_pct, e.g.:
+        Walk the EMPLOYEE PERFORMANCE DETAILS section using `finditer` over
+        the individual-row regex. PyMuPDF renders this table in vertical
+        column order — same shape pattern as the SALE section.
 
-            "    Katelyn Kuchinski   0.05 0.83 18.30 18.30 0.00 0.00 37.92 38.96 37.92 9"
-            "                                                         (0.00)"
+        Each stylist row is followed by a parenthesized percent line on its
+        own row holding `req_services_pct`. We extract those via
+        `_RE_REQ_PCT_LINE` separately and assign each to the nearest
+        preceding stylist match by position.
 
-        Multi-word names split across lines are possible (Alexandria
-        Costello / Martinez in Roseville). We detect them the same way as
-        the sale section — a pure-letters line before the numbers.
+        Multi-word names spanning multiple lines (e.g. Alexandria / Costello
+        / Martinez in Roseville) get the LAST word captured; a lookback
+        prepends the contiguous letters-only prefix lines.
+
+        Role rows (MANAGER, STYLIST, etc.) and the Total closer have
+        10-field shapes that may accidentally match the individual regex;
+        we filter them post-hoc by checking the captured name against
+        `_ROLE_KEYWORDS_UPPER`.
         """
         if not section:
             return []
 
+        role_positions: List[Tuple[int, str]] = [
+            (m.start(), re.sub(r"\s+", " ", m.group("role").strip()).upper())
+            for m in _RE_EMPLOYEE_SALE_GROUP.finditer(section)
+        ]
+
+        matches = list(_RE_EMPLOYEE_PERF_INDIV.finditer(section))
+        if not matches:
+            return []
+
+        # Parenthesized-percent lines, keyed by position. We'll assign each
+        # to the nearest preceding stylist match.
+        pct_matches = list(_RE_REQ_PCT_LINE.finditer(section))
+
         out: List[Dict[str, Any]] = []
-        current_role = "UNKNOWN"
-        prev_row_ref: Optional[Dict[str, Any]] = None
-        pending_name_prefix: Optional[str] = None
+        prev_match_end = -1
+        for m in matches:
+            name = re.sub(r"\s+", " ", m.group("name").strip())
 
-        lines = section.splitlines()
-        for line in lines:
-            # Role group: 2-space indent + ROLE + numbers
-            m_role = re.match(
-                r"^ {1,3}(MANAGER|STYLIST|Shift\s+Leader|Master\s+Stylist|Senior\s+Stylist)\b",
-                line,
-                re.IGNORECASE,
-            )
-            if m_role:
-                current_role = m_role.group(1).upper().replace("  ", " ")
-                prev_row_ref = None
-                pending_name_prefix = None
+            if name.upper() in _ROLE_KEYWORDS_UPPER:
+                prev_match_end = m.end()
                 continue
 
-            # Total row — closes the section
-            if re.match(r"^ {1,3}Total\b", line):
-                prev_row_ref = None
-                pending_name_prefix = None
-                continue
+            prefix = _multi_line_name_lookback(section, m.start(), prev_match_end)
+            if prefix:
+                name = f"{prefix} {name}".strip()
 
-            # Percent continuation line — attach to prev row
-            m_pct = _RE_REQ_PCT_LINE.match(line)
-            if m_pct and prev_row_ref is not None:
-                prev_row_ref["req_services_pct"] = safe_parse_percent(
-                    m_pct.group(1), as_fraction=False
+            current_role = "UNKNOWN"
+            for pos, role in role_positions:
+                if pos < m.start():
+                    current_role = role
+                else:
+                    break
+
+            out.append({
+                "name": name,
+                "role_group": current_role,
+                "_match_end": m.end(),  # stripped before returning
+                "in_service_productivity": safe_parse_money(m.group("in_svc_prod")),
+                "in_service_hours": safe_parse_money(m.group("in_svc_hours")),
+                "actual_hours": safe_parse_money(m.group("actual_hours")),
+                "production_hours": safe_parse_money(m.group("production_hours")),
+                "non_production_hours": safe_parse_money(m.group("non_prod_hours")),
+                "blocked_hours": safe_parse_money(m.group("blocked_hours")),
+                "net_service_per_hr": safe_parse_money(m.group("net_svc_per_hr")),
+                "gross_service_per_hr": safe_parse_money(m.group("gross_svc_per_hr")),
+                "service_comm_prod_per_hr": safe_parse_money(m.group("svc_comm_per_hr")),
+                "req_services_count": safe_parse_int(m.group("req_services")),
+                "req_services_pct": None,
+            })
+            prev_match_end = m.end()
+
+        # Assign each percent line to the nearest preceding stylist row.
+        for pm in pct_matches:
+            target = None
+            for row in out:
+                if row["_match_end"] <= pm.start():
+                    target = row
+                else:
+                    break
+            if target is not None and target["req_services_pct"] is None:
+                target["req_services_pct"] = safe_parse_percent(
+                    pm.group(1), as_fraction=False
                 )
-                continue
 
-            # Individual row?
-            m_indiv = _RE_EMPLOYEE_PERF_INDIV.match(line)
-            if m_indiv:
-                name = re.sub(r"\s+", " ", m_indiv.group("name").strip())
-                if pending_name_prefix:
-                    # Merge name-prefix line from before the numeric line
-                    name = f"{pending_name_prefix} {name}".strip()
-                    name = re.sub(r"\s+", " ", name)
-                    pending_name_prefix = None
-
-                row = {
-                    "name": name,
-                    "role_group": current_role,
-                    "in_service_productivity": safe_parse_money(m_indiv.group("in_svc_prod")),
-                    "in_service_hours": safe_parse_money(m_indiv.group("in_svc_hours")),
-                    "actual_hours": safe_parse_money(m_indiv.group("actual_hours")),
-                    "production_hours": safe_parse_money(m_indiv.group("production_hours")),
-                    "non_production_hours": safe_parse_money(m_indiv.group("non_prod_hours")),
-                    "blocked_hours": safe_parse_money(m_indiv.group("blocked_hours")),
-                    "net_service_per_hr": safe_parse_money(m_indiv.group("net_svc_per_hr")),
-                    "gross_service_per_hr": safe_parse_money(m_indiv.group("gross_svc_per_hr")),
-                    "service_comm_prod_per_hr": safe_parse_money(m_indiv.group("svc_comm_per_hr")),
-                    "req_services_count": safe_parse_int(m_indiv.group("req_services")),
-                    "req_services_pct": None,  # filled by next line
-                }
-                out.append(row)
-                prev_row_ref = row
-                continue
-
-            # Pure-name continuation line (before numeric line) — used when
-            # a multi-word name wraps. Save it; the next numeric match will
-            # prepend it.
-            stripped = line.strip()
-            if (
-                stripped
-                and not re.search(r"\d", stripped)
-                and re.match(r"^[A-Za-z][A-Za-z\.\'\-_ ]+$", stripped)
-                and re.match(r"^ {3,6}", line)
-            ):
-                pending_name_prefix = stripped
-                continue
-
-            # Pure-name continuation AFTER the numeric line (rarer) —
-            # append to prev row. Skip if we're already holding a prefix.
-            if (
-                prev_row_ref is not None
-                and pending_name_prefix is None
-                and stripped
-                and not re.search(r"\d", stripped)
-                and re.match(r"^[A-Za-z][A-Za-z\.\'\-_ ]+$", stripped)
-            ):
-                prev_row_ref["name"] = re.sub(
-                    r"\s+", " ", f"{prev_row_ref['name']} {stripped}"
-                )
+        # Strip internal cursor
+        for row in out:
+            row.pop("_match_end", None)
 
         return out
 
