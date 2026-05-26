@@ -113,13 +113,13 @@ Tracked in PARSER_AUDIT_2026-05-26.md §7. Not spec items per se, but blockers f
 
 2. `config/inbox_config.json` has 2 `[REPLACE_BEFORE_GO_LIVE]` placeholder emails — to be filled with Karissa's real address after fresh-PDF validation confirms parser accuracy. Branch 2's alert function defensively handles the placeholder state, so this is a one-line config update, not a code change. **Spawn-task #2 pending.**
 
-3. `data/processed_attachments.json` ledger is per-runner ephemeral on GitHub Actions — persistence strategy TBD (git commit, actions/cache, or Sheets tab). **Spawn-task #3 pending.**
+3. `data/processed_attachments.json` ledger persistence — **RESOLVED 2026-05-26** on branch `inbox-ledger-persistence-2026-05-26`. Decision: git-commit the ledger via a new workflow step (`Commit inbox ledger`) inserted between the watcher and Tier 2. The ledger is un-gitignored (`.gitignore` exception), the workflow stages + commits any change, and the existing Step 7 push picks it up alongside the dashboard commit. No new dependencies, no `actions/cache` eviction risk. See `INBOX_LEDGER_PERSISTENCE_DECISION.md` for the full options evaluation. **Spawn-task #3 closed.**
 
 4. `parsers/tier2_batch_processor.py` (legacy) needs rename → `.DEPRECATED.py` after parity verification. **Spawn-task #4 pending.**
 
 5. **Gmail OAuth refresh token** (`KPI_INBOX_REFRESH_TOKEN` GitHub Secret) — revoked or expired. Surfaced 2026-05-26 in production run logs as `RuntimeError: INBOX WATCHER AUTH FAILURE — 400: invalid_grant`. Google revokes refresh tokens after ~6 months of inactivity or on user revocation. Required for Tier 2 to fetch attachments from the dedicated inbox `karissaperformanceintelligence@gmail.com`. **Branch 4 (`tier2-go-live-activation`) prerequisite — regenerate via `email_assistant/get_token.py` immediately before activation.** Per Tony's 2026-05-26 chat: won't regenerate early because premature regeneration would just expire again if launch slips further. The same OAuth identity (or a parallel one) is also used by the Email Assistant pipeline (`GMAIL_REFRESH_TOKEN`), which may also need regeneration at the same time.
 
-Spawn-tasks status: #1 closed (diagnosis complete 2026-05-26); #2 / #3 / #4 pending. None impact spec correctness directly.
+Spawn-tasks status: #1 and #3 closed (2026-05-26); #2 / #4 pending. None impact spec correctness directly.
 
 ---
 

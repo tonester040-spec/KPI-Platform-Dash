@@ -45,7 +45,15 @@ config/noise_senders_*.json
 sample_data/
 data/inbox/
 data/archive/
-data/processed_attachments.json
+
+# ── Inbox dedup ledger — INTENTIONALLY COMMITTED ─────────────
+# data/processed_attachments.json is the SHA256 idempotency ledger for the
+# Gmail attachment watcher. It MUST persist across GitHub Actions runs
+# (ephemeral runners reset the filesystem every Monday), so we commit it.
+# Contains only hashes, filenames, ISO timestamps, and Gmail message IDs —
+# no PHI. The workflow's "Commit inbox ledger" step keeps it in sync.
+# See INBOX_LEDGER_PERSISTENCE_DECISION.md for the rationale.
+!data/processed_attachments.json
 **/March */
 **/Weekly Report*
 **/Salon Summary*
