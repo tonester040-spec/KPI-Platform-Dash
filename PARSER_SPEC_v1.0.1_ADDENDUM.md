@@ -105,12 +105,21 @@ FINAL_SPEC §7 defines a 3-tier tolerance system (rounding ≤ $0.01 silent, > 0
 
 Tracked in PARSER_AUDIT_2026-05-26.md §7. Not spec items per se, but blockers for going live with a spec-compliant parser:
 
-1. Weekly pipeline has not auto-committed dashboards since 2026-04-22
-2. `config/inbox_config.json` has 2 `[REPLACE_BEFORE_GO_LIVE]` placeholder emails
-3. `data/processed_attachments.json` ledger is per-runner ephemeral on GitHub Actions
-4. `parsers/tier2_batch_processor.py` (legacy) needs rename → `.DEPRECATED.py` after parity verification
+1. **Weekly pipeline failing every Monday since 2026-04-27** — DIAGNOSED 2026-05-26. Pipeline IS firing on schedule but the `Run KPI Pipeline` step (main.py) fails with `ERROR: No location data found in CURRENT tab — aborting pipeline.` Two upstream causes, both expected for the current pre-launch state:
+   - (a) Intentional CURRENT-tab wipe (Tony cleared Sheets data so dashboards wouldn't reflect anything until Tier 2 activates with fresh PDFs). main.py correctly refuses to publish over empty data — exactly the safety behavior we want.
+   - (b) Gmail OAuth refresh token dead (see item 5). Step 0 (inbox watcher) fails first with `invalid_grant`, but `continue-on-error: true` lets the workflow proceed until main.py's hard failure.
 
-Spawn-tasks pending. None impact spec correctness directly.
+   Will resolve naturally when both items are addressed at Branch 4 activation. **Spawn-task #1 marked closed** (diagnosis complete 2026-05-26, no fix needed pre-launch).
+
+2. `config/inbox_config.json` has 2 `[REPLACE_BEFORE_GO_LIVE]` placeholder emails — to be filled with Karissa's real address after fresh-PDF validation confirms parser accuracy. Branch 2's alert function defensively handles the placeholder state, so this is a one-line config update, not a code change. **Spawn-task #2 pending.**
+
+3. `data/processed_attachments.json` ledger is per-runner ephemeral on GitHub Actions — persistence strategy TBD (git commit, actions/cache, or Sheets tab). **Spawn-task #3 pending.**
+
+4. `parsers/tier2_batch_processor.py` (legacy) needs rename → `.DEPRECATED.py` after parity verification. **Spawn-task #4 pending.**
+
+5. **Gmail OAuth refresh token** (`KPI_INBOX_REFRESH_TOKEN` GitHub Secret) — revoked or expired. Surfaced 2026-05-26 in production run logs as `RuntimeError: INBOX WATCHER AUTH FAILURE — 400: invalid_grant`. Google revokes refresh tokens after ~6 months of inactivity or on user revocation. Required for Tier 2 to fetch attachments from the dedicated inbox `karissaperformanceintelligence@gmail.com`. **Branch 4 (`tier2-go-live-activation`) prerequisite — regenerate via `email_assistant/get_token.py` immediately before activation.** Per Tony's 2026-05-26 chat: won't regenerate early because premature regeneration would just expire again if launch slips further. The same OAuth identity (or a parallel one) is also used by the Email Assistant pipeline (`GMAIL_REFRESH_TOKEN`), which may also need regeneration at the same time.
+
+Spawn-tasks status: #1 closed (diagnosis complete 2026-05-26); #2 / #3 / #4 pending. None impact spec correctness directly.
 
 ---
 
