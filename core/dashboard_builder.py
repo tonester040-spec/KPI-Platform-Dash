@@ -44,7 +44,15 @@ def _build_weeks_12(locations: list[dict]) -> list[str]:
 
 
 def _build_loc_hist(locations: list[dict]) -> str:
-    """Build the LOC_HIST JavaScript constant."""
+    """Build the LOC_HIST JavaScript constant.
+
+    Convention: pipeline stores percentage fields as DECIMAL (0.0796 = 7.96%)
+    in DATA and CURRENT — matches parser output and CLAUDE.md KPI formulas.
+    Dashboard JS expects PERCENT scale (7.96) for `.toFixed(1) + '%'` rendering.
+    We multiply pct fields by 100 here at emission so all downstream display
+    logic works without per-cell *100 conversions in the HTML/JS. Single point
+    of conversion = single point of truth.
+    """
     lines = ["const LOC_HIST = {"]
     for loc in locations:
         name     = loc["loc_name"]
@@ -60,13 +68,17 @@ def _build_loc_hist(locations: list[dict]) -> str:
         def fmt_arr(arr, prec=2):
             return "[" + ",".join(f"{float(v):.{prec}f}" for v in arr[-12:]) + "]"
 
+        def fmt_pct_arr(arr, prec=1):
+            """Pct arrays stored as decimal — multiply by 100 for display."""
+            return "[" + ",".join(f"{float(v) * 100:.{prec}f}" for v in arr[-12:]) + "]"
+
         lines.append(f"  '{name}': {{ plat:'{plat}',")
         lines.append(f"    s:  {fmt_arr(sales_arr, 0)},")
         lines.append(f"    h:  {fmt_arr(pph_arr, 2)},")
-        lines.append(f"    p:  {fmt_arr(prod_arr, 1)},")
+        lines.append(f"    p:  {fmt_pct_arr(prod_arr, 1)},")
         lines.append(f"    g:  {fmt_arr(guests_arr, 0)},")
         lines.append(f"    at: {fmt_arr(tick_arr, 2)},")
-        lines.append(f"    w:  {fmt_arr(wax_arr, 1)},")
+        lines.append(f"    w:  {fmt_pct_arr(wax_arr, 1)},")
         lines.append(f"  }},")
 
     lines.append("};")

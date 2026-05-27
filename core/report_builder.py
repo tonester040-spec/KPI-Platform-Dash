@@ -136,7 +136,7 @@ def _build_summary(wb, data: dict, ai_cards: dict):
         ("Total Guests",     f"{net.get('total_guests', 0):,}"),
         ("Total Sales",      f"${net.get('total_sales', 0):,.0f}"),
         ("Avg PPH",          f"${net.get('avg_pph', 0):.2f}"),
-        ("Avg Product %",    f"{net.get('avg_product_pct', 0):.1f}%"),
+        ("Avg Product %",    f"{net.get('avg_product_pct', 0):.1%}"),
         ("Avg Ticket",       f"${net.get('avg_avg_ticket', 0):.2f}"),
         ("", ""),
         ("TOP PERFORMER (PPH)", net.get("top_pph_loc", "")),
@@ -204,7 +204,7 @@ def _build_locations(wb, data: dict, ai_cards: dict):
             f"${loc.get('total_sales', 0):,.0f}",
             f"${loc.get('service', 0):,.0f}",
             f"${loc.get('product', 0):,.0f}",
-            f"{prod:.1f}%",
+            f"{prod:.1%}",
             f"{prod_delta:+.1f}" if prod_delta else "—",
             f"{loc.get('ppg', 0):.2f}",
             f"${loc.get('avg_ticket', 0):.2f}",
@@ -266,12 +266,12 @@ def _build_service_mix(wb, data: dict):
             loc["loc_name"],
             loc.get("wax_count",   0),
             f"${loc.get('wax',   0):,.0f}",
-            f"{wax_pct:.1f}%",
+            f"{wax_pct:.1%}",
             f"${loc.get('color', 0):,.0f}",
-            f"{color_pct:.1f}%",
+            f"{color_pct:.1%}",
             loc.get("treat_count", 0),
             f"${loc.get('treat',  0):,.0f}",
-            f"{treat_pct:.1f}%",
+            f"{treat_pct:.1%}",
             f"{loc.get('prod_hours', 0):.1f}",
         ]
 
@@ -296,11 +296,11 @@ def _build_service_mix(wb, data: dict):
     footer_row = len(locs) + 2
     avg_footer = [
         "NETWORK AVG", "", "",
-        f"{avg_wax_pct:.1f}%",
+        f"{avg_wax_pct:.1%}",
         "",
-        f"{avg_color_pct:.1f}%",
+        f"{avg_color_pct:.1%}",
         "", "",
-        f"{avg_treat_pct:.1f}%",
+        f"{avg_treat_pct:.1%}",
         "",
     ]
     for col, val in enumerate(avg_footer, start=1):
