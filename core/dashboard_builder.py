@@ -136,26 +136,49 @@ def _build_coach_card_data(coach_card: dict | None) -> str:
 
 
 def compute_monthly_trend(locations: list[dict]) -> dict[str, dict]:
-    """Compute per-location monthly trend data (Karissa Q7).
+    """Compute per-location MONTH-over-month sales trend.
 
-    For each location, returns the per-week Total Sales for the CURRENT
-    year_month plus the MTD total. Shared between the HTML dashboard
-    (rendered as a JS constant) and the Excel report's Weekly Breakdown
-    sheet.
+    Originally tried to show weekly breakdown for the current month, but
+    with monthly-only backfill data each "week" cell rendered the same
+    full-month total, producing nonsensical MTD sums (e.g. Apple Valley
+    "MTD $538,742" = 6 × the single monthly figure).
+
+    Reframed 2026-05-27: show a true month-over-month view — one column
+    per real month present in the location's history. This is honest with
+    the data we have today (monthly aggregates) and will keep working
+    once organic weekly accumulation provides finer grain (we can
+    optionally swap to weekly-within-month later without changing the
+    output shape).
 
     Shape:
       {
         "Blaine": {
-          "current_month": "2026-04",
-          "weeks": ["2026-04-05", "2026-04-12", ...],
-          "sales": [18000.0, 18357.5, ...],
-          "mtd_total": 80707.5,
+          "months":       ["2026-03", "2026-04", "2026-05"],
+          "month_labels": ["Mar 2026", "Apr 2026", "May 2026"],
+          "sales":        [12345.67, 23456.78, 42143.70],
+          "current_month": "2026-05",
+          "current_total": 42143.70,
         },
         ...
       }
 
-    Empty / missing data degrades gracefully (empty arrays, mtd_total=0).
+    Empty / missing data degrades gracefully (empty arrays, current_total=0).
     """
+    _MONTH_NAMES = [
+        "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]
+
+    def _ym_to_label(ym: str) -> str:
+        # "2026-05" → "May 2026"
+        if not ym or len(ym) < 7:
+            return ym or ""
+        try:
+            yr, mo = ym.split("-")[:2]
+            return f"{_MONTH_NAMES[int(mo)]} {yr}"
+        except (ValueError, IndexError):
+            return ym
+
     out: dict[str, dict] = {}
     for loc in locations:
         name = loc.get("loc_name", "")
@@ -166,29 +189,41 @@ def compute_monthly_trend(locations: list[dict]) -> dict[str, dict]:
         sales = hist.get("total_sales", []) or []
 
         if not weeks:
-            out[name] = {"current_month": "", "weeks": [], "sales": [], "mtd_total": 0.0}
+            out[name] = {
+                "months": [], "month_labels": [], "sales": [],
+                "current_month": "", "current_total": 0.0,
+            }
             continue
 
-        # Current year_month derived from the most recent week_ending
-        latest_we = weeks[-1] if weeks[-1] else ""
-        current_ym = latest_we[:7] if latest_we and len(latest_we) >= 7 else ""
-
-        # Filter pair-wise to current year_month
-        cm_weeks: list[str] = []
-        cm_sales: list[float] = []
+        # Aggregate sales by year_month. For each month, take the MAX value
+        # because MONTHLY entries (from DATA_MONTHLY backfill) hold the
+        # full-month total and incidental weekly entries are partial. Once
+        # we have full weekly history, swap to SUM. The data shape doesn't
+        # change; only the per-cell aggregation does.
+        by_ym: dict[str, float] = {}
         for w, s in zip(weeks, sales):
-            if w and w[:7] == current_ym:
-                cm_weeks.append(w)
-                try:
-                    cm_sales.append(float(s) if s is not None else 0.0)
-                except (TypeError, ValueError):
-                    cm_sales.append(0.0)
+            if not w or len(w) < 7:
+                continue
+            ym = w[:7]
+            try:
+                val = float(s) if s is not None else 0.0
+            except (TypeError, ValueError):
+                val = 0.0
+            existing = by_ym.get(ym, 0.0)
+            if val > existing:
+                by_ym[ym] = val
+
+        months_sorted = sorted(by_ym.keys())
+        sales_sorted = [round(by_ym[ym], 2) for ym in months_sorted]
+        current_ym = months_sorted[-1] if months_sorted else ""
+        current_total = by_ym.get(current_ym, 0.0) if current_ym else 0.0
 
         out[name] = {
+            "months": months_sorted,
+            "month_labels": [_ym_to_label(ym) for ym in months_sorted],
+            "sales": sales_sorted,
             "current_month": current_ym,
-            "weeks": cm_weeks,
-            "sales": cm_sales,
-            "mtd_total": round(sum(cm_sales), 2),
+            "current_total": round(current_total, 2),
         }
 
     return out

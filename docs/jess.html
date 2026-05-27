@@ -322,7 +322,7 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
      If present: populate opp-headline, opp-detail, remove [hidden]. -->
 
   <!-- ══ MONTHLY TREND — Karissa Q7: weeks-as-columns + MTD total ══ -->
-  <div class="section-title">Monthly Trend — Total Sales by Week</div>
+  <div class="section-title">Monthly Sales Trend</div>
   <div class="leaderboard-section" style="overflow-x:auto;">
     <table id="monthlyTrendTable" style="width:100%;min-width:560px;border-collapse:collapse;">
       <thead id="monthlyTrendHead"></thead>
@@ -417,45 +417,45 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 ═══════════════════════════════════════════════════════ */
 const CURRENT_WEEK = '2026-03-09';
 // KPI_DATA_START
-// Generated: 2026-05-27T20:54:14Z
+// Generated: 2026-05-27T21:35:42Z
 const WEEKS_12 = [
-  '2019-05-31','2019-06-30','2025-05-31','2025-06-30','2026-03-31','2026-04-30','2026-05-24','2026-05-24','2026-05-24','2026-05-24','2026-05-24','2026-05-24'
+  '2019-05-31','2019-06-30','2025-05-31','2025-06-30','2026-03-31','2026-04-30','2026-05-24','2026-05-24'
 ];
 const LOC_HIST = {
   'Prior Lake': { plat:'zenoti',
-    s:  [52515,104249,56783,162377,39603,44359,32038,32038,32038,32038,32038,32038],
-    h:  [0.00,0.00,0.00,0.00,32.47,34.84,32.62,32.62,32.62,32.62,32.62,32.62],
-    p:  [0.0,0.0,0.0,0.0,6.3,5.6,5.1,5.1,5.1,5.1,5.1,5.1],
-    g:  [0,0,1159,0,875,866,657,657,657,657,657,657],
-    at: [0.00,0.00,48.99,0.00,45.26,51.22,48.76,48.76,48.76,48.76,48.76,48.76],
-    w:  [0.0,0.0,0.0,0.0,8.0,8.6,10.3,10.4,10.4,10.4,10.4,10.4],
+    s:  [52515,104249,56783,162377,39603,44359,32038,32038],
+    h:  [0.00,0.00,0.00,0.00,32.47,34.84,32.62,32.62],
+    p:  [0.0,0.0,0.0,0.0,6.3,5.6,5.1,5.1],
+    g:  [0,0,1159,0,875,866,657,657],
+    at: [0.00,0.00,48.99,0.00,45.26,51.22,48.76,48.76],
+    w:  [0.0,0.0,0.0,0.0,8.0,8.6,10.3,10.4],
     rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.3,3.9],
   },
   'Apple Valley': { plat:'salon_ultimate',
-    s:  [75092,223262,91529,257608,105477,98804,89790,89790,89790,89790,89790,89790],
-    h:  [0.00,0.00,0.00,0.00,53.74,51.61,55.21,55.21,55.21,55.21,55.21,55.21],
-    p:  [0.0,0.0,0.0,0.0,7.8,9.5,11.8,11.8,11.8,11.8,11.8,11.8],
-    g:  [0,0,1764,0,1796,1643,1463,1463,1463,1463,1463,1463],
-    at: [0.00,0.00,51.89,0.00,58.73,60.14,61.37,61.37,61.37,61.37,61.37,61.37],
-    w:  [0.0,0.0,0.0,0.0,15.3,14.7,16.3,16.3,16.3,16.3,16.3,16.3],
+    s:  [75092,223262,91529,257608,105477,98804,89790,89790],
+    h:  [0.00,0.00,0.00,0.00,53.74,51.61,55.21,55.21],
+    p:  [0.0,0.0,0.0,0.0,7.8,9.5,11.8,11.8],
+    g:  [0,0,1764,0,1796,1643,1463,1463],
+    at: [0.00,0.00,51.89,0.00,58.73,60.14,61.37,61.37],
+    w:  [0.0,0.0,0.0,0.0,15.3,14.7,16.3,16.3],
     rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,14.7,13.1],
   },
   'Lakeville': { plat:'salon_ultimate',
-    s:  [42609,123227,35725,103755,38413,38277,31349,31349,31349,31349,31349,31349],
-    h:  [0.00,0.00,0.00,0.00,38.52,38.88,45.88,45.88,45.88,45.88,45.88,45.88],
-    p:  [0.0,0.0,0.0,0.0,6.3,6.1,5.7,5.7,5.7,5.7,5.7,5.7],
-    g:  [0,0,784,0,698,719,609,609,609,609,609,609],
-    at: [0.00,0.00,45.57,0.00,55.03,53.24,51.48,51.48,51.48,51.48,51.48,51.48],
-    w:  [0.0,0.0,0.0,0.0,14.9,12.9,15.6,15.6,15.6,15.6,15.6,15.6],
+    s:  [42609,123227,35725,103755,38413,38277,31349,31349],
+    h:  [0.00,0.00,0.00,0.00,38.52,38.88,45.88,45.88],
+    p:  [0.0,0.0,0.0,0.0,6.3,6.1,5.7,5.7],
+    g:  [0,0,784,0,698,719,609,609],
+    at: [0.00,0.00,45.57,0.00,55.03,53.24,51.48,51.48],
+    w:  [0.0,0.0,0.0,0.0,14.9,12.9,15.6,15.6],
     rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.7,2.5],
   },
   'Farmington': { plat:'salon_ultimate',
-    s:  [57542,162970,75881,208454,70629,61636,53105,53105,53105,53105,53105,53105],
-    h:  [0.00,0.00,0.00,0.00,61.71,56.74,60.94,60.94,60.94,60.94,60.94,60.94],
-    p:  [0.0,0.0,0.0,0.0,6.3,7.3,8.9,8.9,8.9,8.9,8.9,8.9],
-    g:  [0,0,1529,0,1328,1281,1017,1017,1017,1017,1017,1017],
-    at: [0.00,0.00,49.63,0.00,53.18,48.12,52.22,52.22,52.22,52.22,52.22,52.22],
-    w:  [0.0,0.0,0.0,0.0,12.4,11.1,13.0,13.0,13.0,13.0,13.0,13.0],
+    s:  [57542,162970,75881,208454,70629,61636,53105,53105],
+    h:  [0.00,0.00,0.00,0.00,61.71,56.74,60.94,60.94],
+    p:  [0.0,0.0,0.0,0.0,6.3,7.3,8.9,8.9],
+    g:  [0,0,1529,0,1328,1281,1017,1017],
+    at: [0.00,0.00,49.63,0.00,53.18,48.12,52.22,52.22],
+    w:  [0.0,0.0,0.0,0.0,12.4,11.1,13.0,13.0],
     rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.1,3.5],
   },
 };
@@ -463,7 +463,7 @@ const LOC_HIST = {
 /* ═══════════════════════════════════════════════════════
    MONTHLY TREND DATA (Karissa Q7 — weeks-as-columns + MTD)
 ═══════════════════════════════════════════════════════ */
-const MONTHLY_TREND_DATA = {"Prior Lake":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24"],"sales":[32037.85,32037.85,32037.85,32037.85,32037.85,32037.85],"mtd_total":192227.1},"Apple Valley":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24"],"sales":[89790.25,89790.25,89790.25,89790.25,89790.25,89790.25],"mtd_total":538741.5},"Lakeville":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24"],"sales":[31349.3,31349.3,31349.3,31349.3,31349.3,31349.3],"mtd_total":188095.8},"Farmington":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24","2026-05-24"],"sales":[53105.2,53105.2,53105.2,53105.2,53105.2,53105.2],"mtd_total":318631.2}};
+const MONTHLY_TREND_DATA = {"Prior Lake":{"months":["2019-05","2019-06","2025-05","2025-06","2026-03","2026-04","2026-05"],"month_labels":["May 2019","Jun 2019","May 2025","Jun 2025","Mar 2026","Apr 2026","May 2026"],"sales":[52515.42,104249.17,56783.15,162376.56,39603.15,44359.0,32037.85],"current_month":"2026-05","current_total":32037.85},"Apple Valley":{"months":["2019-05","2019-06","2025-05","2025-06","2026-03","2026-04","2026-05"],"month_labels":["May 2019","Jun 2019","May 2025","Jun 2025","Mar 2026","Apr 2026","May 2026"],"sales":[75092.27,223262.27,91529.25,257607.76,105477.12,98803.94,89790.25],"current_month":"2026-05","current_total":89790.25},"Lakeville":{"months":["2019-05","2019-06","2025-05","2025-06","2026-03","2026-04","2026-05"],"month_labels":["May 2019","Jun 2019","May 2025","Jun 2025","Mar 2026","Apr 2026","May 2026"],"sales":[42608.84,123227.0,35724.8,103755.3,38413.0,38276.61,31349.3],"current_month":"2026-05","current_total":31349.3},"Farmington":{"months":["2019-05","2019-06","2025-05","2025-06","2026-03","2026-04","2026-05"],"month_labels":["May 2019","Jun 2019","May 2025","Jun 2025","Mar 2026","Apr 2026","May 2026"],"sales":[57541.94,162970.06,75881.16,208453.92,70629.35,61636.5,53105.2],"current_month":"2026-05","current_total":53105.2}};
 
 /* ═══════════════════════════════════════════════════════
    STYLIST DATA
@@ -729,50 +729,96 @@ function sortBy(col) {
    LOCATION — MONTHLY TREND (Karissa Q7: weeks-as-columns + MTD)
 ═══════════════════════════════════════════════════════ */
 function renderMonthlyTrend() {
-  const data = (typeof MONTHLY_TREND_DATA !== 'undefined') ? MONTHLY_TREND_DATA : null;
+  // See docs/index.html for the full version + comments. Same logic — pulled
+  // into all three dashboards via a sed-like sync because the JS is inlined
+  // and the build doesn't share JS modules across pages.
+  const raw = (typeof MONTHLY_TREND_DATA !== 'undefined') ? MONTHLY_TREND_DATA : null;
   const head = document.getElementById('monthlyTrendHead');
   const body = document.getElementById('monthlyTrendBody');
   if (!head || !body) return;
-  if (!data || !Object.keys(data).length) {
+  if (!raw || !Object.keys(raw).length) {
     head.innerHTML = '';
     body.innerHTML = '<tr><td style="padding:14px;opacity:0.6;">No monthly trend data yet.</td></tr>';
     return;
   }
-  let maxWeeks = [];
-  Object.values(data).forEach(d => {
-    if ((d.weeks || []).length > maxWeeks.length) maxWeeks = d.weeks;
+  const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function ymLabel(ym) {
+    if (!ym || ym.length < 7) return ym || '';
+    var parts = ym.split('-');
+    var mo = parseInt(parts[1], 10);
+    return (MONTH_NAMES[mo] || ym) + ' ' + parts[0];
+  }
+  function normalize(d) {
+    if (d.months && d.month_labels && d.sales) return d;
+    var byYm = {};
+    (d.weeks || []).forEach(function(w, i){
+      if (!w || w.length < 7) return;
+      var ym = w.substr(0,7), v = +(d.sales || [])[i] || 0;
+      if ((byYm[ym] || 0) < v) byYm[ym] = v;
+    });
+    var months = Object.keys(byYm).sort();
+    return {
+      months: months,
+      month_labels: months.map(ymLabel),
+      sales: months.map(function(m){ return byYm[m]; }),
+      current_month: months.length ? months[months.length-1] : '',
+      current_total: months.length ? byYm[months[months.length-1]] : 0,
+    };
+  }
+  var data = {}, monthsSet = {};
+  Object.keys(raw).forEach(function(n){
+    var d = normalize(raw[n]);
+    data[n] = d;
+    (d.months || []).forEach(function(m){ monthsSet[m] = true; });
   });
-  if (!maxWeeks.length) {
+  var months = Object.keys(monthsSet).sort();
+  if (!months.length) {
     head.innerHTML = '';
-    body.innerHTML = '<tr><td style="padding:14px;opacity:0.6;">No weekly data for the current month yet.</td></tr>';
+    body.innerHTML = '<tr><td style="padding:14px;opacity:0.6;">No monthly history loaded yet.</td></tr>';
     return;
   }
-  let hh = '<tr style="background:rgba(0,0,0,0.03);">';
+  function priorYearYm(ym) {
+    if (!ym || ym.length < 7) return '';
+    var parts = ym.split('-');
+    return (parseInt(parts[0], 10) - 1) + '-' + parts[1];
+  }
+  var hh = '<tr style="background:rgba(0,0,0,0.03);">';
   hh += '<th style="text-align:left;padding:10px;border-bottom:1px solid var(--border);">Location</th>';
-  maxWeeks.forEach((w, i) => {
-    const md = (w && w.length >= 10) ? (parseInt(w.slice(5,7)) + '/' + parseInt(w.slice(8,10))) : '';
-    hh += '<th style="text-align:right;padding:10px;border-bottom:1px solid var(--border);">Wk ' + (i+1) +
-          '<div style="font-size:11px;font-weight:400;opacity:0.65;">' + md + '</div></th>';
+  months.forEach(function(m){
+    hh += '<th style="text-align:right;padding:10px;border-bottom:1px solid var(--border);">' + ymLabel(m) + '</th>';
   });
-  hh += '<th style="text-align:right;padding:10px;border-bottom:1px solid var(--border);">MTD Total</th></tr>';
+  hh += '<th style="text-align:right;padding:10px;border-bottom:1px solid var(--border);">YoY %</th></tr>';
   head.innerHTML = hh;
-  const names = Object.keys(data).sort();
-  body.innerHTML = names.map(name => {
-    const d = data[name];
-    let row = '<tr style="border-bottom:1px solid var(--border);">';
+  var names = Object.keys(data).sort();
+  body.innerHTML = names.map(function(name){
+    var d = data[name];
+    var row = '<tr style="border-bottom:1px solid var(--border);">';
     row += '<td class="loc-name" style="padding:10px;">' + name + '</td>';
-    maxWeeks.forEach(w => {
-      const idx = (d.weeks || []).indexOf(w);
-      const v = (idx >= 0) ? d.sales[idx] : null;
-      const cell = (v === null)
+    months.forEach(function(m){
+      var idx = (d.months || []).indexOf(m);
+      var v = (idx >= 0) ? (d.sales[idx] || 0) : null;
+      var cell = (v === null)
         ? '<span style="opacity:0.4;">—</span>'
         : '$' + Math.round(v).toLocaleString();
       row += '<td style="text-align:right;padding:10px;">' + cell + '</td>';
     });
-    row += '<td style="text-align:right;padding:10px;font-weight:700;">$' +
-           Math.round(d.mtd_total).toLocaleString() + '</td>';
+    var curMonth = d.current_month, curVal = d.current_total;
+    var priorYm = priorYearYm(curMonth);
+    var priorIdx = (d.months || []).indexOf(priorYm);
+    var priorVal = (priorIdx >= 0) ? d.sales[priorIdx] : null;
+    var yoyCell;
+    if (priorVal === null || priorVal === 0) {
+      yoyCell = '<span style="opacity:0.4;">—</span>';
+    } else {
+      var pct = ((curVal - priorVal) / priorVal) * 100;
+      var color = pct >= 0 ? 'var(--green)' : 'var(--red)';
+      var arrow = pct >= 0 ? '▲' : '▼';
+      yoyCell = '<span style="color:' + color + ';font-weight:700;">' + arrow + ' ' + Math.abs(pct).toFixed(1) + '%</span>';
+    }
+    row += '<td style="text-align:right;padding:10px;">' + yoyCell + '</td>';
     return row + '</tr>';
   }).join('');
+  body.innerHTML += '<tr><td colspan="' + (months.length + 2) + '" style="padding:10px;font-size:11px;opacity:0.55;font-style:italic;">Showing monthly totals. YoY % compares the latest month to the same month last year. Weekly breakdown will fill in as the pipeline accumulates weekly snapshots.</td></tr>';
 }
 
 /* ═══════════════════════════════════════════════════════

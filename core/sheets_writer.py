@@ -285,12 +285,21 @@ def append_to_historical(service, config: dict, locations: list[dict], dry_run: 
 
     sheet_id = config["sheet_id"]
 
-    # Idempotency check — skip if this week is already in DATA!B2:B
+    # Idempotency check — skip if this week is already in DATA!B2:B.
+    # Use UNFORMATTED_VALUE + _to_date_str() to normalize both sides to ISO
+    # "YYYY-MM-DD". Without this the default FORMATTED read returns dates
+    # like "5/24/2026" which never match the ISO `week_ending` value we
+    # compare against → idempotency silently broken → manual workflow runs
+    # duplicate rows. Bug landed 2026-05-27 after a Sheets re-coercion
+    # changed the underlying storage format; see issue notes.
     existing = service.spreadsheets().values().get(
         spreadsheetId=sheet_id,
         range="DATA!B2:B",
+        valueRenderOption="UNFORMATTED_VALUE",
+        dateTimeRenderOption="FORMATTED_STRING",
     ).execute()
-    existing_weeks = {r[0] for r in existing.get("values", []) if r}
+    from core.data_source import _to_date_str
+    existing_weeks = {_to_date_str(r[0]) for r in existing.get("values", []) if r}
     if week_ending and week_ending in existing_weeks:
         log.info(
             "append_to_historical: week_ending=%s already in DATA tab — skipping",
@@ -361,12 +370,16 @@ def append_to_stylists_historical(
 
     sheet_id = config["sheet_id"]
 
-    # Idempotency check — skip if this week is already in STYLISTS_DATA!A2:A
+    # Idempotency check — same fix as append_to_historical (2026-05-27).
+    # Normalize both sides to ISO via UNFORMATTED_VALUE + _to_date_str().
     existing = service.spreadsheets().values().get(
         spreadsheetId=sheet_id,
         range="STYLISTS_DATA!A2:A",
+        valueRenderOption="UNFORMATTED_VALUE",
+        dateTimeRenderOption="FORMATTED_STRING",
     ).execute()
-    existing_weeks = {r[0] for r in existing.get("values", []) if r}
+    from core.data_source import _to_date_str
+    existing_weeks = {_to_date_str(r[0]) for r in existing.get("values", []) if r}
     if week_ending and week_ending in existing_weeks:
         log.info(
             "append_to_stylists_historical: week_ending=%s already in STYLISTS_DATA tab — skipping",

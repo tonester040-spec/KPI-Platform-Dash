@@ -1,10 +1,10 @@
-/* KPI Service Worker — v9 (bumped 2026-05-27 — composite multi-KPI coaching classifications)
+/* KPI Service Worker — v10 (bumped 2026-05-27 — DATA dedup + honest monthly YoY trend)
    Cache strategy:
    - Network First  → HTML files (fresh pipeline data when online)
    - Cache First    → everything else (icons, manifest, fonts)
 */
 
-const CACHE     = 'kpi-v9';
+const CACHE     = 'kpi-v10';
 const BASE      = '/KPI-Platform-Dash';
 const PRECACHE  = [
   `${BASE}/`,
