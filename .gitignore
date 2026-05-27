@@ -62,3 +62,4 @@ data/archive/
 **/Salon Summary*
 **/Employee KPI*
 **/FS Salon Dashboard*
+.claude/scheduled_tasks.lock
