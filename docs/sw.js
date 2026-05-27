@@ -1,10 +1,10 @@
-/* KPI Service Worker — v2 (bumped 2026-05-27 to force-invalidate stale dashboard cache)
+/* KPI Service Worker — v3 (bumped 2026-05-27 — stylist product% now real, force fresh HTML)
    Cache strategy:
    - Network First  → HTML files (fresh pipeline data when online)
    - Cache First    → everything else (icons, manifest, fonts)
 */
 
-const CACHE     = 'kpi-v2';
+const CACHE     = 'kpi-v3';
 const BASE      = '/KPI-Platform-Dash';
 const PRECACHE  = [
   `${BASE}/`,
