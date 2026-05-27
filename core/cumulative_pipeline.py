@@ -155,10 +155,18 @@ def snapshot_and_difference(
         )
         return cumulative_locations, cumulative_stylists  # pass through unchanged
 
+    # Split cumulative_stylists into live (current-week present) and historical-only
+    # (synthesized monthly-only entries from Phase 2.5 fallback). Only LIVE stylists
+    # go through snapshot + differencing; historical-only entries skip both phases
+    # and get re-attached at the end so the Stylists tab still shows their roster.
+    live_stylists = [s for s in cumulative_stylists if not s.get("is_historical_only")]
+    historical_only_stylists = [s for s in cumulative_stylists if s.get("is_historical_only")]
+
     log.info(
-        "snapshot_and_difference: processing %s (week_ending=%s, %d locations, %d stylists)",
+        "snapshot_and_difference: processing %s (week_ending=%s, %d locations, "
+        "%d live stylists, %d historical-only stylists pass-through)",
         year_month, current_week_ending,
-        len(cumulative_locations), len(cumulative_stylists),
+        len(cumulative_locations), len(live_stylists), len(historical_only_stylists),
     )
 
     # Step 1: snapshot current to CUMULATIVE_MTD (skipped under dry_run)
@@ -172,7 +180,7 @@ def snapshot_and_difference(
         _stylist_to_cumulative_row(
             s, year_month=year_month, week_ending=current_week_ending, source=source_label,
         )
-        for s in cumulative_stylists
+        for s in live_stylists
     ]
     append_to_stylists_cumulative_mtd(service, config, stylist_snapshot_rows, dry_run=dry_run)
 
@@ -202,7 +210,7 @@ def snapshot_and_difference(
     weekly_stylists = difference_stylist_batch(
         [_stylist_to_cumulative_row(
             s, year_month=year_month, week_ending=current_week_ending, source=source_label,
-         ) for s in cumulative_stylists],
+         ) for s in live_stylists],
         styl_priors,
     )
 
@@ -211,5 +219,10 @@ def snapshot_and_difference(
     loc_id_by_name = {loc.get("loc_name", ""): loc.get("loc_id", "") for loc in cumulative_locations}
     for w in weekly_locations:
         w["loc_id"] = loc_id_by_name.get(w.get("loc_name", ""), "")
+
+    # Re-attach historical-only stylists pass-through (preserves Phase 2.5
+    # backfilled roster on the Stylists tab without sending these records
+    # through differencing, which would strip their cur_* fields).
+    weekly_stylists = weekly_stylists + historical_only_stylists
 
     return weekly_locations, weekly_stylists
