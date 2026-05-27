@@ -449,15 +449,15 @@ def _multi_line_name_lookback(
     role keyword) or the previous match's end (so we don't cross into the
     previous stylist's territory).
 
-    For the FIRST match in a section, `prev_match_end == -1` is a sentinel
-    that disables the lookback — the lines above the first match are
-    headers ("MANAGER" / "SERVICE QTY" / etc.), not name continuations.
+    For the FIRST match in a section, callers pass `prev_match_end == 0`
+    and the walker scans from the section start. The walker's break
+    conditions (digit/$/() chars, role keywords, non-letters-only lines)
+    are sufficient to bound that scan — column headers contain $/%//
+    characters that break the walker, and a numeric role-total block
+    always sits between the column headers and the first individual.
 
     Returns the joined prefix in original line order, or "" if no prefix.
     """
-    if prev_match_end < 0:
-        return ""
-
     match_line_start = section.rfind("\n", 0, match_start) + 1
     if match_line_start <= prev_match_end:
         return ""
@@ -942,9 +942,18 @@ class ZenotiV2Parser:
         sale_rows = self._parse_sale_section(sale_section)
         perf_rows = self._parse_perf_section(perf_section)
 
-        # Merge by name (case-insensitive, whitespace-normalised)
+        # Merge by name (case-insensitive, whitespace-normalised).
+        # Spaces around hyphens are collapsed so a name that wrapped at a
+        # hyphen in one section ("Kamia Guy-\nRobinson" -> "Kamia Guy- Robinson")
+        # merges with the same name rendered on a single line in the other
+        # section ("Kamia Guy-Robinson"). Crystal Apr 2026 is the canonical
+        # case — without this, the two halves stay split and the SALE row
+        # ends up with no production_hours and the PERF row ends up with no
+        # net_service. See tests/test_pdf_employee_extraction.py.
         def _key(n: str) -> str:
-            return re.sub(r"\s+", " ", (n or "").strip().lower())
+            s = re.sub(r"\s+", " ", (n or "").strip().lower())
+            s = re.sub(r"\s*-\s*", "-", s)
+            return s
 
         merged: Dict[str, Dict[str, Any]] = {}
         for row in sale_rows:
@@ -1012,7 +1021,9 @@ class ZenotiV2Parser:
             return []
 
         out: List[Dict[str, Any]] = []
-        prev_match_end = -1  # sentinel: first match has no preceding match
+        # Start at 0 so the first individual gets lookback too. Walker break
+        # conditions (digit/$/() chars, role keywords) safely bound the scan.
+        prev_match_end = 0
         for m in matches:
             name = re.sub(r"\s+", " ", m.group("name").strip())
 
@@ -1021,10 +1032,16 @@ class ZenotiV2Parser:
                 prev_match_end = m.end()
                 continue
 
-            # Multi-line name lookback
+            # Multi-line name lookback. If the prefix ends with a hyphen the
+            # PDF wrapped a hyphenated name across two lines ("Kamia Guy-" +
+            # "Robinson") — join without a space so the canonical name is
+            # "Kamia Guy-Robinson", matching how the PERF section renders it.
             prefix = _multi_line_name_lookback(section, m.start(), prev_match_end)
             if prefix:
-                name = f"{prefix} {name}".strip()
+                if prefix.endswith("-"):
+                    name = f"{prefix}{name}".strip()
+                else:
+                    name = f"{prefix} {name}".strip()
 
             # Most recent role keyword before this match (default UNKNOWN)
             current_role = "UNKNOWN"
@@ -1093,7 +1110,9 @@ class ZenotiV2Parser:
         pct_matches = list(_RE_REQ_PCT_LINE.finditer(section))
 
         out: List[Dict[str, Any]] = []
-        prev_match_end = -1
+        # Start at 0 so the first individual gets lookback. See
+        # _multi_line_name_lookback for safety rationale.
+        prev_match_end = 0
         for m in matches:
             name = re.sub(r"\s+", " ", m.group("name").strip())
 
@@ -1103,7 +1122,10 @@ class ZenotiV2Parser:
 
             prefix = _multi_line_name_lookback(section, m.start(), prev_match_end)
             if prefix:
-                name = f"{prefix} {name}".strip()
+                if prefix.endswith("-"):
+                    name = f"{prefix}{name}".strip()
+                else:
+                    name = f"{prefix} {name}".strip()
 
             current_role = "UNKNOWN"
             for pos, role in role_positions:
