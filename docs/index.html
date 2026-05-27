@@ -381,10 +381,6 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
       <div class="chart-title">PPH Distribution — Network Workforce</div>
       <div class="chart-container"><canvas id="pphHistChart"></canvas></div>
     </div>
-    <div class="chart-card">
-      <div class="chart-title">Avg Rebook Rate by Location</div>
-      <div class="chart-container"><canvas id="rebookLocChart"></canvas></div>
-    </div>
   </div>
 </main>
 </div>
@@ -616,7 +612,6 @@ const ACTIVE_COUNT   = STYLIST_DATA.length;
 
 const STYLIST_CARDS = [
   { id:'pph',     label:'Network Avg PPH',       value:'$'+NET_ST_PPH.toFixed(2),         sortKey:'cur_pph' },
-  { id:'rebook',  label:'Avg Rebook Rate',        value:NET_ST_REBOOK.toFixed(1)+'%',      sortKey:'cur_rebook' },
   { id:'product', label:'Avg Product Attach',     value:NET_ST_PRODUCT.toFixed(1)+'%',     sortKey:'cur_product' },
   { id:'count',   label:'Total Active Stylists',  value:ACTIVE_COUNT.toLocaleString(),      sortKey:null },
 ];
@@ -900,7 +895,6 @@ const ST_LB_COLS = [
   { id:'name',        label:'Stylist',    get:s=>s.name,        fmt:s=>`<span class="loc-name">${s.name}</span>${statusBadgeHtml(s)?'&nbsp;'+statusBadgeHtml(s):''}`, tdClass:'' },
   { id:'loc',         label:'Location',   get:s=>s.loc,         fmt:s=>`<span style="color:#7A8BA0;font-size:12px">${s.loc}</span>`, tdClass:'' },
   { id:'cur_pph',     label:'PPH',        get:s=>s.cur_pph,     fmt:s=>'$'+s.cur_pph.toFixed(2), tdClass:'' },
-  { id:'cur_rebook',  label:'Rebook %',   get:s=>s.cur_rebook,  fmt:s=>s.cur_rebook.toFixed(1)+'%', tdClass:'' },
   { id:'cur_product', label:'Product %',  get:s=>s.cur_product, fmt:s=>s.cur_product.toFixed(1)+'%', tdClass:'' },
   { id:'cur_ticket',  label:'Avg Ticket', get:s=>s.cur_ticket,  fmt:s=>'$'+s.cur_ticket.toFixed(2), tdClass:'' },
   { id:'cur_services',label:'Services',   get:s=>s.cur_services,fmt:s=>s.cur_services, tdClass:'' },
@@ -963,33 +957,6 @@ function buildStylistCharts() {
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} stylists`}}},
         scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:GRAY_B},ticks:{stepSize:2,font:{size:11}}}}}
-    });
-  }
-  // Rebook by location
-  const locRebook = {};
-  const locCount  = {};
-  STYLIST_DATA.forEach(s=>{
-    if (!locRebook[s.loc]) { locRebook[s.loc]=0; locCount[s.loc]=0; }
-    locRebook[s.loc]+=s.cur_rebook; locCount[s.loc]++;
-  });
-  const locAvg = Object.keys(locRebook).map(l=>({loc:l,avg:locRebook[l]/locCount[l]})).sort((a,b)=>b.avg-a.avg);
-  const netRebook = locAvg.reduce((a,l)=>a+l.avg,0)/locAvg.length;
-  const cv2 = document.getElementById('rebookLocChart');
-  if (cv2) {
-    chartRegistry['st_rebook'] = new Chart(cv2, {
-      type:'bar',
-      data:{labels:locAvg.map(l=>l.loc),datasets:[{label:'Avg Rebook %',data:locAvg.map(l=>l.avg),
-        backgroundColor:locAvg.map(l=>l.avg>=netRebook?BLUE_MID:'rgba(74,144,217,0.45)'),borderRadius:4,borderSkipped:false}]},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.x.toFixed(1)}%`}}},
-        scales:{x:{grid:{color:GRAY_B},ticks:{callback:v=>v+'%',font:{size:11}}},y:{grid:{display:false},ticks:{font:{size:10}}}}},
-      plugins:[{id:'avgLine',afterDraw(chart){
-        const{ctx:c,scales:{x,y}}=chart;const xp=x.getPixelForValue(netRebook);
-        c.save();c.beginPath();c.moveTo(xp,y.top);c.lineTo(xp,y.bottom);
-        c.strokeStyle='#DC2626';c.lineWidth=1.5;c.setLineDash([4,3]);c.stroke();
-        c.fillStyle='#DC2626';c.font='600 10px Inter,sans-serif';
-        c.fillText('Avg '+netRebook.toFixed(1)+'%',xp+3,y.top+12);c.restore();
-      }}]
     });
   }
 }
@@ -1073,7 +1040,6 @@ function renderDrawerOverview() {
       <td style="color:#7A8BA0;font-weight:700;text-align:center">${i+1}</td>
       <td><span class="loc-name" style="font-size:12.5px">${s.name}</span></td>
       <td>$${s.cur_pph.toFixed(2)}<div class="pph-bar-wrap"><div class="pph-bar" style="width:${Math.round(s.cur_pph/maxPph*100)}%"></div></div></td>
-      <td>${s.cur_rebook.toFixed(1)}%</td>
       <td>${s.cur_product.toFixed(1)}%</td>
     </tr>`).join('');
 
@@ -1086,7 +1052,7 @@ function renderDrawerOverview() {
       <div class="mini-lb-title">This Location's Stylists — Ranked by PPH</div>
       <div class="mini-lb">
         <table>
-          <thead><tr><th>#</th><th>Name</th><th>PPH</th><th>Rebook%</th><th>Product%</th></tr></thead>
+          <thead><tr><th>#</th><th>Name</th><th>PPH</th><th>Product%</th></tr></thead>
           <tbody>${miniRows}</tbody>
         </table>
       </div>
@@ -1222,7 +1188,6 @@ function renderStylistDrawerContent() {
   // 6 metric tiles vs network average
   const ST_TILES = [
     { key:'pph',      label:'PPH',         cur:s.cur_pph,      net:NET_ST_PPH,     fmt:v=>'$'+v.toFixed(2),   hist:s.pph },
-    { key:'rebook',   label:'Rebook %',    cur:s.cur_rebook,   net:NET_ST_REBOOK,  fmt:v=>v.toFixed(1)+'%',   hist:s.rebook },
     { key:'product',  label:'Product Att.',cur:s.cur_product,  net:NET_ST_PRODUCT, fmt:v=>v.toFixed(1)+'%',   hist:s.product },
     { key:'ticket',   label:'Avg Ticket',  cur:s.cur_ticket,   net:NET_ST_TICKET,  fmt:v=>'$'+v.toFixed(2),   hist:s.ticket||[] },
     { key:'services', label:'Services',    cur:s.cur_services, net:null,           fmt:v=>Math.round(v),      hist:s.services },
@@ -1249,7 +1214,7 @@ function renderStylistDrawerContent() {
 
   document.getElementById('drawerBody').innerHTML = `
     <div class="metric-tiles">${tilesHtml}</div>
-    <div class="drawer-chart-title">12-Week Trend — PPH · Rebook % · Product %</div>
+    <div class="drawer-chart-title">12-Week Trend — PPH · Product %</div>
     <div class="drawer-chart-wrap" id="stDrawerTrendWrap"></div>
     <div class="loc-context">
       <div class="loc-context-label">Location Rank — ${s.loc}</div>
@@ -1283,7 +1248,6 @@ function renderStylistDrawerContent() {
         type:'line',
         data:{labels,datasets:[
           {label:'PPH ($)',       data:s.pph.slice(-take),     borderColor:BLUE_MID, backgroundColor:'rgba(74,144,217,0.08)',borderWidth:2,pointRadius:3,fill:true,tension:0.3,yAxisID:'y'},
-          {label:'Rebook %',     data:s.rebook.slice(-take),  borderColor:GOLD,     backgroundColor:'transparent',borderWidth:2,pointRadius:3,fill:false,tension:0.3,yAxisID:'y2'},
           {label:'Product Att.%',data:s.product.slice(-take), borderColor:GREEN,    backgroundColor:'transparent',borderWidth:2,pointRadius:3,fill:false,tension:0.3,yAxisID:'y2'},
         ]},
         options:{responsive:true,maintainAspectRatio:false,
@@ -1885,7 +1849,6 @@ function renderSICard(s) {
     +'</div>'
     +'<div class="si-card-metrics">'
       +'<div class="si-metric"><span class="si-metric-label">PPH (4wk)</span><span class="si-metric-value">$'+s._si.avgPPH4.toFixed(2)+'</span><span class="si-metric-trend '+trendCls+'">'+pphTrend+' (3wk)</span></div>'
-      +'<div class="si-metric"><span class="si-metric-label">Rebook</span><span class="si-metric-value">'+rbPct+'</span></div>'
       +'<div class="si-metric"><span class="si-metric-label">Tenure</span><span class="si-metric-value">'+tenStr+'</span></div>'
       +'<div class="si-metric si-sparkline-cell">'+spark+'</div>'
     +'</div>'
