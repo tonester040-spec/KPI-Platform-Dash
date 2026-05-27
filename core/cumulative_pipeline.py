@@ -143,20 +143,61 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
     # product_pct = product_net / (net_service + net_product).
     new_product_pct = differenced.get("product_pct", 0) * 100
 
-    pph_arr = shaped.get("pph") or []
-    shaped["pph"] = list(pph_arr[:-1]) + [new_pph] if pph_arr else [new_pph]
-
-    ticket_arr = shaped.get("ticket") or []
-    shaped["ticket"] = list(ticket_arr[:-1]) + [new_ticket] if ticket_arr else [new_ticket]
-
-    product_arr = shaped.get("product") or []
-    shaped["product"] = (
-        list(product_arr[:-1]) + [new_product_pct] if product_arr else [new_product_pct]
+    # Empty-placeholder guard: STYLISTS_DATA currently contains all-zero rows
+    # for everyone except `total_services` (Karissa's team hasn't started
+    # entering per-stylist cumulative-MTD values yet). Differencing those
+    # placeholders against a zero prior gives all-zero "weekly" values. If
+    # we mechanically overwrite the last array entry with these zeros, the
+    # dashboard's `cur_pph = pph[pph.length-1]` reads 0 and the entire
+    # stylist table renders as $0.00 — even though we have real monthly
+    # backfill data behind it.
+    #
+    # When the differenced primitives are all zero, leave the historical
+    # arrays untouched and fall back cur_* to the most recent non-zero
+    # historical entry. Once Karissa's team starts entering real cumulative
+    # values into STYLISTS_DATA, the differenced output will be non-zero
+    # and this guard becomes a no-op (normal replacement path runs).
+    is_empty_placeholder = (
+        new_pph == 0 and new_ticket == 0 and new_product_pct == 0
     )
 
-    shaped["cur_pph"] = new_pph
-    shaped["cur_ticket"] = new_ticket
-    shaped["cur_product"] = new_product_pct
+    def _last_or_zero(arr):
+        return arr[-1] if arr else 0
+
+    if is_empty_placeholder:
+        # Drop the trailing zero-placeholder entry from each array — it came
+        # from the weekly STYLISTS_DATA row that _merge_stylist_rosters
+        # appended onto the prepended monthly history. With it removed, the
+        # dashboard's `s.pph[s.pph.length-1]` reads the most recent monthly
+        # value (e.g. Aleksis's May $42.16) instead of the placeholder 0.
+        # Once Karissa's team enters real data, we hit the else branch.
+        for arr_key in ("weeks", "pph", "ticket", "services", "product", "rebook", "color"):
+            arr = shaped.get(arr_key) or []
+            # Only drop if there's a tail to drop AND it's the placeholder 0.
+            # Services may be non-zero in the placeholder row (e.g. 15 for
+            # Aleksis), so don't filter on it — match the other arrays' length.
+            if len(arr) >= 2:
+                shaped[arr_key] = list(arr[:-1])
+
+        shaped["cur_pph"] = _last_or_zero(shaped.get("pph") or [])
+        shaped["cur_ticket"] = _last_or_zero(shaped.get("ticket") or [])
+        shaped["cur_product"] = _last_or_zero(shaped.get("product") or [])
+    else:
+        pph_arr = shaped.get("pph") or []
+        shaped["pph"] = list(pph_arr[:-1]) + [new_pph] if pph_arr else [new_pph]
+
+        ticket_arr = shaped.get("ticket") or []
+        shaped["ticket"] = list(ticket_arr[:-1]) + [new_ticket] if ticket_arr else [new_ticket]
+
+        product_arr = shaped.get("product") or []
+        shaped["product"] = (
+            list(product_arr[:-1]) + [new_product_pct] if product_arr else [new_product_pct]
+        )
+
+        shaped["cur_pph"] = new_pph
+        shaped["cur_ticket"] = new_ticket
+        shaped["cur_product"] = new_product_pct
+
     # cur_rebook is salon-level only (no per-stylist source in any POS); preserve
     # whatever the original input had (typically 0) so archetype classification
     # in enrich_stylists doesn't crash on a missing key.

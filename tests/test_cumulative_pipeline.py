@@ -373,6 +373,67 @@ class TestSnapshotAndDifferenceLiveStylistReshape(unittest.TestCase):
         self.assertAlmostEqual(s["pph"][-1], 1500.0 / 35.0, places=2)
         self.assertAlmostEqual(s["cur_pph"], 1500.0 / 35.0, places=2)
 
+    def test_empty_placeholder_weekly_falls_back_to_monthly_history(self):
+        """Bug fix (2026-05-27): when STYLISTS_DATA contains all-zero placeholder
+        rows (Karissa's team hasn't entered cumulative-MTD per-stylist data yet),
+        differencing gives all-zero "weekly" values. We must NOT overwrite the
+        last array entry with these zeros — the dashboard's
+        `s.cur_pph = s.pph[s.pph.length-1]` would collapse to 0 and the whole
+        stylist table would render as $0.00.
+
+        Expected behavior: drop the trailing zero-placeholder entry from each
+        array so cur_pph falls back to the most recent monthly value
+        (e.g. May $42.16 for Aleksis), and the dashboard shows real data.
+        """
+        cur_loc = _build_cumulative_location(week_ending="2026-04-12")
+        # Stylist with monthly history backfilled BUT placeholder weekly
+        # (services tracked, every other metric zero — matches the actual
+        # STYLISTS_DATA state on 2026-05-27).
+        live_with_placeholder = {
+            "name": "Aleksis", "loc_name": "Blaine", "loc_id": "z002",
+            "status": "active", "tenure": 0,
+            "weeks":    ["2026-03-31", "2026-04-12"],   # monthly + placeholder weekly
+            "pph":      [42.16, 0.0],                    # monthly + zero placeholder
+            "rebook":   [0, 0.0],
+            "product":  [6.78, 0.0],
+            "ticket":   [55.78, 0.0],
+            "services": [15, 15],                        # services has values both weeks
+            "color":    [0, 0.0],
+            "cur_pph": 0.0, "cur_rebook": 0.0,
+            "cur_product": 0.0, "cur_ticket": 0.0,
+            # No net_service/net_product on placeholder row → differencing yields zeros
+            "invoices": 0, "guests": 0, "net_service": 0.0,
+            "net_product": 0.0, "production_hours": 0.0,
+            "platform": "zenoti",
+        }
+
+        with patch("core.cumulative_pipeline.append_to_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.append_to_stylists_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.read_cumulative_mtd_snapshots", return_value=[]), \
+             patch(
+                 "core.cumulative_pipeline.read_stylists_cumulative_mtd_snapshots",
+                 return_value=[],
+             ):
+            _, weekly_styls = snapshot_and_difference(
+                MagicMock(), CONFIG,
+                cumulative_locations=[cur_loc],
+                cumulative_stylists=[live_with_placeholder],
+                source_label="current_tab", dry_run=False,
+            )
+
+        s = weekly_styls[0]
+        # Trailing zero-placeholder dropped; arrays back to monthly-only length
+        self.assertEqual(len(s["pph"]), 1)
+        self.assertEqual(len(s["ticket"]), 1)
+        self.assertEqual(len(s["product"]), 1)
+        self.assertEqual(len(s["weeks"]), 1)
+        # cur_* fall back to the last historical (monthly) value — NOT zero
+        self.assertEqual(s["cur_pph"], 42.16)
+        self.assertEqual(s["cur_ticket"], 55.78)
+        self.assertEqual(s["cur_product"], 6.78)
+        # Static identity preserved
+        self.assertEqual(s["name"], "Aleksis")
+
     def test_mixed_live_and_historical_only_stylists(self):
         """Historical-only stylists pass through; live ones get reshaped.
         Both should be present in output without crashing downstream."""
