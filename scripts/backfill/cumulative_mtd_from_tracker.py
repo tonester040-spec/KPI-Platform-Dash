@@ -1,7 +1,7 @@
 """
 scripts/backfill/cumulative_mtd_from_tracker.py
 ───────────────────────────────────────────────
-One-off loader that seeds two tabs from Karissa's master May 2026 tracker:
+One-off loader that seeds three tabs from Karissa's master May 2026 tracker:
 
   CUMULATIVE_MTD     <- May 2026 Week 1/Week 2/Week 4 cumulative-MTD snapshots
                         (Week 3 left blank in her tracker — skipped;
@@ -12,6 +12,11 @@ One-off loader that seeds two tabs from Karissa's master May 2026 tracker:
                          year_month "2025-Q2" / "2019-Q2" are non-standard but
                          documented here; the YoY report builder filters by
                          exact year_month value, so the schema bend is contained.)
+
+  MONTHLY_GOALS      <- 2026-05 monthly_goal + daily_goal_divisor +
+                        day_goal_divisor per location, read from her YoY tab.
+                        These don't exist anywhere else in Sheets and the YoY
+                        report tab can't be rendered without them.
 
 Z-mode contract (per the 2026-05-27 architecture discussion):
 
@@ -154,6 +159,12 @@ YOY_TABLE1_LAST_ROW = 13
 YOY_TABLE1_NAME_COL = 1
 YOY_TABLE1_2025_COL = 3
 YOY_TABLE1_2019_COL = 10
+# Monthly-goal columns on the same Table 1 rows (col E = monthly $ target;
+# col F = daily-goal $ (monthly_goal / daily_goal_divisor);
+# col G = day-goal $ (monthly_goal / day_goal_divisor)). Divisors back-computed.
+YOY_TABLE1_GOAL_COL = 5
+YOY_TABLE1_DAILY_GOAL_DOLLAR_COL = 6
+YOY_TABLE1_DAY_GOAL_DOLLAR_COL = 7
 
 YOY_TABLE2_FIRST_ROW = 18
 YOY_TABLE2_LAST_ROW = 29
@@ -397,6 +408,92 @@ def load_historical_data_monthly_rows(
         wb.close()
 
 
+def load_monthly_goals_rows(
+    tracker_path: str | Path,
+    customer_config: dict,
+    *,
+    year_month: str = "2026-05",
+) -> list[dict]:
+    """Build MONTHLY_GOALS rows for May 2026 from her YoY tab.
+
+    Reads Goal ($ monthly target), Daily Goal ($), Day Goal ($) from
+    columns E/F/G on Table 1 rows 2-13. Back-computes the integer divisors
+    (operating-days numbers) as ``monthly_goal / daily_goal_dollar``.
+    Verifies the divisors land within tolerance of an integer; raises
+    otherwise (would mean either a tracker bug or a layout mismatch).
+    """
+    tracker_path = Path(tracker_path)
+    if not tracker_path.exists():
+        raise FileNotFoundError(f"Tracker file not found: {tracker_path}")
+
+    wb = load_workbook(tracker_path, data_only=True, read_only=True)
+    try:
+        if YOY_TAB not in wb.sheetnames:
+            raise ValueError(f"{YOY_TAB!r} tab not found in {tracker_path.name}")
+        ws = wb[YOY_TAB]
+
+        # Index Table 1 by location name
+        rows_by_name: dict[str, int] = {}
+        for r in range(YOY_TABLE1_FIRST_ROW, YOY_TABLE1_LAST_ROW + 1):
+            n = _normalize(ws.cell(row=r, column=YOY_TABLE1_NAME_COL).value)
+            if n and n.lower() != "totals":
+                rows_by_name[n] = r
+
+        rows: list[dict] = []
+        missing: list[str] = []
+
+        for loc in customer_config["locations"]:
+            cfg_name = _normalize(loc["name"])
+            if cfg_name not in rows_by_name:
+                missing.append(loc["name"])
+                continue
+
+            r = rows_by_name[cfg_name]
+            monthly_goal = _to_number(ws.cell(row=r, column=YOY_TABLE1_GOAL_COL).value)
+            daily_dollar = _to_number(ws.cell(row=r, column=YOY_TABLE1_DAILY_GOAL_DOLLAR_COL).value)
+            day_dollar = _to_number(ws.cell(row=r, column=YOY_TABLE1_DAY_GOAL_DOLLAR_COL).value)
+
+            if not (monthly_goal and daily_dollar and day_dollar):
+                raise ValueError(
+                    f"{loc['name']}: missing goal data on YoY row {r} "
+                    f"(monthly={monthly_goal}, daily=${daily_dollar}, day=${day_dollar})"
+                )
+
+            daily_div_f = monthly_goal / daily_dollar
+            day_div_f = monthly_goal / day_dollar
+            daily_div = round(daily_div_f)
+            day_div = round(day_div_f)
+
+            # Sanity: divisors should be integers within $0.50 / day tolerance.
+            if abs(daily_div_f - daily_div) > 0.01:
+                raise ValueError(
+                    f"{loc['name']}: daily_goal_divisor {daily_div_f:.4f} is not an integer "
+                    f"(monthly_goal={monthly_goal}, daily_$={daily_dollar})"
+                )
+            if abs(day_div_f - day_div) > 0.01:
+                raise ValueError(
+                    f"{loc['name']}: day_goal_divisor {day_div_f:.4f} is not an integer "
+                    f"(monthly_goal={monthly_goal}, day_$={day_dollar})"
+                )
+
+            rows.append({
+                "loc_name": loc["name"],
+                "year_month": year_month,
+                "monthly_goal": monthly_goal,
+                "daily_goal_divisor": daily_div,
+                "day_goal_divisor": day_div,
+                "source": "karissa_tracker_may_2026_yoy",
+            })
+
+        if missing:
+            raise ValueError(f"YoY Table 1 missing rows for: {missing}")
+
+        log.info("Loaded %d MONTHLY_GOALS rows from %s", len(rows), tracker_path.name)
+        return rows
+    finally:
+        wb.close()
+
+
 # ─── Pretty-print review tables ───────────────────────────────────────────────
 
 def render_cumulative_review(rows: list[dict]) -> str:
@@ -440,6 +537,28 @@ def render_historical_review(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def render_goals_review(rows: list[dict]) -> str:
+    """Render MONTHLY_GOALS rows for human review."""
+    if not rows:
+        return "(no MONTHLY_GOALS rows)"
+    lines = []
+    by_ym: dict[str, list[dict]] = {}
+    for r in rows:
+        by_ym.setdefault(r["year_month"], []).append(r)
+    for ym in sorted(by_ym.keys()):
+        lines.append(f"\n  year_month={ym} ({len(by_ym[ym])} locations)")
+        lines.append(
+            f"    {'Location':<16}  {'monthly_goal':>14}  "
+            f"{'daily_div':>10}  {'day_div':>8}"
+        )
+        for r in sorted(by_ym[ym], key=lambda x: x["loc_name"]):
+            lines.append(
+                f"    {r['loc_name']:<16}  {r['monthly_goal']:>14,.2f}  "
+                f"{r['daily_goal_divisor']:>10}  {r['day_goal_divisor']:>8}"
+            )
+    return "\n".join(lines)
+
+
 # ─── Sheets write ─────────────────────────────────────────────────────────────
 
 def _load_config(config_path: Path) -> dict:
@@ -449,6 +568,7 @@ def _load_config(config_path: Path) -> dict:
 def write_to_sheets(
     cumul_rows: list[dict],
     monthly_rows: list[dict],
+    goals_rows: list[dict],
     config: dict,
     dry_run: bool,
 ) -> None:
@@ -456,24 +576,29 @@ def write_to_sheets(
         _build_service,
         append_to_cumulative_mtd,
         append_to_data_monthly,
+        append_to_monthly_goals,
     )
 
     if dry_run:
         print(">>> DRY RUN — no Sheets write. Would have appended:")
         print(f"    {len(cumul_rows)} rows to CUMULATIVE_MTD")
         print(f"    {len(monthly_rows)} rows to DATA_MONTHLY")
+        print(f"    {len(goals_rows)} rows to MONTHLY_GOALS")
         print(f"    (sheet {config['sheet_id']})\n")
         append_to_cumulative_mtd(service=None, config=config, rows=cumul_rows, dry_run=True)
         append_to_data_monthly(service=None, config=config, rows=monthly_rows, dry_run=True)
+        append_to_monthly_goals(service=None, config=config, rows=goals_rows, dry_run=True)
         return
 
     print(
         f">>> WRITING {len(cumul_rows)} CUMULATIVE_MTD rows + "
-        f"{len(monthly_rows)} DATA_MONTHLY rows (sheet {config['sheet_id']})"
+        f"{len(monthly_rows)} DATA_MONTHLY rows + "
+        f"{len(goals_rows)} MONTHLY_GOALS rows (sheet {config['sheet_id']})"
     )
     service = _build_service(config)
     append_to_cumulative_mtd(service=service, config=config, rows=cumul_rows, dry_run=False)
     append_to_data_monthly(service=service, config=config, rows=monthly_rows, dry_run=False)
+    append_to_monthly_goals(service=service, config=config, rows=goals_rows, dry_run=False)
     print("    Done.\n")
 
 
@@ -515,6 +640,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cumul_rows = load_cumulative_mtd_rows(tracker_path, config)
     monthly_rows = load_historical_data_monthly_rows(tracker_path, config)
+    goals_rows = load_monthly_goals_rows(tracker_path, config)
 
     print(f"\nCUMULATIVE_MTD rows: {len(cumul_rows)} "
           f"(target: 12 locations x 3 weeks = 36)")
@@ -524,8 +650,12 @@ def main(argv: list[str] | None = None) -> int:
           f"(target: 12 locations x 4 periods = 48)")
     print(render_historical_review(monthly_rows))
 
+    print(f"\nMONTHLY_GOALS rows: {len(goals_rows)} "
+          f"(target: 12 locations x 1 month = 12)")
+    print(render_goals_review(goals_rows))
+
     print()
-    write_to_sheets(cumul_rows, monthly_rows, config, dry_run=args.dry_run)
+    write_to_sheets(cumul_rows, monthly_rows, goals_rows, config, dry_run=args.dry_run)
 
     if args.dry_run:
         print(">>> Dry run complete. To write to Sheets, re-run with --write.\n")
