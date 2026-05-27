@@ -4,11 +4,12 @@ core/report_builder.py
 KPI Platform — builds weekly Excel report with color-coded performance data.
 
 Sheets:
-  Summary      → Network headline, top/bottom performers, AI coach briefing
-  Locations    → Core KPIs per location (PPH, revenue, volume, product)
-  Service Mix  → Wax / Color / Treatment breakdown per location
-  Goals & YOY  → 2026 goals and year-over-year comparisons (placeholders until API feeds)
-  Stylists     → One row per stylist, key metrics, star/watch indicators
+  Summary           → Network headline, top/bottom performers, AI coach briefing
+  Locations         → Core KPIs per location (PPH, revenue, volume, product)
+  Service Mix       → Wax / Color / Treatment breakdown per location
+  Goals & YOY       → 2026 goals and year-over-year comparisons (placeholders until API feeds)
+  Stylists          → One row per stylist, key metrics, star/watch indicators
+  Weekly Breakdown  → Karissa Q7 view: locations × weeks-of-current-month + MTD total
 """
 
 import logging
@@ -442,6 +443,83 @@ def _build_stylists(wb, data: dict, ai_cards: dict):
 
 # ─── Main entry ───────────────────────────────────────────────────────────────
 
+def _build_weekly_breakdown(wb, data: dict):
+    """Build the Weekly Breakdown sheet — Karissa Q7 view.
+
+    Rows = locations (alphabetical), columns = Week 1...Wk N (of current
+    year_month) + MTD Total. Uses the shared compute_monthly_trend()
+    helper so the Excel sheet stays in sync with the HTML dashboard's
+    Monthly Trend section.
+    """
+    from core.dashboard_builder import compute_monthly_trend
+
+    ws = wb.create_sheet("Weekly Breakdown")
+    trend = compute_monthly_trend(data.get("locations", []))
+
+    if not trend:
+        ws["A1"] = "No locations available."
+        return
+
+    # Determine column headers from the location with the most weeks
+    max_weeks: list[str] = []
+    current_month = ""
+    for d in trend.values():
+        if len(d.get("weeks", [])) > len(max_weeks):
+            max_weeks = d["weeks"]
+            current_month = d.get("current_month", "")
+
+    # Title row
+    ws["A1"] = f"Weekly Breakdown — {current_month}" if current_month else "Weekly Breakdown"
+    ws["A1"].font = _font(bold=True, color=NAVY, size=13)
+
+    # Header row
+    headers = ["Location"] + [
+        f"Wk {i + 1} ({w[5:7].lstrip('0')}/{w[8:10].lstrip('0')})" if len(w) >= 10 else f"Wk {i + 1}"
+        for i, w in enumerate(max_weeks)
+    ] + ["MTD Total"]
+    widths = [22] + [13] * len(max_weeks) + [16]
+    _header_row(ws, 3, headers, widths=widths)
+
+    # Body rows
+    row_idx = 4
+    network_totals = [0.0] * (len(max_weeks) + 1)  # +1 for MTD
+    for name in sorted(trend.keys()):
+        d = trend[name]
+        ws.cell(row=row_idx, column=1, value=name).font = _font(bold=True, color=NAVY)
+        # Build a {week: sales} lookup for this location
+        sales_by_week = dict(zip(d.get("weeks", []), d.get("sales", [])))
+        for col_idx, w in enumerate(max_weeks, start=2):
+            v = sales_by_week.get(w)
+            cell = ws.cell(row=row_idx, column=col_idx)
+            if v is None:
+                cell.value = "—"
+                cell.alignment = _align("right")
+                cell.font = _font(color=DGRAY)
+            else:
+                cell.value = float(v)
+                cell.number_format = "$#,##0"
+                cell.alignment = _align("right")
+                network_totals[col_idx - 2] += float(v)
+        # MTD total column
+        mtd_cell = ws.cell(row=row_idx, column=len(max_weeks) + 2, value=float(d.get("mtd_total", 0)))
+        mtd_cell.number_format = "$#,##0"
+        mtd_cell.alignment = _align("right")
+        mtd_cell.font = _font(bold=True, color=NAVY)
+        network_totals[-1] += float(d.get("mtd_total", 0))
+        row_idx += 1
+
+    # Network total footer
+    totals_row = row_idx + 1
+    ws.cell(row=totals_row, column=1, value="NETWORK TOTAL").font = _font(bold=True, color=WHITE)
+    ws.cell(row=totals_row, column=1).fill = _fill(NAVY)
+    for i, t in enumerate(network_totals):
+        cell = ws.cell(row=totals_row, column=2 + i, value=t)
+        cell.number_format = "$#,##0"
+        cell.alignment = _align("right")
+        cell.font = _font(bold=True, color=WHITE)
+        cell.fill = _fill(NAVY)
+
+
 def build_report(data: dict, ai_cards: dict, output_dir: Path, dry_run: bool = False) -> "Path | None":
     """
     Build the Excel report. Returns the Path to the created file, or None on skip.
@@ -474,6 +552,7 @@ def build_report(data: dict, ai_cards: dict, output_dir: Path, dry_run: bool = F
     _build_service_mix(wb, data)
     _build_goals_yoy(wb, data)
     _build_stylists(wb, data, ai_cards)
+    _build_weekly_breakdown(wb, data)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
