@@ -28,6 +28,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# ── Local scratch space for workbook inspection ───────
+.diff_tmp/
+
 # ── Binaries ────────────────────────────────────────────
 *.exe
 *.msi

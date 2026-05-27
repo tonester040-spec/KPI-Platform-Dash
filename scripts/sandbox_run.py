@@ -245,22 +245,26 @@ def run_sandbox() -> int:
         _skip("sheets_writer", "data_processor failed")
         results["sheets_writer"] = None
 
-    # ── Module 5: report_builder (DRY_RUN — no file written) ──────────────────
-    _section("5", "report_builder — DRY RUN (no Excel file written)")
+    # ── Module 5: karissa_workbook (DRY_RUN — no file written) ────────────────
+    _section("5", "karissa_workbook — DRY RUN (no Excel file written)")
     if data:
         try:
-            from core import report_builder
+            from core import karissa_workbook
             import tempfile
             tmp_dir = Path(tempfile.mkdtemp())
-            report_path = report_builder.build_report(data, cards, tmp_dir, dry_run=True)
-            _pass("report_builder", "DRY RUN — skipped as expected")
-            results["report_builder"] = True
+            ym = (data.get("network", {}).get("week_ending", "") or "")[:7] or "2026-05"
+            out_path = tmp_dir / f"sandbox_KPI_{ym}.xlsx"
+            karissa_workbook.build_monthly_workbook(
+                ym, out_path, service=None, config={"locations": []}, dry_run=True,
+            )
+            _pass("karissa_workbook", "DRY RUN — placeholder workbook written")
+            results["karissa_workbook"] = True
         except Exception as exc:
-            _fail("report_builder", exc)
-            results["report_builder"] = False
+            _fail("karissa_workbook", exc)
+            results["karissa_workbook"] = False
     else:
-        _skip("report_builder", "data_processor failed")
-        results["report_builder"] = None
+        _skip("karissa_workbook", "data_processor failed")
+        results["karissa_workbook"] = None
 
     # ── Module 6: email_sender (DRY_RUN — no email sent) ──────────────────────
     _section("6", "email_sender — DRY RUN (no SMTP connection)")

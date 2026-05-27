@@ -634,6 +634,101 @@ def read_stylists_cumulative_mtd_snapshots(service, config: dict, year_month: st
     return out
 
 
+def read_data_monthly_rows(service, config: dict, year_months: list[str] | None = None) -> list[dict]:
+    """Read DATA_MONTHLY rows, optionally filtered to a set of year_month values.
+
+    Returns list of dicts mirroring DATA_MONTHLY_HEADERS in core/sheets_writer.py.
+    ``year_months=None`` returns every row; pass a list (e.g. ``["2025-05", "2019-05",
+    "2025-Q2", "2019-Q2", "2026-04", "2026-05"]``) to filter for the YoY report tab.
+    Returns [] if the tab doesn't exist.
+    """
+    sheet_id = config["sheet_id"]
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="DATA_MONTHLY!A2:W",
+            valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING",
+        ).execute()
+    except Exception as e:
+        log.info("DATA_MONTHLY tab not yet present (or read failed): %s", e)
+        return []
+
+    rows = result.get("values", [])
+    keep = set(year_months) if year_months else None
+    out: list[dict] = []
+    for row in rows:
+        row = row + [""] * (23 - len(row))
+        if not row[0]:
+            continue
+        if keep is not None and row[1] not in keep:
+            continue
+        out.append({
+            "loc_name":     row[0],
+            "year_month":   row[1],
+            "platform":     row[2],
+            "guests":       _safe_int(row[3]),
+            "total_sales":  _safe_float(row[4]),
+            "service":      _safe_float(row[5]),
+            "product":      _safe_float(row[6]),
+            "product_pct":  _safe_float(row[7]),
+            "ppg":          _safe_float(row[8]),
+            "pph":          _safe_float(row[9]),
+            "avg_ticket":   _safe_float(row[10]),
+            "prod_hours":   _safe_float(row[11]),
+            "wax_count":    _safe_int(row[12]),
+            "wax":          _safe_float(row[13]),
+            "wax_pct":      _safe_float(row[14]),
+            "color":        _safe_float(row[15]),
+            "color_pct":    _safe_float(row[16]),
+            "treat_count":  _safe_int(row[17]),
+            "treat":        _safe_float(row[18]),
+            "treat_pct":    _safe_float(row[19]),
+            "source":       row[20],
+            "period_start": row[21],
+            "period_end":   row[22],
+        })
+    log.info("Loaded %d DATA_MONTHLY rows (filter=%s)", len(out), year_months or "all")
+    return out
+
+
+def read_monthly_goals(service, config: dict, year_month: str) -> dict[str, dict]:
+    """Read MONTHLY_GOALS rows for a year_month. Returns {loc_name: row_dict}.
+
+    Returns {} if the tab doesn't exist or has no rows for that month. The
+    report builder uses this to populate the Goal / Daily Goal / Day Goal
+    columns on the YoY tab.
+    """
+    sheet_id = config["sheet_id"]
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="MONTHLY_GOALS!A2:F",
+            valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING",
+        ).execute()
+    except Exception as e:
+        log.info("MONTHLY_GOALS tab not yet present (or read failed): %s", e)
+        return {}
+
+    rows = result.get("values", [])
+    out: dict[str, dict] = {}
+    for row in rows:
+        row = row + [""] * (6 - len(row))
+        if not row[0] or row[1] != year_month:
+            continue
+        out[row[0]] = {
+            "loc_name":           row[0],
+            "year_month":         row[1],
+            "monthly_goal":       _safe_float(row[2]),
+            "daily_goal_divisor": _safe_int(row[3]),
+            "day_goal_divisor":   _safe_int(row[4]),
+            "source":             row[5],
+        }
+    log.info("Loaded %d MONTHLY_GOALS rows for %s", len(out), year_month)
+    return out
+
+
 def derive_year_month(week_ending: str) -> str:
     """'2026-04-12' -> '2026-04'. Tolerant of empty/short input.
 

@@ -786,10 +786,15 @@ def append_to_cumulative_mtd(
         log.info("append_to_cumulative_mtd: all rows already present — nothing to write")
         return
 
+    # RAW (not USER_ENTERED): the week_ending column is an ISO date string
+    # ("2026-05-03"). Under USER_ENTERED, Sheets silently parses it into an
+    # Excel serial number (46145), which breaks the next run's idempotency
+    # check because the existing-keys reader gets the serial back and the
+    # writer-side keys are still strings. RAW keeps the values verbatim.
     service.spreadsheets().values().append(
         spreadsheetId=sheet_id,
         range="CUMULATIVE_MTD!A2:V",
-        valueInputOption="USER_ENTERED",
+        valueInputOption="RAW",
         insertDataOption="INSERT_ROWS",
         body={"values": new_rows},
     ).execute()
@@ -901,10 +906,12 @@ def append_to_stylists_cumulative_mtd(
         log.info("append_to_stylists_cumulative_mtd: all rows already present — nothing to write")
         return
 
+    # RAW: same reason as CUMULATIVE_MTD — the week_ending column is an ISO
+    # date that USER_ENTERED would silently convert to a serial number.
     service.spreadsheets().values().append(
         spreadsheetId=sheet_id,
         range="STYLISTS_CUMULATIVE_MTD!A2:O",
-        valueInputOption="USER_ENTERED",
+        valueInputOption="RAW",
         insertDataOption="INSERT_ROWS",
         body={"values": new_rows},
     ).execute()
@@ -912,6 +919,108 @@ def append_to_stylists_cumulative_mtd(
     log.info(
         "STYLISTS_CUMULATIVE_MTD tab: appended %d snapshot rows (week_endings=%s)",
         len(new_rows), week_endings,
+    )
+
+
+# ─── MONTHLY_GOALS tab ────────────────────────────────────────────────────────
+#
+# Karissa enters per-location monthly $ targets + her two operating-day
+# divisors (daily_goal_divisor, day_goal_divisor) by hand each month. The
+# YoY report tab needs all three to render her pacing columns. Idempotency
+# key is (loc_name, year_month). 6 columns A-F.
+
+MONTHLY_GOALS_HEADERS = [
+    "loc_name", "year_month",
+    "monthly_goal", "daily_goal_divisor", "day_goal_divisor",
+    "source",
+]
+
+
+def _ensure_monthly_goals_tab(service, sheet_id: str) -> None:
+    """Create MONTHLY_GOALS with header row if the tab doesn't exist."""
+    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing_titles = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if "MONTHLY_GOALS" in existing_titles:
+        return
+
+    log.info("MONTHLY_GOALS tab not found — creating with header row")
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"addSheet": {"properties": {"title": "MONTHLY_GOALS"}}}]},
+    ).execute()
+    service.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range="MONTHLY_GOALS!A1:F1",
+        valueInputOption="USER_ENTERED",
+        body={"values": [MONTHLY_GOALS_HEADERS]},
+    ).execute()
+
+
+def append_to_monthly_goals(
+    service,
+    config: dict,
+    rows: list[dict],
+    dry_run: bool = False,
+):
+    """Append per-location monthly goal rows. Idempotent on (loc_name, year_month)."""
+    if not rows:
+        log.info("append_to_monthly_goals: no rows — skipping")
+        return
+
+    year_months = sorted({r.get("year_month", "") for r in rows if r.get("year_month")})
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_monthly_goals — would append %d rows for year_months=%s",
+            len(rows), year_months,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    _ensure_monthly_goals_tab(service, sheet_id)
+
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="MONTHLY_GOALS!A2:B",
+    ).execute()
+    existing_keys = {
+        (r[0], r[1]) for r in existing.get("values", []) if len(r) >= 2
+    }
+
+    new_rows = []
+    for r in rows:
+        key = (r.get("loc_name", ""), r.get("year_month", ""))
+        if key in existing_keys:
+            log.info(
+                "append_to_monthly_goals: skipping existing (loc=%s, year_month=%s)",
+                key[0], key[1],
+            )
+            continue
+        new_rows.append([
+            r.get("loc_name", ""),
+            r.get("year_month", ""),
+            r.get("monthly_goal", 0),
+            r.get("daily_goal_divisor", 0),
+            r.get("day_goal_divisor", 0),
+            r.get("source", ""),
+        ])
+
+    if not new_rows:
+        log.info("append_to_monthly_goals: all rows already present — nothing to write")
+        return
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="MONTHLY_GOALS!A2:F",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": new_rows},
+    ).execute()
+
+    log.info(
+        "MONTHLY_GOALS tab: appended %d rows (year_months=%s)",
+        len(new_rows), year_months,
     )
 
 
