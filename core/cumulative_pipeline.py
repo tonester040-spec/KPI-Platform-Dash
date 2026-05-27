@@ -113,6 +113,50 @@ def _stylist_to_cumulative_row(
     }
 
 
+def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -> dict:
+    """Re-shape a differenced live-stylist record back into the data_processor
+    contract: history arrays preserved, latest array entry replaced with the
+    differenced true-weekly value, cur_* convenience fields refreshed from
+    the differenced weekly.
+
+    Why this matters: `difference_stylist_record()` returns a dict with SCALAR
+    pph/avg_ticket/ppg and no history arrays at all — but downstream code
+    (`data_processor.enrich_stylists`, `sheets_writer.write_stylists_current`,
+    `dashboard_builder`) expects the original `load_stylist_data` shape:
+    pph/rebook/product/ticket/services/color/weeks as LISTS, plus cur_pph /
+    cur_rebook / cur_product / cur_ticket as SCALARS. Without this reshape,
+    `enrich_stylists` crashes on `len(pph)` because pph is a float.
+
+    Replacement semantics: the latest entry in pph/ticket was the cumulative-
+    MTD value Karissa's team entered this Monday. Differencing produced the
+    true-weekly value; replace pph[-1] / ticket[-1] in the historical arrays
+    so WoW deltas downstream compute against a true-weekly current week
+    rather than against the cumulative-MTD scalar.
+    """
+    shaped = dict(original_input)
+
+    new_pph = differenced.get("pph", 0)
+    new_ticket = differenced.get("avg_ticket", 0)
+
+    pph_arr = shaped.get("pph") or []
+    shaped["pph"] = list(pph_arr[:-1]) + [new_pph] if pph_arr else [new_pph]
+
+    ticket_arr = shaped.get("ticket") or []
+    shaped["ticket"] = list(ticket_arr[:-1]) + [new_ticket] if ticket_arr else [new_ticket]
+
+    shaped["cur_pph"] = new_pph
+    shaped["cur_ticket"] = new_ticket
+    # cur_product / cur_rebook are NOT recomputed by differencing (rebook isn't
+    # cumulative-MTD; product_pct is recomputed at the location level but not
+    # surfaced per stylist in the differenced shape). Preserve from original
+    # so the archetype classifier in enrich_stylists still has values to work
+    # against. A follow-up can add stylist product_pct differencing if needed.
+    shaped.setdefault("cur_product", original_input.get("cur_product", 0))
+    shaped.setdefault("cur_rebook", original_input.get("cur_rebook", 0))
+
+    return shaped
+
+
 def snapshot_and_difference(
     service,
     config: dict,
@@ -220,9 +264,30 @@ def snapshot_and_difference(
     for w in weekly_locations:
         w["loc_id"] = loc_id_by_name.get(w.get("loc_name", ""), "")
 
+    # Re-shape differenced live-stylist records back into the data_processor
+    # contract (history arrays + cur_* scalars). Without this, downstream
+    # enrich_stylists crashes on len(pph) because the differenced record has
+    # pph as a scalar float, not the historical list it expects.
+    original_live_by_key = {
+        (s.get("name", ""), s.get("loc_name", "")): s for s in live_stylists
+    }
+    shaped_live_weekly: list[dict] = []
+    for w in weekly_stylists:
+        key = (w.get("name", ""), w.get("loc_name", ""))
+        orig = original_live_by_key.get(key)
+        if orig is None:
+            log.warning(
+                "snapshot_and_difference: differenced stylist has no matching "
+                "original input — passing through as-is (name=%r loc=%r)",
+                w.get("name"), w.get("loc_name"),
+            )
+            shaped_live_weekly.append(w)
+            continue
+        shaped_live_weekly.append(_attach_history_to_weekly_stylist(orig, w))
+
     # Re-attach historical-only stylists pass-through (preserves Phase 2.5
     # backfilled roster on the Stylists tab without sending these records
     # through differencing, which would strip their cur_* fields).
-    weekly_stylists = weekly_stylists + historical_only_stylists
+    weekly_stylists = shaped_live_weekly + historical_only_stylists
 
     return weekly_locations, weekly_stylists

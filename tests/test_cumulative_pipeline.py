@@ -232,5 +232,232 @@ class TestSnapshotAndDifferenceMissingWeekEnding(unittest.TestCase):
         self.assertEqual(weekly_locs[0]["loc_name"], "Blaine")
 
 
+class TestSnapshotAndDifferenceLiveStylistReshape(unittest.TestCase):
+    """Regression: differenced live-stylist records must keep history-array
+    + cur_* shape so data_processor.enrich_stylists doesn't crash on
+    len(pph)."""
+
+    def _live_stylist(self, name="Alice", loc="Blaine", loc_id="z002"):
+        """A live stylist dict as produced by data_source.load_stylist_data
+        — arrays for history, cur_* for current-week scalars."""
+        return {
+            "name": name, "loc_name": loc, "loc_id": loc_id,
+            "status": "active", "tenure": 3.0,
+            "weeks":    ["2026-04-05", "2026-04-12"],
+            "pph":      [55.0, 62.0],          # latest entry = cumulative-MTD
+            "rebook":   [40.0, 45.0],
+            "product":  [12.5, 13.5],
+            "ticket":   [60.0, 70.0],
+            "services": [10, 12],
+            "color":    [0.30, 0.32],
+            "cur_pph":     62.0,
+            "cur_rebook":  45.0,
+            "cur_product": 13.5,
+            "cur_ticket":  70.0,
+            # invoices/guests/net_service/net_product/production_hours are
+            # not always present on the live shape, but the snapshot row
+            # converter pulls them via .get() with 0 default — that's fine.
+            "invoices": 25, "guests": 25, "net_service": 1500.0,
+            "net_product": 300.0, "production_hours": 35.0,
+            "platform": "zenoti",
+        }
+
+    def test_live_stylist_keeps_history_arrays_and_cur_fields(self):
+        """After differencing, pph + ticket must still be lists (latest entry
+        replaced with the differenced true-weekly), and cur_pph / cur_ticket
+        must be scalars set to the differenced value."""
+        cur_loc = _build_cumulative_location(week_ending="2026-04-12")
+        live = self._live_stylist()
+        # Prior stylist snapshot for Week 1 (cumulative-MTD as of 2026-04-05)
+        prior_styl = {
+            "year_month": "2026-04", "week_ending": "2026-04-05",
+            "name": "Alice", "loc_name": "Blaine", "loc_id": "z002",
+            "platform": "zenoti",
+            "invoices": 12, "guests": 12, "net_service": 600.0,
+            "net_product": 120.0, "production_hours": 15.0,
+            "avg_ticket": 60.0, "pph": 40.0, "ppg": 10.0,
+            "source": "current_tab",
+        }
+        with patch("core.cumulative_pipeline.append_to_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.append_to_stylists_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.read_cumulative_mtd_snapshots", return_value=[]), \
+             patch(
+                 "core.cumulative_pipeline.read_stylists_cumulative_mtd_snapshots",
+                 return_value=[prior_styl],
+             ):
+            _, weekly_styls = snapshot_and_difference(
+                MagicMock(), CONFIG,
+                cumulative_locations=[cur_loc],
+                cumulative_stylists=[live],
+                source_label="current_tab", dry_run=False,
+            )
+
+        self.assertEqual(len(weekly_styls), 1)
+        s = weekly_styls[0]
+
+        # Shape contract — these are what enrich_stylists / sheets_writer /
+        # dashboard_builder all rely on:
+        self.assertIsInstance(s["pph"], list, "pph must remain a list")
+        self.assertIsInstance(s["rebook"], list, "rebook must remain a list")
+        self.assertIsInstance(s["ticket"], list, "ticket must remain a list")
+        self.assertIsInstance(s.get("cur_pph"), (int, float))
+        self.assertIsInstance(s.get("cur_ticket"), (int, float))
+        self.assertIsInstance(s.get("cur_product"), (int, float))
+        self.assertIsInstance(s.get("cur_rebook"), (int, float))
+
+        # History preserved (length-2 arrays)
+        self.assertEqual(len(s["pph"]), 2)
+        self.assertEqual(len(s["ticket"]), 2)
+        # Latest pph entry replaced with differenced true-weekly
+        # ((1500 - 600) / (35 - 15) = 900 / 20 = 45.0)
+        self.assertAlmostEqual(s["pph"][-1], 45.0, places=2)
+        # Older entry untouched
+        self.assertEqual(s["pph"][0], 55.0)
+        # cur_pph mirrors the differenced value
+        self.assertAlmostEqual(s["cur_pph"], 45.0, places=2)
+        # cur_product / cur_rebook preserved from original input
+        self.assertEqual(s["cur_product"], 13.5)
+        self.assertEqual(s["cur_rebook"], 45.0)
+
+        # Static identity preserved
+        self.assertEqual(s["name"], "Alice")
+        self.assertEqual(s["loc_name"], "Blaine")
+        self.assertEqual(s["loc_id"], "z002")
+        # is_historical_only must NOT be set on a live stylist — otherwise
+        # enrich_stylists would skip it.
+        self.assertFalse(s.get("is_historical_only", False))
+
+    def test_live_stylist_week_one_no_prior(self):
+        """Week 1 of month: no prior snapshot → differenced = current as-is.
+        Shape contract still applies."""
+        cur_loc = _build_cumulative_location(week_ending="2026-04-05")
+        live = self._live_stylist()
+        # Trim history to just the current entry so we exercise the
+        # single-entry array path
+        live["weeks"] = ["2026-04-05"]
+        live["pph"] = [62.0]
+        live["rebook"] = [45.0]
+        live["product"] = [13.5]
+        live["ticket"] = [70.0]
+        live["services"] = [12]
+        live["color"] = [0.32]
+
+        with patch("core.cumulative_pipeline.append_to_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.append_to_stylists_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.read_cumulative_mtd_snapshots", return_value=[]), \
+             patch(
+                 "core.cumulative_pipeline.read_stylists_cumulative_mtd_snapshots",
+                 return_value=[],
+             ):
+            _, weekly_styls = snapshot_and_difference(
+                MagicMock(), CONFIG,
+                cumulative_locations=[cur_loc],
+                cumulative_stylists=[live],
+                source_label="current_tab", dry_run=False,
+            )
+
+        self.assertEqual(len(weekly_styls), 1)
+        s = weekly_styls[0]
+        self.assertIsInstance(s["pph"], list)
+        self.assertEqual(len(s["pph"]), 1)
+        # Week 1: no prior → differenced pph = net_service / production_hours
+        # = 1500 / 35 = ~42.86
+        self.assertAlmostEqual(s["pph"][-1], 1500.0 / 35.0, places=2)
+        self.assertAlmostEqual(s["cur_pph"], 1500.0 / 35.0, places=2)
+
+    def test_mixed_live_and_historical_only_stylists(self):
+        """Historical-only stylists pass through; live ones get reshaped.
+        Both should be present in output without crashing downstream."""
+        cur_loc = _build_cumulative_location(week_ending="2026-04-12")
+        live = self._live_stylist(name="Alice")
+        hist = {
+            "name": "Bob", "loc_name": "Blaine", "loc_id": "z002",
+            "status": "active", "tenure": 0,
+            "is_historical_only": True,
+            "weeks":    ["2026-03-31"],
+            "pph":      [50.0],
+            "rebook":   [0],
+            "product":  [0],
+            "ticket":   [55.0],
+            "services": [8],
+            "color":    [0],
+            "cur_pph": 0, "cur_rebook": 0, "cur_product": 0, "cur_ticket": 0,
+        }
+
+        with patch("core.cumulative_pipeline.append_to_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.append_to_stylists_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.read_cumulative_mtd_snapshots", return_value=[]), \
+             patch(
+                 "core.cumulative_pipeline.read_stylists_cumulative_mtd_snapshots",
+                 return_value=[],
+             ):
+            _, weekly_styls = snapshot_and_difference(
+                MagicMock(), CONFIG,
+                cumulative_locations=[cur_loc],
+                cumulative_stylists=[live, hist],
+                source_label="current_tab", dry_run=False,
+            )
+
+        names = sorted(s["name"] for s in weekly_styls)
+        self.assertEqual(names, ["Alice", "Bob"])
+
+        alice = next(s for s in weekly_styls if s["name"] == "Alice")
+        bob = next(s for s in weekly_styls if s["name"] == "Bob")
+        self.assertFalse(alice.get("is_historical_only", False))
+        self.assertTrue(bob.get("is_historical_only", False))
+        # Both have list-shaped pph (alice from reshape, bob unchanged)
+        self.assertIsInstance(alice["pph"], list)
+        self.assertIsInstance(bob["pph"], list)
+
+
+class TestSnapshotAndDifferenceDataProcessorContract(unittest.TestCase):
+    """End-to-end: differenced live stylists must survive a full
+    data_processor.enrich_stylists pass without raising."""
+
+    def test_enrich_stylists_does_not_crash_on_reshaped_records(self):
+        from core import data_processor
+
+        cur_loc = _build_cumulative_location(week_ending="2026-04-12")
+        live = {
+            "name": "Alice", "loc_name": "Blaine", "loc_id": "z002",
+            "status": "active", "tenure": 3.0,
+            "weeks": ["2026-04-05", "2026-04-12"],
+            "pph":     [55.0, 62.0],
+            "rebook":  [40.0, 45.0],
+            "product": [12.5, 13.5],
+            "ticket":  [60.0, 70.0],
+            "services": [10, 12],
+            "color":   [0.30, 0.32],
+            "cur_pph": 62.0, "cur_rebook": 45.0,
+            "cur_product": 13.5, "cur_ticket": 70.0,
+            "invoices": 25, "guests": 25, "net_service": 1500.0,
+            "net_product": 300.0, "production_hours": 35.0,
+            "platform": "zenoti",
+        }
+        with patch("core.cumulative_pipeline.append_to_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.append_to_stylists_cumulative_mtd"), \
+             patch("core.cumulative_pipeline.read_cumulative_mtd_snapshots", return_value=[]), \
+             patch(
+                 "core.cumulative_pipeline.read_stylists_cumulative_mtd_snapshots",
+                 return_value=[],
+             ):
+            _, weekly_styls = snapshot_and_difference(
+                MagicMock(), CONFIG,
+                cumulative_locations=[cur_loc],
+                cumulative_stylists=[live],
+                source_label="current_tab", dry_run=False,
+            )
+
+        # The exact crash that production hit: len(pph) on a scalar float.
+        # This call should now complete cleanly.
+        network_summary = {"avg_pph": 50.0, "avg_product_pct": 12.0}
+        enriched, threshold = data_processor.enrich_stylists(weekly_styls, network_summary)
+
+        self.assertEqual(len(enriched), 1)
+        self.assertIn("pph_delta", enriched[0])
+        self.assertIn("rebook_delta", enriched[0])
+        self.assertIn("arch_label", enriched[0])
+
+
 if __name__ == "__main__":
     unittest.main()
