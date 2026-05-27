@@ -99,6 +99,7 @@ def _build_stylist_data(stylists: list[dict]) -> str:
             "pph":     [round(v, 2) for v in s.get("pph", [])[-12:]],
             "rebook":  [round(v, 1) for v in s.get("rebook", [])[-12:]],
             "product": [round(v, 1) for v in s.get("product", [])[-12:]],
+            "ppg":     [round(v, 2) for v in s.get("ppg", [])[-12:]],
             "ticket":  [round(v, 2) for v in s.get("ticket", [])[-12:]],
             "services":[int(v) for v in s.get("services", [])[-12:]],
             "color":   [round(v, 1) for v in s.get("color", [])[-12:]],

@@ -1,10 +1,10 @@
-/* KPI Service Worker — v4 (bumped 2026-05-27 — rebook UI removed, force fresh HTML)
+/* KPI Service Worker — v5 (bumped 2026-05-27 — PPG column added, force fresh HTML)
    Cache strategy:
    - Network First  → HTML files (fresh pipeline data when online)
    - Cache First    → everything else (icons, manifest, fonts)
 */
 
-const CACHE     = 'kpi-v4';
+const CACHE     = 'kpi-v5';
 const BASE      = '/KPI-Platform-Dash';
 const PRECACHE  = [
   `${BASE}/`,

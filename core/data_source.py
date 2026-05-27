@@ -373,7 +373,7 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
             # — pad the prepend with zeros so chart arrays stay aligned with
             # `weeks` length (dashboard does `.slice(-take)` across keys).
             monthly_len = len(m.get("weeks", []))
-            for arr_key in ("weeks", "pph", "ticket", "services", "product"):
+            for arr_key in ("weeks", "pph", "ticket", "services", "product", "ppg"):
                 if arr_key in m and arr_key in existing:
                     existing[arr_key] = list(m[arr_key]) + list(existing[arr_key])
             for arr_key in ("rebook", "color"):
@@ -391,7 +391,8 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
             # just because they have no live week.
             monthly_weeks = list(m.get("weeks", []))
             monthly_product = list(m.get("product", []))
-            # product comes from monthly (computed per Karissa's formula);
+            monthly_ppg = list(m.get("ppg", []))
+            # product/ppg come from monthly (computed per Karissa's formulas);
             # rebook/color are zero-padded because we don't have per-stylist
             # values for them in any source today.
             by_name[name] = {
@@ -408,12 +409,14 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
                 "ticket":      list(m.get("ticket", [])),
                 "services":    list(m.get("services", [])),
                 "color":       [0] * len(monthly_weeks),
+                "ppg":         monthly_ppg if monthly_ppg else [0] * len(monthly_weeks),
                 # cur_* present but zeroed — downstream filters skip these
                 # records, but the keys exist so any defensive `.get()` works.
                 "cur_pph":     0,
                 "cur_rebook":  0,
                 "cur_product": monthly_product[-1] if monthly_product else 0,
                 "cur_ticket":  0,
+                "cur_ppg":     monthly_ppg[-1] if monthly_ppg else 0,
             }
     # Stable ordering: original weekly order, then monthly-only stylists sorted alphabetically
     weekly_names = [s["name"] for s in weekly]
@@ -546,11 +549,16 @@ def load_stylist_data(service, config: dict,
             "ticket":      [_safe_float(r[SCOL["avg_ticket"]]) for r in srows],
             "services":    [_safe_int(r[SCOL["services"]]) for r in srows],
             "color":       [_safe_float(r[SCOL["color_pct"]]) for r in srows],
+            # ppg isn't a column in STYLISTS_DATA yet — initialize zero-padded
+            # so the monthly fallback merge can prepend real values from
+            # STYLISTS_DATA_MONTHLY without length-mismatching the other arrays.
+            "ppg":         [0.0] * len(srows),
             # Current-week convenience fields
             "cur_pph":     _safe_float(latest[SCOL["pph"]]),
             "cur_rebook":  _safe_float(latest[SCOL["rebook_pct"]]),
             "cur_product": _safe_float(latest[SCOL["product_pct"]]),
             "cur_ticket":  _safe_float(latest[SCOL["avg_ticket"]]),
+            "cur_ppg":     0.0,
         })
 
     log.info("Loaded %d stylists from STYLISTS_DATA", len(stylists))

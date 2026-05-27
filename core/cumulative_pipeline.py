@@ -142,6 +142,8 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
     # (0-100), so scale here at the boundary. Karissa golden rule:
     # product_pct = product_net / (net_service + net_product).
     new_product_pct = differenced.get("product_pct", 0) * 100
+    # ppg is in dollars (net_product / guest_count). No scale conversion.
+    new_ppg = differenced.get("ppg", 0)
 
     # Empty-placeholder guard: STYLISTS_DATA currently contains all-zero rows
     # for everyone except `total_services` (Karissa's team hasn't started
@@ -171,7 +173,7 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
         # dashboard's `s.pph[s.pph.length-1]` reads the most recent monthly
         # value (e.g. Aleksis's May $42.16) instead of the placeholder 0.
         # Once Karissa's team enters real data, we hit the else branch.
-        for arr_key in ("weeks", "pph", "ticket", "services", "product", "rebook", "color"):
+        for arr_key in ("weeks", "pph", "ticket", "services", "product", "rebook", "color", "ppg"):
             arr = shaped.get(arr_key) or []
             # Only drop if there's a tail to drop AND it's the placeholder 0.
             # Services may be non-zero in the placeholder row (e.g. 15 for
@@ -182,6 +184,7 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
         shaped["cur_pph"] = _last_or_zero(shaped.get("pph") or [])
         shaped["cur_ticket"] = _last_or_zero(shaped.get("ticket") or [])
         shaped["cur_product"] = _last_or_zero(shaped.get("product") or [])
+        shaped["cur_ppg"] = _last_or_zero(shaped.get("ppg") or [])
     else:
         pph_arr = shaped.get("pph") or []
         shaped["pph"] = list(pph_arr[:-1]) + [new_pph] if pph_arr else [new_pph]
@@ -194,9 +197,15 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
             list(product_arr[:-1]) + [new_product_pct] if product_arr else [new_product_pct]
         )
 
+        ppg_arr = shaped.get("ppg") or []
+        shaped["ppg"] = (
+            list(ppg_arr[:-1]) + [new_ppg] if ppg_arr else [new_ppg]
+        )
+
         shaped["cur_pph"] = new_pph
         shaped["cur_ticket"] = new_ticket
         shaped["cur_product"] = new_product_pct
+        shaped["cur_ppg"] = new_ppg
 
     # cur_rebook is salon-level only (no per-stylist source in any POS); preserve
     # whatever the original input had (typically 0) so archetype classification
