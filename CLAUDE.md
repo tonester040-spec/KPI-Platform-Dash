@@ -51,7 +51,10 @@ core/ai_coach_cards.py    → Claude API coach cards for Jess & Jenn (claude-son
                              Falls back to dry-run placeholder on JSON parse failure
 core/sheets_writer.py     → writes CURRENT, STYLISTS_CURRENT, ALERTS tabs back
                              + JESS_BRIEF (ALERTS!A100) and JENN_BRIEF (ALERTS!A101)
-core/report_builder.py    → generates 5-sheet Excel report (openpyxl)
+core/karissa_workbook.py → generates monthly Excel workbook in Karissa's exact
+                             layout (5 weekly tabs + Year Over Year) — replaces
+                             legacy report_builder.py (deleted 2026-05-27).
+                             Reads CUMULATIVE_MTD + DATA_MONTHLY + MONTHLY_GOALS
 core/dashboard_builder.py → builds docs/index.html, docs/jess.html, docs/jenn.html
                              + injects COACH_CARD_DATA JS constant into manager HTML files
 core/email_sender.py      → sends Excel to Tony (tonester60@hotmail.com) via Gmail App Password
@@ -283,8 +286,9 @@ Source of truth: `config/customers/karissa_001.json`
 | `WEEK_ENDING`     | Manual reference tab — **not read by pipeline code** (pipeline reads week_ending from row data in CURRENT/DATA tabs) |
 | `DATA_MONTHLY`    | **Monthly grain historical backfill.** 23 cols A-W keyed by `(loc_name, year_month)`. Mirrors DATA's KPIs plus `source` / `period_start` / `period_end` provenance. Append-only, idempotent. Populated for backfill (Mar/Apr/May 2026) and intended to back YOY / MTD / pacing features. **Not read by the weekly pipeline** — exists in parallel to DATA, never to replace it. Auto-created by `core/sheets_writer.py::_ensure_data_monthly_tab()` on first write. |
 | `STYLISTS_DATA_MONTHLY` | **Monthly stylist roster historical backfill.** 16 cols A-P keyed by `(year_month, name, loc_name)`. Append-only, idempotent. Auto-created. Source column distinguishes `zenoti_xlsx` (March, from Employee KPI .xlsx exports), `zenoti_monthly_pdf`, and `su_monthly_pdf` (April/May, from monthly POS PDFs). |
-| `CUMULATIVE_MTD` | **Weekly cumulative-MTD snapshots.** 22 cols A-V keyed by `(loc_name, year_month, week_ending)`. Each Monday's pipeline run writes one snapshot per location capturing the cumulative-month-to-date values entered into CURRENT. Next Monday's run reads these to compute the prior-week subtraction for `core/cumulative_to_weekly.py` differencing. Auto-created. Append-only, idempotent. |
-| `STYLISTS_CUMULATIVE_MTD` | **Weekly cumulative-MTD stylist snapshots.** 15 cols A-O keyed by `(year_month, week_ending, name, loc_name)`. Same role as CUMULATIVE_MTD but at stylist grain. |
+| `CUMULATIVE_MTD` | **Weekly cumulative-MTD snapshots.** 22 cols A-V keyed by `(loc_name, year_month, week_ending)`. Each Monday's pipeline run writes one snapshot per location capturing the cumulative-month-to-date values entered into CURRENT. Next Monday's run reads these to compute the prior-week subtraction for `core/cumulative_to_weekly.py` differencing. Also feeds the Karissa-format weekly report tabs. Auto-created. Append-only, idempotent. **Writer uses `valueInputOption="RAW"`** to keep `week_ending` as an ISO date string instead of letting Sheets coerce it to an Excel serial number (a date-coercion bug discovered 2026-05-27 that broke idempotency in early CUMULATIVE_MTD writes — fixed before live pipeline runs). |
+| `STYLISTS_CUMULATIVE_MTD` | **Weekly cumulative-MTD stylist snapshots.** 15 cols A-O keyed by `(year_month, week_ending, name, loc_name)`. Same role as CUMULATIVE_MTD but at stylist grain. Also uses `valueInputOption="RAW"` for the same date-coercion reason. |
+| `MONTHLY_GOALS` | **Per-location monthly $ targets + operating-day divisors.** 6 cols A-F keyed by `(loc_name, year_month)`. Holds `monthly_goal`, `daily_goal_divisor` (Karissa's "Daily Goal" working-days count, varies 22-26), `day_goal_divisor` (her "Day Goal" working-days count, varies 22-30), plus `source` provenance. Read by `karissa_workbook.py` to populate the YoY tab's Goal / Daily Goal / Day Goal columns. Karissa enters these manually each month — without a row for `(loc, year_month)`, the YoY pacing columns will be blank for that location. Auto-created by `_ensure_monthly_goals_tab()`. Seeded for 2026-05 by `scripts/backfill/cumulative_mtd_from_tracker.py`. |
 
 **Data flow:** Karissa's team enters current week data into CURRENT tab manually. The pipeline reads CURRENT (current week) + DATA (location history) + STYLISTS_DATA (stylist history), enriches everything, then writes back to CURRENT + STYLISTS_CURRENT + ALERTS, and appends to DATA + STYLISTS_DATA.
 
@@ -337,8 +341,8 @@ python scripts/sandbox_run.py
 
 What the sandbox does:
 - Mocks 12 realistic location rows and 3 stylist rows
-- Runs data_processor, drift_checker, ai_cards (DRY_RUN), sheets_writer (DRY_RUN), report_builder (DRY_RUN), email_sender (DRY_RUN), dashboard_builder (DRY_RUN), alerter test, ai_coach_cards (DRY_RUN)
-- Confirms all 9 modules pass before any real API credential is connected
+- Runs data_processor, drift_checker, ai_cards (DRY_RUN), sheets_writer (DRY_RUN), karissa_workbook (DRY_RUN), email_sender (DRY_RUN), dashboard_builder (DRY_RUN), alerter test, ai_coach_cards (DRY_RUN), cumulative_pipeline
+- Confirms all 10 modules pass before any real API credential is connected
 - Fires a deliberate test alert so the alerter path is confirmed working
 
 **Sandbox must show 10/10 PASS before any release is considered shippable.** ✓ (Module 10 `cumulative_pipeline` added 2026-05-26 for the cumulative-MTD → weekly differencing step.)
@@ -421,14 +425,55 @@ The app is installable on iPhone (Add to Home Screen). Components:
 
 ---
 
-## Excel report structure (report_builder.py)
+## Excel report structure (karissa_workbook.py)
 
-5 sheets generated by `core/report_builder.py`:
-1. **Summary** — network-wide KPIs at a glance
-2. **Locations** — per-location breakdown including Service Net $, Product Net $, PPG, Prod Hours
-3. **Service Mix** — Wax / Color / Treatment breakdown vs network averages (color coded)
-4. **Goals & YOY** — 6 live columns + 8 gray placeholder columns (⏳ prefix) for future Zenoti API feeds
-5. **Stylists** — per-stylist performance
+The Monday pipeline emits **one workbook per month**, regenerated from Sheets
+state each Monday so old weekly tabs stay stable as the month progresses. The
+layout matches Karissa's own `May 2026.xlsx` tracker tab-for-tab. Filename:
+`KPI_<week_ending>.xlsx` (e.g. `KPI_2026-05-31.xlsx`).
+
+**6 tabs, in order:**
+
+1. **Week 1 / week 2 / week 3 / week 4 / week 5** — five cumulative-MTD
+   weekly tabs (Karissa's tab names preserve her leading/trailing whitespace
+   intentionally). Each tab has two stacked tables:
+   - **Top block** (rows 2-14 + Totals): per-location KPIs — Name, Guest Count,
+     Total Sales Net, Service Net, Product Net, Product %, PPG Net, PPH Net,
+     Average Tkt, Prod Hours, Projection (cumul ÷ working-days-elapsed ×
+     working-days-in-month), 2025 reference cols (Total / Guests / PPG / AT /
+     PPG Diff / AT Diff). Per-week variations: Wk1 has extra "tickets" col B;
+     Wk4 inserts "Goals" col; Wk5 renames "Projection" → "Monthly goal".
+   - **Bottom block** (rows 19-31): service-mix penetration — Wax Count, Wax
+     Net, Wax %, Color Net, Color %, Trmt Count, Trmt Net, Trmt %. Right-side
+     reference block holds prior-month (April) Prod Hours / Wax $ / Treat $
+     / Service $ + prior-month and current-month wax % / treat % (as %-of-
+     service-revenue). Footer rows hold the "% of Guests" treatment
+     penetration aggregate and the verbatim "Goal is 15% plus" annotation.
+2. **Year Over Year** — three sub-tables:
+   - Table 1 (rows 2-14): current-month MTD vs 2025 + Goal / Daily Goal / Day
+     Goal pacing + 2019 reference. Goal columns sourced from `MONTHLY_GOALS`.
+   - Table 2 (rows 18-30): Q2 totals (2026 vs 2025 vs 2019).
+   - Table 3 (rows 18-31, cols J-N): Q2 monthly breakdown (April / May / June
+     / Q2 Total per location).
+
+**Z-mode contract**: every derived ratio (PPG, PPH, Avg Ticket, %s) is
+recomputed canonically from raw primitives per the KPI formula contract above.
+The Karissa-typed POS-reported PPG/PPH for Zenoti locations is intentionally
+NOT mirrored — our cells show the canonical values (Andover PPG = 4.37, not
+her 4.63), and the resulting "PPG Diff" / "AT Diff" cells differ accordingly.
+
+**Projection divisors**: Karissa hand-types `=(cumul / X) * 25` per cell on
+each weekly tab, with X = working days elapsed. May 2026 hardcoded as
+`{Wk1: 2, Wk2: 8, Wk3: 14, Wk4: 21, Wk5: 25}` in
+`core/karissa_workbook.py::PROJECTION_DIVISORS_BY_MONTH`. Future months fall
+back to Mon-Sat calc until added to the override table. Per-location quirks
+(Roseville/Apple Valley/Farmington use /22*29 on Wk4 in her tracker) are NOT
+replicated — single divisor applies to all locations per month.
+
+**Prior-month reference columns** (bottom-right of each weekly tab) source
+from `DATA_MONTHLY` 2026-04 backfill, not her tracker's typed values. Values
+will differ from her cells by $1-3K per location because she enters from a
+slightly different / earlier export. Z-mode aligned.
 
 **Current recipients:** `config/customers/karissa_001.json` → `email_recipients` → `["tonester60@hotmail.com"]` (Tony). Update when Karissa's email is confirmed.
 
