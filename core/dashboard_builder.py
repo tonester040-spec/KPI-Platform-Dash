@@ -67,7 +67,15 @@ def _build_loc_hist(locations: list[dict]) -> str:
         # Salon-level rebook_pct from DATA_MONTHLY backfill (Apr/May 2026).
         # Stored as decimal 0-1 in the Sheet; fmt_pct_arr scales to 0-100 for
         # display. Pre-Apr months show 0 (data column added 2026-05-27).
-        rebook_arr = hist.get("rebook_pct", [0] * 12)
+        # Pad to length-12 so dashboard JS `h.rb[W]` (W=11) always resolves
+        # — without padding, locations with only Apr+May data would have a
+        # 2-entry array and `h.rb[11]` would be undefined, breaking the
+        # whole init chain (Cannot read properties of undefined / toFixed).
+        raw_rebook = hist.get("rebook_pct", [])
+        if len(raw_rebook) < 12:
+            rebook_arr = [0] * (12 - len(raw_rebook)) + list(raw_rebook)
+        else:
+            rebook_arr = list(raw_rebook)
 
         def fmt_arr(arr, prec=2):
             return "[" + ",".join(f"{float(v):.{prec}f}" for v in arr[-12:]) + "]"

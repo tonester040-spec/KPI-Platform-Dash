@@ -154,6 +154,8 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
   .drawer{width:100vw}.why-col{display:none}.pulse-bar-wrap{padding:10px 16px}
 }
 @media(max-width:480px){.cards-grid{grid-template-columns:1fr 1fr}.metric-tiles{grid-template-columns:1fr 1fr}.main{padding:16px 12px}}
+/* iPhone home-indicator safe area — keeps last tile/chart from being pinned under the indicator. */
+.drawer-body{padding-bottom:max(24px,env(safe-area-inset-bottom,24px))}
 /* ── PWA Banner ── */
 #pwa-banner{display:none;background:var(--bg-surface);border-bottom:1px solid var(--border);padding:10px 20px;align-items:center;gap:12px;font-size:13px;color:var(--text-secondary);position:relative;z-index:200}
 #pwa-banner .pwa-text{flex:1;font-family:var(--font-body)}#pwa-banner .pwa-icon{font-size:20px;flex-shrink:0}
@@ -415,7 +417,7 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 ═══════════════════════════════════════════════════════ */
 const CURRENT_WEEK = '2026-03-09';
 // KPI_DATA_START
-// Generated: 2026-05-27T20:33:12Z
+// Generated: 2026-05-27T20:54:14Z
 const WEEKS_12 = [
   '2019-05-31','2019-06-30','2025-05-31','2025-06-30','2026-03-31','2026-04-30','2026-05-24','2026-05-24','2026-05-24','2026-05-24','2026-05-24','2026-05-24'
 ];
@@ -427,7 +429,7 @@ const LOC_HIST = {
     g:  [0,0,1159,0,875,866,657,657,657,657,657,657],
     at: [0.00,0.00,48.99,0.00,45.26,51.22,48.76,48.76,48.76,48.76,48.76,48.76],
     w:  [0.0,0.0,0.0,0.0,8.0,8.6,10.3,10.4,10.4,10.4,10.4,10.4],
-    rb: [0.0,0.0,0.0,0.0,0.0,4.3,3.9],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.3,3.9],
   },
   'Apple Valley': { plat:'salon_ultimate',
     s:  [75092,223262,91529,257608,105477,98804,89790,89790,89790,89790,89790,89790],
@@ -436,7 +438,7 @@ const LOC_HIST = {
     g:  [0,0,1764,0,1796,1643,1463,1463,1463,1463,1463,1463],
     at: [0.00,0.00,51.89,0.00,58.73,60.14,61.37,61.37,61.37,61.37,61.37,61.37],
     w:  [0.0,0.0,0.0,0.0,15.3,14.7,16.3,16.3,16.3,16.3,16.3,16.3],
-    rb: [0.0,0.0,0.0,0.0,0.0,14.7,13.1],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,14.7,13.1],
   },
   'Lakeville': { plat:'salon_ultimate',
     s:  [42609,123227,35725,103755,38413,38277,31349,31349,31349,31349,31349,31349],
@@ -445,7 +447,7 @@ const LOC_HIST = {
     g:  [0,0,784,0,698,719,609,609,609,609,609,609],
     at: [0.00,0.00,45.57,0.00,55.03,53.24,51.48,51.48,51.48,51.48,51.48,51.48],
     w:  [0.0,0.0,0.0,0.0,14.9,12.9,15.6,15.6,15.6,15.6,15.6,15.6],
-    rb: [0.0,0.0,0.0,0.0,0.0,1.7,2.5],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.7,2.5],
   },
   'Farmington': { plat:'salon_ultimate',
     s:  [57542,162970,75881,208454,70629,61636,53105,53105,53105,53105,53105,53105],
@@ -454,7 +456,7 @@ const LOC_HIST = {
     g:  [0,0,1529,0,1328,1281,1017,1017,1017,1017,1017,1017],
     at: [0.00,0.00,49.63,0.00,53.18,48.12,52.22,52.22,52.22,52.22,52.22,52.22],
     w:  [0.0,0.0,0.0,0.0,12.4,11.1,13.0,13.0,13.0,13.0,13.0,13.0],
-    rb: [0.0,0.0,0.0,0.0,0.0,4.1,3.5],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.1,3.5],
   },
 };
 

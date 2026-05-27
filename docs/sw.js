@@ -1,10 +1,10 @@
-/* KPI Service Worker — v6 (bumped 2026-05-27 — salon Rebook + per-stylist Request%/Svc Time added)
+/* KPI Service Worker — v7 (bumped 2026-05-27 — mobile fixes + rebook padding bug)
    Cache strategy:
    - Network First  → HTML files (fresh pipeline data when online)
    - Cache First    → everything else (icons, manifest, fonts)
 */
 
-const CACHE     = 'kpi-v6';
+const CACHE     = 'kpi-v7';
 const BASE      = '/KPI-Platform-Dash';
 const PRECACHE  = [
   `${BASE}/`,

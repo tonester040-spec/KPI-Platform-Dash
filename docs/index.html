@@ -45,7 +45,7 @@ header{animation:fadeDown 0.5s ease both}
 .card-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;font-family:var(--font-mono)}
 .card-value{font-size:28px;font-weight:800;color:var(--text-primary);letter-spacing:-.5px;margin-bottom:8px;font-family:var(--font-display)}
 .card-trend{font-size:12px;font-weight:600;font-family:var(--font-mono)}.trend-up{color:var(--green)}.trend-down{color:var(--red)}.trend-neutral{color:var(--text-muted)}
-.leaderboard-section{background:var(--bg-card);border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:28px;animation:fadeUp 0.5s 0.25s ease both}
+.leaderboard-section{background:var(--bg-card);border-radius:10px;border:1px solid var(--border);overflow-x:auto;overflow-y:hidden;margin-bottom:28px;animation:fadeUp 0.5s 0.25s ease both;-webkit-overflow-scrolling:touch}
 .lb-toolbar{padding:16px 20px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .lb-search{border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:13px;font-family:var(--font-body);color:var(--text-primary);background:var(--bg-surface);outline:none;width:220px;transition:border-color .2s}.lb-search:focus{border-color:var(--border-accent)}.lb-search::placeholder{color:var(--text-muted)}
 table{width:100%;border-collapse:collapse}
@@ -153,7 +153,19 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
   .metric-tiles{grid-template-columns:repeat(2,1fr)}.stat-boxes{grid-template-columns:repeat(2,1fr)}
   .drawer{width:100vw}.why-col{display:none}.pulse-bar-wrap{padding:10px 16px}
 }
-@media(max-width:480px){.cards-grid{grid-template-columns:1fr 1fr}.metric-tiles{grid-template-columns:1fr 1fr}.main{padding:16px 12px}}
+@media(max-width:480px){
+  .cards-grid{grid-template-columns:1fr 1fr}
+  .metric-tiles{grid-template-columns:1fr 1fr}
+  .main{padding:16px 12px}
+  /* Card $ values shrink so "$469,685" doesn't truncate to "$46". */
+  .card-value{font-size:22px;letter-spacing:-.3px}
+  .summary-card{padding:14px 14px}
+  /* Tight header so "Karissa Performance Intelligence" + week-ending + badge
+     don't crash into each other or wrap to 3 lines. */
+  .header{padding:0 12px;height:auto;min-height:56px;flex-wrap:wrap;gap:6px;padding-top:8px;padding-bottom:8px}
+  .header-right{font-size:11px}
+  .header-right span{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
+}
 /* ── PWA Banner ── */
 #pwa-banner{display:none;background:var(--bg-surface);border-bottom:1px solid var(--border);padding:10px 20px;align-items:center;gap:12px;font-size:13px;color:var(--text-secondary);position:relative;z-index:200}
 #pwa-banner .pwa-text{flex:1;font-family:var(--font-body)}#pwa-banner .pwa-icon{font-size:20px;flex-shrink:0}
@@ -239,9 +251,22 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 .si-clear-btn-inline{background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;text-decoration:underline}
 .si-show-more{text-align:center;padding:16px;color:var(--accent);cursor:pointer;font-size:13px;font-weight:600;border:1px dashed var(--border);border-radius:6px;margin-top:8px;background:none;width:100%;font-family:var(--font-mono)}
 /* ── Drawer fixes ── */
-.drawer-body::-webkit-scrollbar{width:0;height:0}
-.drawer-body{scrollbar-width:none}
-.metric-tiles{grid-template-columns:repeat(2,1fr)}
+/* Visible-but-subtle scrollbar so users see there's more content below.
+   The previous `scrollbar-width:none` hid all visual cue that the drawer
+   scrolled, causing "tiles falling off the screen" complaints. */
+.drawer-body::-webkit-scrollbar{width:6px;height:6px}
+.drawer-body::-webkit-scrollbar-track{background:transparent}
+.drawer-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.drawer-body::-webkit-scrollbar-thumb:hover{background:var(--border-accent)}
+.drawer-body{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+/* Auto-fit tile grid: packs 3 per row in the 520px drawer, drops to
+   2 then 1 on narrower viewports. Replaces a forced 2-col rule that
+   wasted desktop horizontal space and made the drawer 4 rows tall
+   once PPG / Request % / Avg Svc Time tiles were added. */
+.metric-tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+/* On phones the drawer takes the full viewport. Bottom safe-area
+   padding so the last tile / chart aren't pinned to the home-indicator. */
+.drawer-body{padding-bottom:max(24px,env(safe-area-inset-bottom,24px))}
 </style>
 </head>
 <body>
@@ -416,7 +441,7 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 ═══════════════════════════════════════════════════════ */
 const CURRENT_WEEK = '2026-03-09';
 // KPI_DATA_START
-// Generated: 2026-05-27T20:33:12Z
+// Generated: 2026-05-27T20:54:14Z
 const WEEKS_12 = [
   '2019-05-31','2019-06-30','2025-05-31','2025-06-30','2026-03-31','2026-04-30','2026-05-24','2026-05-24','2026-05-24','2026-05-24','2026-05-24','2026-05-24'
 ];
@@ -428,7 +453,7 @@ const LOC_HIST = {
     g:  [0,0,626,0,578,574,432,432,432,432,432,432],
     at: [0.00,0.00,53.90,0.00,57.60,54.52,54.93,54.93,54.93,54.93,54.93,54.93],
     w:  [0.0,0.0,0.0,0.0,13.8,10.8,13.4,13.4,13.4,13.4,13.4,13.4],
-    rb: [0.0,0.0,0.0,0.0,0.0,3.0,2.8],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.0,2.8],
   },
   'Blaine': { plat:'zenoti',
     s:  [62075,123324,52856,163652,63049,55872,42144,42144,42144,42144,42144,42144],
@@ -437,7 +462,7 @@ const LOC_HIST = {
     g:  [0,0,934,0,1050,894,706,706,706,706,706,706],
     at: [0.00,0.00,56.59,0.00,60.05,62.50,59.69,59.69,59.69,59.69,59.69,59.69],
     w:  [0.0,0.0,0.0,0.0,14.9,15.0,16.6,16.6,16.6,16.6,16.6,16.6],
-    rb: [0.0,0.0,0.0,0.0,0.0,3.2,4.3],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.2,4.3],
   },
   'Crystal FS': { plat:'zenoti',
     s:  [62696,121141,60374,178463,65448,60412,50167,50167,50167,50167,50167,50167],
@@ -446,7 +471,7 @@ const LOC_HIST = {
     g:  [0,0,1165,0,1165,1107,922,922,922,922,922,922],
     at: [0.00,0.00,51.82,0.00,56.18,54.57,54.41,54.41,54.41,54.41,54.41,54.41],
     w:  [0.0,0.0,0.0,0.0,13.2,13.9,12.2,12.1,12.1,12.1,12.1,12.1],
-    rb: [0.0,0.0,0.0,0.0,0.0,4.0,2.8],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,2.8],
   },
   'Elk River FS': { plat:'zenoti',
     s:  [46555,88304,29495,93774,35247,32669,26917,26917,26917,26917,26917,26917],
@@ -455,7 +480,7 @@ const LOC_HIST = {
     g:  [0,0,735,0,793,782,616,616,616,616,616,616],
     at: [0.00,0.00,40.13,0.00,44.45,41.78,43.70,43.70,43.70,43.70,43.70,43.70],
     w:  [0.0,0.0,0.0,0.0,13.5,15.9,13.5,13.5,13.5,13.5,13.5,13.5],
-    rb: [0.0,0.0,0.0,0.0,0.0,4.0,2.5],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,2.5],
   },
   'Forest Lake': { plat:'zenoti',
     s:  [62980,119828,36341,97571,33191,31690,22720,22720,22720,22720,22720,22720],
@@ -464,7 +489,7 @@ const LOC_HIST = {
     g:  [0,0,790,0,608,615,415,415,415,415,415,415],
     at: [0.00,0.00,46.00,0.00,54.59,51.53,54.75,54.75,54.75,54.75,54.75,54.75],
     w:  [0.0,0.0,0.0,0.0,14.0,13.7,15.2,15.2,15.2,15.2,15.2,15.2],
-    rb: [0.0,0.0,0.0,0.0,0.0,2.8,3.5],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2.8,3.5],
   },
   'Prior Lake': { plat:'zenoti',
     s:  [52515,104249,56783,162377,39603,44359,32038,32038,32038,32038,32038,32038],
@@ -473,7 +498,7 @@ const LOC_HIST = {
     g:  [0,0,1159,0,875,866,657,657,657,657,657,657],
     at: [0.00,0.00,48.99,0.00,45.26,51.22,48.76,48.76,48.76,48.76,48.76,48.76],
     w:  [0.0,0.0,0.0,0.0,8.0,8.6,10.3,10.4,10.4,10.4,10.4,10.4],
-    rb: [0.0,0.0,0.0,0.0,0.0,4.3,3.9],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.3,3.9],
   },
   'Hudson': { plat:'zenoti',
     s:  [86962,167168,53002,156127,57970,57206,44394,44394,44394,44394,44394,44394],
@@ -482,7 +507,7 @@ const LOC_HIST = {
     g:  [0,0,924,0,1026,1032,800,800,800,800,800,800],
     at: [0.00,0.00,57.36,0.00,56.50,55.43,55.49,55.49,55.49,55.49,55.49,55.49],
     w:  [0.0,0.0,0.0,0.0,15.1,15.3,16.1,16.1,16.1,16.1,16.1,16.1],
-    rb: [0.0,0.0,0.0,0.0,0.0,6.2,4.8],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,6.2,4.8],
   },
   'New Richmond': { plat:'zenoti',
     s:  [69388,137233,18889,52742,21315,19573,16953,16953,16953,16953,16953,16953],
@@ -491,7 +516,7 @@ const LOC_HIST = {
     g:  [0,0,397,0,398,374,325,325,325,325,325,325],
     at: [0.00,0.00,47.58,0.00,53.55,52.33,52.16,52.16,52.16,52.16,52.16,52.16],
     w:  [0.0,0.0,0.0,0.0,16.3,12.8,12.3,12.3,12.3,12.3,12.3,12.3],
-    rb: [0.0,0.0,0.0,0.0,0.0,6.2,4.1],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,6.2,4.1],
   },
   'Roseville': { plat:'zenoti',
     s:  [33000,99000,39353,115864,40962,41739,36377,36377,36377,36377,36377,36377],
@@ -500,7 +525,7 @@ const LOC_HIST = {
     g:  [0,0,1121,0,1064,1069,872,872,872,872,872,872],
     at: [0.00,0.00,35.11,0.00,38.50,39.04,41.72,41.72,41.72,41.72,41.72,41.72],
     w:  [0.0,0.0,0.0,0.0,3.7,5.6,5.9,5.8,5.8,5.8,5.8,5.8],
-    rb: [0.0,0.0,0.0,0.0,0.0,6.0,5.9],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,6.0,5.9],
   },
   'Apple Valley': { plat:'salon_ultimate',
     s:  [75092,223262,91529,257608,105477,98804,89790,89790,89790,89790,89790,89790],
@@ -509,7 +534,7 @@ const LOC_HIST = {
     g:  [0,0,1764,0,1796,1643,1463,1463,1463,1463,1463,1463],
     at: [0.00,0.00,51.89,0.00,58.73,60.14,61.37,61.37,61.37,61.37,61.37,61.37],
     w:  [0.0,0.0,0.0,0.0,15.3,14.7,16.3,16.3,16.3,16.3,16.3,16.3],
-    rb: [0.0,0.0,0.0,0.0,0.0,14.7,13.1],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,14.7,13.1],
   },
   'Lakeville': { plat:'salon_ultimate',
     s:  [42609,123227,35725,103755,38413,38277,31349,31349,31349,31349,31349,31349],
@@ -518,7 +543,7 @@ const LOC_HIST = {
     g:  [0,0,784,0,698,719,609,609,609,609,609,609],
     at: [0.00,0.00,45.57,0.00,55.03,53.24,51.48,51.48,51.48,51.48,51.48,51.48],
     w:  [0.0,0.0,0.0,0.0,14.9,12.9,15.6,15.6,15.6,15.6,15.6,15.6],
-    rb: [0.0,0.0,0.0,0.0,0.0,1.7,2.5],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.7,2.5],
   },
   'Farmington': { plat:'salon_ultimate',
     s:  [57542,162970,75881,208454,70629,61636,53105,53105,53105,53105,53105,53105],
@@ -527,7 +552,7 @@ const LOC_HIST = {
     g:  [0,0,1529,0,1328,1281,1017,1017,1017,1017,1017,1017],
     at: [0.00,0.00,49.63,0.00,53.18,48.12,52.22,52.22,52.22,52.22,52.22,52.22],
     w:  [0.0,0.0,0.0,0.0,12.4,11.1,13.0,13.0,13.0,13.0,13.0,13.0],
-    rb: [0.0,0.0,0.0,0.0,0.0,4.1,3.5],
+    rb: [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.1,3.5],
   },
 };
 
