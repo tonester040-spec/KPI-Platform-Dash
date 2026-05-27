@@ -12,6 +12,7 @@ Returns:
 import os
 import json
 import base64
+import datetime
 import logging
 from pathlib import Path
 
@@ -91,6 +92,44 @@ def _safe_int(val, default=0) -> int:
         return default
 
 
+# Sheets/Excel date epoch — serial 1 = 1899-12-31 in Lotus 1-2-3 / Excel convention,
+# but Google Sheets follows Excel which has a phantom 1900-02-29, so day 0 maps to
+# 1899-12-30. Verified: serial 46166 → 2026-05-08, serial 46181 → 2026-05-23.
+_EXCEL_EPOCH = datetime.date(1899, 12, 30)
+
+
+def _to_date_str(val) -> str:
+    """Normalize any cell value to 'YYYY-MM-DD'.
+
+    Sheets stores dates entered via USER_ENTERED as serial numbers (integers).
+    Reads with UNFORMATTED_VALUE return those integers. This helper converts:
+      - int/float serial → 'YYYY-MM-DD'
+      - 'YYYY-MM-DD' string → passes through unchanged
+      - 'M/D/YYYY' style string → normalized to 'YYYY-MM-DD'
+      - None/empty → '' (so existence checks downstream work uniformly)
+    """
+    if val is None or val == "":
+        return ""
+    if isinstance(val, (int, float)):
+        try:
+            return (_EXCEL_EPOCH + datetime.timedelta(days=int(val))).isoformat()
+        except (ValueError, OverflowError):
+            return ""
+    if isinstance(val, datetime.date):
+        return val.isoformat()
+    s = str(val).strip()
+    # If already ISO format YYYY-MM-DD, fast path
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        return s
+    # Try US-style date formats Sheets users sometimes type
+    for fmt in ("%m/%d/%Y", "%m/%d/%y", "%Y/%m/%d"):
+        try:
+            return datetime.datetime.strptime(s, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return s  # Pass through whatever — caller decides what to do with unparseable input
+
+
 def load_config(config_path: Path) -> dict:
     return json.loads(config_path.read_text())
 
@@ -128,7 +167,7 @@ def load_location_data(service, config: dict) -> list[dict]:
         locations.append({
             "loc_name":    loc_name,
             "loc_id":      loc_id_map.get(loc_name, ""),
-            "week_ending": row[COL["week_ending"]],
+            "week_ending": _to_date_str(row[COL["week_ending"]]),
             "platform":    row[COL["platform"]],
             "guests":      _safe_int(row[COL["guests"]]),
             "total_sales": _safe_float(row[COL["total_sales"]]),
@@ -187,7 +226,7 @@ def load_historical_data(service, config: dict, weeks: int = 12) -> dict:
     for loc_name, loc_data in loc_rows.items():
         recent = loc_data[-weeks:]
         history[loc_name] = {
-            "weeks":      [r[COL["week_ending"]] for r in recent],
+            "weeks":      [_to_date_str(r[COL["week_ending"]]) for r in recent],
             "pph":        [_safe_float(r[COL["pph"]]) for r in recent],
             "total_sales":[_safe_float(r[COL["total_sales"]]) for r in recent],
             "guests":     [_safe_int(r[COL["guests"]]) for r in recent],
@@ -245,7 +284,7 @@ def load_stylist_data(service, config: dict) -> list[dict]:
             "loc_id":      latest[SCOL["loc_id"]],
             "status":      latest[SCOL["status"]],
             "tenure":      _safe_float(latest[SCOL["tenure_yrs"]]),
-            "weeks":       [r[SCOL["week_ending"]] for r in srows],
+            "weeks":       [_to_date_str(r[SCOL["week_ending"]]) for r in srows],
             "pph":         [_safe_float(r[SCOL["pph"]]) for r in srows],
             "rebook":      [_safe_float(r[SCOL["rebook_pct"]]) for r in srows],
             "product":     [_safe_float(r[SCOL["product_pct"]]) for r in srows],
@@ -292,7 +331,7 @@ def read_cumulative_mtd_snapshots(service, config: dict, year_month: str) -> lis
         out.append({
             "loc_name":    row[0],
             "year_month":  row[1],
-            "week_ending": row[2],
+            "week_ending": _to_date_str(row[2]),
             "platform":    row[3],
             "guests":      _safe_int(row[4]),
             "total_sales": _safe_float(row[5]),
@@ -342,7 +381,7 @@ def read_stylists_cumulative_mtd_snapshots(service, config: dict, year_month: st
             continue
         out.append({
             "year_month":       row[0],
-            "week_ending":      row[1],
+            "week_ending":      _to_date_str(row[1]),
             "name":             row[2],
             "loc_name":         row[3],
             "loc_id":           row[4],
