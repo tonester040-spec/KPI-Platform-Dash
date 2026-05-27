@@ -319,6 +319,15 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 <!-- TODO Pass 2: read OPPORTUNITY from ALERTS tab.
      If present: populate opp-headline, opp-detail, remove [hidden]. -->
 
+  <!-- ══ MONTHLY TREND — Karissa Q7: weeks-as-columns + MTD total ══ -->
+  <div class="section-title">Monthly Trend — Total Sales by Week</div>
+  <div class="leaderboard-section" style="overflow-x:auto;">
+    <table id="monthlyTrendTable" style="width:100%;min-width:560px;border-collapse:collapse;">
+      <thead id="monthlyTrendHead"></thead>
+      <tbody id="monthlyTrendBody"></tbody>
+    </table>
+  </div>
+
   <div class="section-title">Location Leaderboard — This Week</div>
   <div class="leaderboard-section">
     <div class="lb-toolbar">
@@ -711,6 +720,56 @@ function sortBy(col) {
   if (sortCol===col) sortDir=sortDir==='asc'?'desc':'asc';
   else { sortCol=col; sortDir=col==='name'?'asc':'desc'; }
   renderLeaderboard();
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOCATION — MONTHLY TREND (Karissa Q7: weeks-as-columns + MTD)
+═══════════════════════════════════════════════════════ */
+function renderMonthlyTrend() {
+  const data = (typeof MONTHLY_TREND_DATA !== 'undefined') ? MONTHLY_TREND_DATA : null;
+  const head = document.getElementById('monthlyTrendHead');
+  const body = document.getElementById('monthlyTrendBody');
+  if (!head || !body) return;
+  if (!data || !Object.keys(data).length) {
+    head.innerHTML = '';
+    body.innerHTML = '<tr><td style="padding:14px;opacity:0.6;">No monthly trend data yet.</td></tr>';
+    return;
+  }
+  let maxWeeks = [];
+  Object.values(data).forEach(d => {
+    if ((d.weeks || []).length > maxWeeks.length) maxWeeks = d.weeks;
+  });
+  if (!maxWeeks.length) {
+    head.innerHTML = '';
+    body.innerHTML = '<tr><td style="padding:14px;opacity:0.6;">No weekly data for the current month yet.</td></tr>';
+    return;
+  }
+  let hh = '<tr style="background:rgba(0,0,0,0.03);">';
+  hh += '<th style="text-align:left;padding:10px;border-bottom:1px solid var(--border);">Location</th>';
+  maxWeeks.forEach((w, i) => {
+    const md = (w && w.length >= 10) ? (parseInt(w.slice(5,7)) + '/' + parseInt(w.slice(8,10))) : '';
+    hh += '<th style="text-align:right;padding:10px;border-bottom:1px solid var(--border);">Wk ' + (i+1) +
+          '<div style="font-size:11px;font-weight:400;opacity:0.65;">' + md + '</div></th>';
+  });
+  hh += '<th style="text-align:right;padding:10px;border-bottom:1px solid var(--border);">MTD Total</th></tr>';
+  head.innerHTML = hh;
+  const names = Object.keys(data).sort();
+  body.innerHTML = names.map(name => {
+    const d = data[name];
+    let row = '<tr style="border-bottom:1px solid var(--border);">';
+    row += '<td class="loc-name" style="padding:10px;">' + name + '</td>';
+    maxWeeks.forEach(w => {
+      const idx = (d.weeks || []).indexOf(w);
+      const v = (idx >= 0) ? d.sales[idx] : null;
+      const cell = (v === null)
+        ? '<span style="opacity:0.4;">—</span>'
+        : '$' + Math.round(v).toLocaleString();
+      row += '<td style="text-align:right;padding:10px;">' + cell + '</td>';
+    });
+    row += '<td style="text-align:right;padding:10px;font-weight:700;">$' +
+           Math.round(d.mtd_total).toLocaleString() + '</td>';
+    return row + '</tr>';
+  }).join('');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1188,6 +1247,7 @@ document.getElementById('stLbSearch').addEventListener('input', e=>{
 ═══════════════════════════════════════════════════════ */
 renderCards();
 renderLeaderboard();
+renderMonthlyTrend();
 renderStylistCards();
 renderStylistLeaderboard();
 buildMainCharts();

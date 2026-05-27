@@ -102,6 +102,72 @@ def _build_coach_card_data(coach_card: dict | None) -> str:
     return "const COACH_CARD_DATA = null;"
 
 
+def compute_monthly_trend(locations: list[dict]) -> dict[str, dict]:
+    """Compute per-location monthly trend data (Karissa Q7).
+
+    For each location, returns the per-week Total Sales for the CURRENT
+    year_month plus the MTD total. Shared between the HTML dashboard
+    (rendered as a JS constant) and the Excel report's Weekly Breakdown
+    sheet.
+
+    Shape:
+      {
+        "Blaine": {
+          "current_month": "2026-04",
+          "weeks": ["2026-04-05", "2026-04-12", ...],
+          "sales": [18000.0, 18357.5, ...],
+          "mtd_total": 80707.5,
+        },
+        ...
+      }
+
+    Empty / missing data degrades gracefully (empty arrays, mtd_total=0).
+    """
+    out: dict[str, dict] = {}
+    for loc in locations:
+        name = loc.get("loc_name", "")
+        if not name:
+            continue
+        hist = loc.get("hist") or {}
+        weeks = hist.get("weeks", []) or []
+        sales = hist.get("total_sales", []) or []
+
+        if not weeks:
+            out[name] = {"current_month": "", "weeks": [], "sales": [], "mtd_total": 0.0}
+            continue
+
+        # Current year_month derived from the most recent week_ending
+        latest_we = weeks[-1] if weeks[-1] else ""
+        current_ym = latest_we[:7] if latest_we and len(latest_we) >= 7 else ""
+
+        # Filter pair-wise to current year_month
+        cm_weeks: list[str] = []
+        cm_sales: list[float] = []
+        for w, s in zip(weeks, sales):
+            if w and w[:7] == current_ym:
+                cm_weeks.append(w)
+                try:
+                    cm_sales.append(float(s) if s is not None else 0.0)
+                except (TypeError, ValueError):
+                    cm_sales.append(0.0)
+
+        out[name] = {
+            "current_month": current_ym,
+            "weeks": cm_weeks,
+            "sales": cm_sales,
+            "mtd_total": round(sum(cm_sales), 2),
+        }
+
+    return out
+
+
+def _build_monthly_trend_data(locations: list[dict]) -> str:
+    """Build the MONTHLY_TREND_DATA JavaScript constant from compute_monthly_trend()."""
+    return "const MONTHLY_TREND_DATA = " + json.dumps(
+        compute_monthly_trend(locations), separators=(",", ":"),
+    ) + ";"
+
+
 def _build_data_block(
     locations: list[dict],
     stylists: list[dict],
@@ -116,6 +182,11 @@ def _build_data_block(
         f"// Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')}",
         weeks_js,
         _build_loc_hist(locations),
+        "",
+        "/* ═══════════════════════════════════════════════════════",
+        "   MONTHLY TREND DATA (Karissa Q7 — weeks-as-columns + MTD)",
+        "═══════════════════════════════════════════════════════ */",
+        _build_monthly_trend_data(locations),
         "",
         "/* ═══════════════════════════════════════════════════════",
         "   STYLIST DATA",
