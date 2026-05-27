@@ -156,20 +156,41 @@ def build_network_summary(locations: list[dict]) -> dict:
 def enrich_stylists(stylists: list[dict], network_summary: dict) -> list[dict]:
     """
     Adds delta fields, network comparison, and star flag to each stylist.
+
+    Historical-only stylists (synthesized by Phase 2.5 monthly fallback when
+    STYLISTS_DATA is empty) are skipped — they have no current-week data
+    and don't belong in the star threshold computation or archetype ranking.
+    They pass through unchanged so the dashboard still renders their roster
+    + monthly history.
     """
     if not stylists:
         return stylists, 0
 
+    live = [s for s in stylists if not s.get("is_historical_only")]
+    historical = [s for s in stylists if s.get("is_historical_only")]
+
+    if not live:
+        log.info(
+            "Enriched 0 live stylists (%d historical-only pass-through). "
+            "No star threshold computed.",
+            len(historical),
+        )
+        return historical, 0
+
     net_avg_pph = network_summary.get("avg_pph", 0)
     net_avg_prod = network_summary.get("avg_product_pct", 0)
 
-    # Compute 85th percentile PPH threshold across all stylists
-    all_pph = sorted(s["cur_pph"] for s in stylists if s["cur_pph"] > 0)
+    # Compute 85th percentile PPH threshold across LIVE stylists only.
+    # Defensive `.get("cur_pph", 0)` to survive any caller path that doesn't
+    # set the key (post-differencing records, mock inputs, etc.).
+    all_pph = sorted(s.get("cur_pph", 0) for s in live if s.get("cur_pph", 0) > 0)
     star_threshold = _percentile(all_pph, 85)
 
-    for s in stylists:
+    for s in live:
         pph = s.get("pph", [])
         rebook = s.get("rebook", [])
+        cur_pph = s.get("cur_pph", 0)
+        cur_product = s.get("cur_product", 0)
 
         # Week-over-week deltas
         s["pph_delta"]    = _abs_delta(pph[-1] if pph else 0, pph[-2] if len(pph) >= 2 else None)
@@ -179,24 +200,28 @@ def enrich_stylists(stylists: list[dict], network_summary: dict) -> list[dict]:
         )
 
         # vs network
-        s["vs_net_pph"]  = round(s["cur_pph"] - net_avg_pph, 2)
-        s["vs_net_prod"] = round(s["cur_product"] - net_avg_prod, 1)
+        s["vs_net_pph"]  = round(cur_pph - net_avg_pph, 2)
+        s["vs_net_prod"] = round(cur_product - net_avg_prod, 1)
 
         # Star badge
-        s["is_star"] = s["cur_pph"] >= star_threshold
+        s["is_star"] = cur_pph >= star_threshold
 
         # Archetype label (used in AI prompts)
         if s["is_star"]:
             s["arch_label"] = "Star Performer"
         elif s["vs_net_pph"] <= -8:
             s["arch_label"] = "Needs Coaching"
-        elif s["cur_product"] >= net_avg_prod * 1.2:
+        elif cur_product >= net_avg_prod * 1.2:
             s["arch_label"] = "Product Champion"
         else:
             s["arch_label"] = "Solid Contributor"
 
-    log.info("Enriched %d stylists. Star threshold PPH: $%.2f", len(stylists), star_threshold)
-    return stylists, star_threshold
+    log.info(
+        "Enriched %d live stylists (%d historical-only pass-through). "
+        "Star threshold PPH: $%.2f",
+        len(live), len(historical), star_threshold,
+    )
+    return live + historical, star_threshold
 
 
 # ─── Main entry point ─────────────────────────────────────────────────────────

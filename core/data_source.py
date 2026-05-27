@@ -371,13 +371,22 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
                 if arr_key in m and arr_key in existing:
                     existing[arr_key] = list(m[arr_key]) + list(existing[arr_key])
         else:
-            # Stylist only in monthly — synthesize a full record
+            # Stylist only in monthly — synthesize a historical-only record.
+            #
+            # `is_historical_only=True` is the contract that says: this stylist
+            # has NO current-week data. The cumulative differencing pipeline
+            # and `enrich_stylists` filter these out, then re-attach them after
+            # so they still appear on the dashboard (Stylists tab gets monthly
+            # history rendered) but never crash on missing cur_* fields and
+            # never get incorrectly tagged with a "Needs Coaching" archetype
+            # just because they have no live week.
             by_name[name] = {
                 "name":        name,
                 "loc_name":    m.get("loc_name", ""),
                 "loc_id":      m.get("loc_id", ""),
                 "status":      "active",
                 "tenure":      0,
+                "is_historical_only": True,
                 "weeks":       list(m.get("weeks", [])),
                 "pph":         list(m.get("pph", [])),
                 "rebook":      [0] * len(m.get("weeks", [])),
@@ -385,11 +394,12 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
                 "ticket":      list(m.get("ticket", [])),
                 "services":    list(m.get("services", [])),
                 "color":       [0] * len(m.get("weeks", [])),
-                # cur_* convenience fields — take last value from monthly arrays
-                "cur_pph":     (m.get("pph") or [0])[-1],
+                # cur_* present but zeroed — downstream filters skip these
+                # records, but the keys exist so any defensive `.get()` works.
+                "cur_pph":     0,
                 "cur_rebook":  0,
                 "cur_product": 0,
-                "cur_ticket":  (m.get("ticket") or [0])[-1],
+                "cur_ticket":  0,
             }
     # Stable ordering: original weekly order, then monthly-only stylists sorted alphabetically
     weekly_names = [s["name"] for s in weekly]

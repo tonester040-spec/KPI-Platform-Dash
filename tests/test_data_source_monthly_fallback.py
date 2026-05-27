@@ -207,9 +207,14 @@ class TestMergeStylistRosters(unittest.TestCase):
         # Missing fields get zero arrays of matching length
         self.assertEqual(s["rebook"], [0, 0])
         self.assertEqual(s["color"], [0, 0])
-        # cur_* takes last value
-        self.assertEqual(s["cur_pph"], 35.0)
-        self.assertEqual(s["cur_ticket"], 50.0)
+        # Historical-only stylists get cur_* zeroed AND the is_historical_only
+        # flag set — downstream pipeline filters skip them. See hotfix-phase-
+        # 2-5-cur-pph-keyerror PR for the contract.
+        self.assertTrue(s.get("is_historical_only"))
+        self.assertEqual(s["cur_pph"], 0)
+        self.assertEqual(s["cur_ticket"], 0)
+        self.assertEqual(s["cur_rebook"], 0)
+        self.assertEqual(s["cur_product"], 0)
 
     def test_overlap_prepends_monthly_to_weekly(self):
         weekly = [{
@@ -235,6 +240,8 @@ class TestMergeStylistRosters(unittest.TestCase):
         self.assertEqual(s["tenure"], 5.0)
         # cur_* preserved from weekly (latest week)
         self.assertEqual(s["cur_pph"], 40.0)
+        # NOT historical-only — this stylist has a live week
+        self.assertFalse(s.get("is_historical_only", False))
 
     def test_stable_ordering(self):
         weekly = [
