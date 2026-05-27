@@ -166,6 +166,17 @@ YOY_TABLE1_GOAL_COL = 5
 YOY_TABLE1_DAILY_GOAL_DOLLAR_COL = 6
 YOY_TABLE1_DAY_GOAL_DOLLAR_COL = 7
 
+# 2025 reference columns on the per-week tabs (right side of top KPI block).
+# Karissa types these once and references them on every week. We read from
+# Week 1 (which she always fills completely). On Week 1's top block, "tickets"
+# at col 2 shifts everything by 1 — so the 2025 cols are 13/14/15/17 (not
+# 12/13/14/16 like on the other weeks).
+WEEK1_TAB_NAME = " Week 1 "
+WEEK1_2025_TOTAL_COL = 13
+WEEK1_2025_GUESTS_COL = 14
+WEEK1_2025_PPG_COL = 15
+WEEK1_2025_AT_COL = 17
+
 YOY_TABLE2_FIRST_ROW = 18
 YOY_TABLE2_LAST_ROW = 29
 YOY_TABLE2_NAME_COL = 1
@@ -319,12 +330,10 @@ def load_historical_data_monthly_rows(
 ) -> list[dict]:
     """Build DATA_MONTHLY-ready rows for 2025-05, 2019-05, 2025-Q2, 2019-Q2.
 
-    Sparse rows — only ``total_sales`` is populated (the source data is
-    Karissa's tracker which only has the total). Other numeric columns
-    default to 0; ``platform`` is copied from the customer config.
-
-    The YoY report builder reads these by exact ``year_month`` value, so the
-    non-monthly "Q2" sentinel year_month strings are intentional.
+    For 2025-05, also extracts ``guests``, ``ppg``, ``avg_ticket`` from her
+    Week 1 tab (right-side 2025 reference columns) so the YoY tab can
+    render the full per-location comparison block. 2019 / Q2 rows stay
+    sparse (only ``total_sales`` available).
     """
     tracker_path = Path(tracker_path)
     if not tracker_path.exists():
@@ -349,20 +358,39 @@ def load_historical_data_monthly_rows(
             if n and n.lower() != "totals":
                 table2_by_name[n] = r
 
+        # Build 2025 reference index from her Week 1 top KPI block.
+        ws_wk1 = wb[WEEK1_TAB_NAME] if WEEK1_TAB_NAME in wb.sheetnames else None
+        wk1_2025_by_name: dict[str, dict] = {}
+        if ws_wk1 is not None:
+            for r in range(3, 15):
+                n = _normalize(ws_wk1.cell(row=r, column=1).value)
+                if not n or n.lower() == "totals":
+                    continue
+                wk1_2025_by_name[n] = {
+                    "total_sales": _to_number(ws_wk1.cell(row=r, column=WEEK1_2025_TOTAL_COL).value),
+                    "guests":      _to_number(ws_wk1.cell(row=r, column=WEEK1_2025_GUESTS_COL).value),
+                    "ppg":         _to_number(ws_wk1.cell(row=r, column=WEEK1_2025_PPG_COL).value),
+                    "avg_ticket":  _to_number(ws_wk1.cell(row=r, column=WEEK1_2025_AT_COL).value),
+                }
+
         rows: list[dict] = []
         missing: list[tuple[str, str]] = []  # (year_month_key, loc_name)
 
         for loc in customer_config["locations"]:
             cfg_name = _normalize(loc["name"])
 
-            # 2025-05
+            # 2025-05 (full reference set from Wk1 — guests/PPG/AT) + 2019-05 (total only)
             if cfg_name in table1_by_name:
                 r = table1_by_name[cfg_name]
                 total_2025 = _to_number(ws.cell(row=r, column=YOY_TABLE1_2025_COL).value)
                 total_2019 = _to_number(ws.cell(row=r, column=YOY_TABLE1_2019_COL).value)
+                ref_2025 = wk1_2025_by_name.get(cfg_name, {})
                 rows.append({
                     "loc_name": loc["name"], "year_month": "2025-05",
                     "platform": loc["platform"], "total_sales": total_2025,
+                    "guests":     int(ref_2025.get("guests", 0) or 0),
+                    "ppg":        ref_2025.get("ppg", 0.0),
+                    "avg_ticket": ref_2025.get("avg_ticket", 0.0),
                     "source": "karissa_tracker_may_2026_yoy",
                     "period_start": "2025-05-01", "period_end": "2025-05-31",
                 })
