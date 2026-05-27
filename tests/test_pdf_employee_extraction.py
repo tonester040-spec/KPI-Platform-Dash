@@ -294,5 +294,124 @@ class TestZenotiColumnWrapUnwrap(unittest.TestCase):
         self.assertEqual(m.group("service_qty"), "183")
 
 
+class TestZenotiEmployeeMergeAcrossSections(unittest.TestCase):
+    """Regression coverage for two name-mismatch bugs found 2026-05-27 against
+    the April monthly PDFs. Both bugs produced two half-records per stylist
+    (one with money, one with hours) instead of one merged record, leaving
+    `production_hours = None` on the money half. STYLISTS_DATA_MONTHLY then
+    received zero hours for the stylist and PPH was reported as 0.
+
+    The fixtures here use synthetic Zenoti SALE + PERF sections so the
+    assertions don't depend on whether the bug fixtures get refreshed.
+    """
+
+    def _parse(self, text: str):
+        from parsers.pdf_zenoti_v2 import ZenotiV2Parser
+        return ZenotiV2Parser(text).parse()["employees"]
+
+    def test_hyphenated_name_merges_when_wrapped_in_one_section(self):
+        """Crystal Apr 2026 — Kamia Guy-Robinson case. SALE wraps the name
+        across two lines at the hyphen ('Kamia Guy-' + 'Robinson'); PERF
+        renders it on one line. Merge must produce ONE record carrying both
+        revenue and hours."""
+        text = (
+            "888-10100-Crystal\n"
+            "From Apr 1 2026 To Apr 30 2026\n"
+            "EMPLOYEE SALE DETAILS\n"
+            "STYLIST\n"
+            "0.00 0.00 0.00 0.00 0 0.00 0.00 0.00 0.00\n"
+            "Existing Stylist\n"
+            "100.00\n100.00\n0.00\n10.00\n5\n5\n0.00\n0.00\n0.00\n20.00\n0.00\n0.00\n"
+            "Kamia Guy-\n"
+            "Robinson\n"
+            "2,915.00\n2,915.00\n26.35\n514.52\n92\n68\n279.00\n279.00\n4.10\n46.97\n95.00\n5.70\n"
+            "EMPLOYEE PERFORMANCE DETAILS\n"
+            "STYLIST\n"
+            "0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0\n"
+            "Existing Stylist\n"
+            "0.10\n2.00\n8.00\n8.00\n0.00\n0.00\n12.50\n12.50\n12.50\n3\n"
+            "Kamia Guy-Robinson\n"
+            "0.15\n16.50\n110.28\n110.28\n0.00\n12.42\n26.43\n27.29\n26.43\n6\n"
+            "(0.00)\n"
+        )
+        emps = self._parse(text)
+        kamia = [e for e in emps if "kamia" in (e.get("name") or "").lower()]
+        self.assertEqual(
+            len(kamia), 1,
+            f"expected ONE merged Kamia row, got {len(kamia)}: {kamia!r}"
+        )
+        row = kamia[0]
+        self.assertEqual(row["name"], "Kamia Guy-Robinson")
+        self.assertEqual(row["net_service"], 2915.0)
+        self.assertEqual(row["production_hours"], 110.28)
+        self.assertEqual(row["invoice_count"], 68)
+
+    def test_first_stylist_gets_multi_line_name_lookback(self):
+        """Roseville Apr 2026 — Alexandria Costello Martinez case. She's the
+        first stylist in the SALE section and her name spans three lines
+        ('Alexandria Costello' + 'Martinez'). PERF renders all three names
+        on one line. Before the fix, SALE captured only 'Martinez' because
+        lookback was disabled for the first match, and the two halves never
+        merged. After the fix, lookback runs for the first match too."""
+        text = (
+            "888-40098-FS Roseville, MN\n"
+            "From Apr 1 2026 To Apr 30 2026\n"
+            "EMPLOYEE SALE DETAILS\n"
+            "MANAGER\n"
+            "3,614.50\n3,621.50\n69.99\n694.06\n102\n91.99\n89.06\n232.50\n8.36\n"
+            "Alexandria Costello\n"
+            "Martinez\n"
+            "3,614.50\n3,621.50\n69.99\n694.06\n102\n82\n91.99\n89.06\n1.12\n45.20\n232.50\n8.36\n"
+            "EMPLOYEE PERFORMANCE DETAILS\n"
+            "MANAGER\n"
+            "0.37 38.73 103.58 103.58 0.00 0.50 34.89 37.14 34.96 59\n"
+            "(11.07)\n"
+            "Alexandria Costello Martinez\n"
+            "0.37\n38.73\n103.58\n103.58\n0.00\n0.50\n34.89\n37.14\n34.96\n59\n"
+            "(0.00)\n"
+        )
+        emps = self._parse(text)
+        martinez = [e for e in emps if "martinez" in (e.get("name") or "").lower()]
+        self.assertEqual(
+            len(martinez), 1,
+            f"expected ONE merged Martinez row, got {len(martinez)}: {martinez!r}"
+        )
+        row = martinez[0]
+        self.assertEqual(row["name"], "Alexandria Costello Martinez")
+        self.assertEqual(row["net_service"], 3614.5)
+        self.assertEqual(row["production_hours"], 103.58)
+
+    def test_zero_hours_stylist_stays_zero(self):
+        """Elk River Apr 2026 — Jen Watson case. Her PERF row in the PDF is
+        all zeros (she's classified as 'Business Coach', not a service role),
+        so production_hours = 0.0 is the correct extraction. This negative
+        test guards against an over-eager future fix that synthesizes hours."""
+        text = (
+            "910-10500-Elk River\n"
+            "From Apr 1 2026 To Apr 30 2026\n"
+            "EMPLOYEE SALE DETAILS\n"
+            "Business Coach\n"
+            "118.00\n118.00\n0.00\n25.00\n4\n0.00\n0.00\n6.00\n0.42\n"
+            "Jen Watson\n"
+            "118.00\n118.00\n0.00\n25.00\n4\n4\n0.00\n0.00\n0.00\n29.50\n6.00\n0.42\n"
+            "EMPLOYEE PERFORMANCE DETAILS\n"
+            "Business Coach\n"
+            "0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0\n"
+            "(0.00)\n"
+            "Jen Watson\n"
+            "0.00\n0.00\n0.00\n0.00\n0.00\n0.00\n0.00\n0.00\n0.00\n0\n"
+            "(0.00)\n"
+        )
+        emps = self._parse(text)
+        jen = [e for e in emps if (e.get("name") or "").lower() == "jen watson"]
+        self.assertEqual(
+            len(jen), 1,
+            f"expected ONE Jen Watson row, got {len(jen)}: {jen!r}"
+        )
+        row = jen[0]
+        self.assertEqual(row["net_service"], 118.0)
+        self.assertEqual(row["production_hours"], 0.0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
