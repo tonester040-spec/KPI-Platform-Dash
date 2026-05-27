@@ -71,12 +71,16 @@ jobs:
       # headers, dedupes by SHA256, archives + writes to data/inbox/.
       # continue-on-error: failed ingest emails Karissa; KPI pipeline
       # still runs from whatever Sheet data is already current.
+      #
+      # Auth: IMAP + Gmail App Password (NOT OAuth — switched 2026-05-27
+      # to avoid Google's 7-day refresh-token expiry on Testing-mode
+      # restricted Gmail scopes). GMAIL_APP_PASSWORD / GMAIL_SENDER are
+      # still passed for SMTP-side error notifications via core.email_sender.
       - name: Run Gmail Attachment Watcher
         continue-on-error: true
         env:
-          KPI_INBOX_CLIENT_ID:         ${{ secrets.KPI_INBOX_CLIENT_ID }}
-          KPI_INBOX_CLIENT_SECRET:     ${{ secrets.KPI_INBOX_CLIENT_SECRET }}
-          KPI_INBOX_REFRESH_TOKEN:     ${{ secrets.KPI_INBOX_REFRESH_TOKEN }}
+          KPI_INBOX_EMAIL:             ${{ secrets.KPI_INBOX_EMAIL }}
+          KPI_INBOX_APP_PASSWORD:      ${{ secrets.KPI_INBOX_APP_PASSWORD }}
           GMAIL_APP_PASSWORD:          ${{ secrets.GMAIL_APP_PASSWORD }}
           GMAIL_SENDER:                ${{ secrets.GMAIL_SENDER }}
         run: |

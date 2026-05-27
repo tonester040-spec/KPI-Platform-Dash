@@ -405,9 +405,8 @@ The app is installable on iPhone (Add to Home Screen). Components:
 | `GMAIL_APP_PASSWORD`          | ⚠️ soft | Gmail App Password — skipped if missing |
 | `GMAIL_SENDER`                | ⚠️ soft | Gmail sender address (outbound Excel report) |
 | `ACTIVE_CUSTOMER_ID`          | default  | Defaults to `karissa_001`            |
-| `KPI_INBOX_CLIENT_ID`         | ⚠️ soft | OAuth client ID for Gmail attachment watcher (Step 0). Missing → watcher skips, pipeline continues. |
-| `KPI_INBOX_CLIENT_SECRET`     | ⚠️ soft | OAuth client secret for Gmail attachment watcher |
-| `KPI_INBOX_REFRESH_TOKEN`     | ⚠️ soft | OAuth refresh token for Gmail attachment watcher |
+| `KPI_INBOX_EMAIL`             | ⚠️ soft | KPI inbox address for the Gmail attachment watcher (Step 0). Missing → watcher skips, pipeline continues. |
+| `KPI_INBOX_APP_PASSWORD`      | ⚠️ soft | 16-char Gmail App Password for the KPI inbox account (IMAP login, not OAuth — see watcher section) |
 
 ### Email assistant pipeline (`email_assistant.yml`)
 
@@ -421,7 +420,7 @@ The app is installable on iPhone (Add to Home Screen). Components:
 **Three separate Gmail auth flows:**
 - KPI pipeline uses **App Password** (SMTP outbound only — sends the Excel report to Tony, and error notifications from the watcher)
 - Email assistant uses **OAuth 2.0** (inbox read + draft write for Karissa's personal inbox — `GMAIL_*` secrets)
-- Gmail attachment watcher uses **OAuth 2.0** (inbox read + labels + archive on the dedicated `karissaperformanceintelligence@gmail.com` inbox — `KPI_INBOX_*` secrets)
+- Gmail attachment watcher uses **IMAP + App Password** (inbox read + labels + archive on the dedicated `karissaperformanceintelligence@gmail.com` inbox — `KPI_INBOX_EMAIL` / `KPI_INBOX_APP_PASSWORD`). Switched from OAuth on 2026-05-27 — Google's Testing-mode refresh tokens for Gmail restricted scopes expire every 7 days, and production publishing requires a CASA security assessment. App Passwords don't expire.
 
 ---
 
@@ -740,17 +739,25 @@ Every Monday at 7:00 AM Central (before `main.py` runs), `parsers/gmail_attachme
 
 ### Authentication
 
-Separate Gmail OAuth flow from the email assistant (different Gmail account). Env vars:
+IMAP + Gmail App Password against `karissaperformanceintelligence@gmail.com`. Switched from OAuth on 2026-05-27 because Google's Testing-mode refresh tokens for Gmail restricted scopes (`gmail.modify`, `gmail.compose`, `gmail.readonly`) expire after 7 days, and publishing to Production requires a CASA security assessment that's impractical for a single-user project. App Passwords don't expire until the user changes their account password or revokes the App Password.
+
+Env vars:
 
 | Variable                     | Purpose                                          |
 |------------------------------|--------------------------------------------------|
-| `KPI_INBOX_CLIENT_ID`        | OAuth client ID for the KPI inbox                |
-| `KPI_INBOX_CLIENT_SECRET`    | OAuth client secret                              |
-| `KPI_INBOX_REFRESH_TOKEN`    | Long-lived refresh token — generate once locally |
+| `KPI_INBOX_EMAIL`            | `karissaperformanceintelligence@gmail.com`       |
+| `KPI_INBOX_APP_PASSWORD`     | 16-char App Password (Google Account → Security → 2-Step Verification → App passwords). 2-Step Verification must be on for the option to appear. |
 | `GMAIL_APP_PASSWORD`         | Reused from KPI pipeline (SMTP outbound for error emails) |
 | `GMAIL_SENDER`               | Reused from KPI pipeline (error email sender)    |
 
-The watcher calls the Gmail REST API directly via `urllib` (same pattern as `email_assistant/gmail_connector.py`) — no `google-api-python-client` dependency added. If OAuth env vars are missing, the watcher logs and exits cleanly (does not crash the workflow).
+The watcher uses stdlib `imaplib` against `imap.gmail.com:993`. Gmail-specific IMAP extensions used:
+- **`X-GM-RAW`** — Gmail-syntax search inside an IMAP UID SEARCH command (preserves the original `has:attachment newer_than:Nd from:...` query verbatim).
+- **`X-GM-MSGID`** — stable Gmail message ID returned via UID FETCH; written to the manifest + ledger for traceability.
+- **`X-GM-LABELS`** — read/write Gmail labels via UID STORE. Auto-creates user labels on first use; removing the system `\Inbox` label is how we archive a message.
+
+If `KPI_INBOX_EMAIL` or `KPI_INBOX_APP_PASSWORD` is missing, the watcher raises `RuntimeError` at auth time. The top-level handler writes an error run summary and exits 1; the workflow step has `continue-on-error: true` so the rest of the pipeline still runs.
+
+A local smoke test is available at `scripts/test_inbox_imap.py` — connects and counts INBOX messages without writing anything. Use it to validate a freshly generated App Password before pushing.
 
 ### Processing order (invariant)
 
