@@ -66,15 +66,23 @@ def _sample_stylist(name: str = "Heaven Hobbs", loc: str = "Andover FS", ym: str
 
 
 class TestSchema(unittest.TestCase):
-    def test_exactly_16_columns(self):
-        self.assertEqual(len(STYLISTS_DATA_MONTHLY_HEADERS), 16)
+    def test_exactly_18_columns(self):
+        # 16 original + 2 added 2026-05-27 (req_pct, avg_service_time_min)
+        self.assertEqual(len(STYLISTS_DATA_MONTHLY_HEADERS), 18)
 
     def test_first_three_cols_are_idempotency_key(self):
         # Idempotency = (year_month, name, loc_name) — cols A/B/C
         self.assertEqual(STYLISTS_DATA_MONTHLY_HEADERS[:3], ["year_month", "name", "loc_name"])
 
-    def test_provenance_at_end(self):
-        self.assertEqual(STYLISTS_DATA_MONTHLY_HEADERS[-3:], ["source", "period_start", "period_end"])
+    def test_new_per_stylist_engagement_cols_at_end(self):
+        # 2026-05-27: req_pct + avg_service_time_min appended at the end
+        # so existing rows pad with empty trailing cells (no migration).
+        self.assertEqual(STYLISTS_DATA_MONTHLY_HEADERS[-2:], ["req_pct", "avg_service_time_min"])
+        # Provenance trio shifted from -3: to -5:-2 by the append
+        self.assertEqual(
+            STYLISTS_DATA_MONTHLY_HEADERS[-5:-2],
+            ["source", "period_start", "period_end"],
+        )
 
 
 class TestDryRun(unittest.TestCase):
@@ -109,7 +117,7 @@ class TestIdempotency(unittest.TestCase):
 
         write_calls = [
             c for c in service.spreadsheets().values().append.call_args_list
-            if c.kwargs.get("range") == "STYLISTS_DATA_MONTHLY!A2:P"
+            if c.kwargs.get("range") == "STYLISTS_DATA_MONTHLY!A2:R"
             and "body" in c.kwargs
         ]
         self.assertEqual(len(write_calls), 1)
@@ -123,17 +131,20 @@ class TestHappyPath(unittest.TestCase):
         append_to_stylists_data_monthly(service, CONFIG, [_sample_stylist()], dry_run=False)
         write_calls = [
             c for c in service.spreadsheets().values().append.call_args_list
-            if c.kwargs.get("range") == "STYLISTS_DATA_MONTHLY!A2:P"
+            if c.kwargs.get("range") == "STYLISTS_DATA_MONTHLY!A2:R"
             and "body" in c.kwargs
         ]
         row = write_calls[0].kwargs["body"]["values"][0]
-        self.assertEqual(len(row), 16)
+        self.assertEqual(len(row), 18)  # +2 for req_pct, avg_service_time_min
         self.assertEqual(row[0], "2026-03")
         self.assertEqual(row[1], "Heaven Hobbs")
         self.assertEqual(row[2], "Andover FS")
         self.assertEqual(row[3], "z001")
         self.assertEqual(row[4], "zenoti")
         self.assertEqual(row[13], "zenoti_xlsx")
+        # New cols default to 0 when not supplied — _sample_stylist doesn't set them
+        self.assertEqual(row[16], 0)  # req_pct
+        self.assertEqual(row[17], 0)  # avg_service_time_min
 
 
 class TestBootstrap(unittest.TestCase):

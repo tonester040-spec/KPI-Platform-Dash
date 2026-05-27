@@ -214,6 +214,12 @@ def _read_stylist_rows(ws, loc_name: str, loc_id: str, *,
             "source": "zenoti_xlsx",
             "period_start": period_start,
             "period_end": period_end,
+            # req_pct + avg_service_time_min aren't in the Employee KPI xlsx
+            # export (they're only in the PDF Salon Dashboard's PERFORMANCE
+            # DETAILS section). Leave at 0 for March; April onward comes from
+            # the PDF loader which captures these.
+            "req_pct": 0,
+            "avg_service_time_min": 0,
         })
     return out
 

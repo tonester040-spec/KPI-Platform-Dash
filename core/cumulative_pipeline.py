@@ -173,7 +173,8 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
         # dashboard's `s.pph[s.pph.length-1]` reads the most recent monthly
         # value (e.g. Aleksis's May $42.16) instead of the placeholder 0.
         # Once Karissa's team enters real data, we hit the else branch.
-        for arr_key in ("weeks", "pph", "ticket", "services", "product", "rebook", "color", "ppg"):
+        for arr_key in ("weeks", "pph", "ticket", "services", "product", "rebook",
+                        "color", "ppg", "req_pct", "svc_time"):
             arr = shaped.get(arr_key) or []
             # Only drop if there's a tail to drop AND it's the placeholder 0.
             # Services may be non-zero in the placeholder row (e.g. 15 for
@@ -185,6 +186,8 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
         shaped["cur_ticket"] = _last_or_zero(shaped.get("ticket") or [])
         shaped["cur_product"] = _last_or_zero(shaped.get("product") or [])
         shaped["cur_ppg"] = _last_or_zero(shaped.get("ppg") or [])
+        shaped["cur_req_pct"] = _last_or_zero(shaped.get("req_pct") or [])
+        shaped["cur_svc_time"] = _last_or_zero(shaped.get("svc_time") or [])
     else:
         pph_arr = shaped.get("pph") or []
         shaped["pph"] = list(pph_arr[:-1]) + [new_pph] if pph_arr else [new_pph]

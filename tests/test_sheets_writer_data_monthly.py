@@ -108,18 +108,25 @@ def _sample_row(loc: str = "Blaine", year_month: str = "2026-03", **overrides) -
 
 
 class TestSchemaContract(unittest.TestCase):
-    """The 23-col header order is the contract — verify shape and key names."""
+    """The 24-col header order is the contract — verify shape and key names."""
 
-    def test_exactly_23_columns(self):
-        self.assertEqual(len(DATA_MONTHLY_HEADERS), 23)
+    def test_exactly_24_columns(self):
+        # 23 original + 1 added 2026-05-27 (rebook_pct, appended at end)
+        self.assertEqual(len(DATA_MONTHLY_HEADERS), 24)
 
     def test_first_two_cols_are_idempotency_key(self):
         # (loc_name, year_month) is the unique key the idempotency check relies on
         self.assertEqual(DATA_MONTHLY_HEADERS[0], "loc_name")
         self.assertEqual(DATA_MONTHLY_HEADERS[1], "year_month")
 
-    def test_last_three_cols_are_provenance(self):
-        self.assertEqual(DATA_MONTHLY_HEADERS[-3:], ["source", "period_start", "period_end"])
+    def test_rebook_pct_appended_at_end_after_provenance(self):
+        # 2026-05-27: rebook_pct appended AFTER provenance trio so existing
+        # rows pad with empty trailing cells (no schema migration).
+        self.assertEqual(DATA_MONTHLY_HEADERS[-1], "rebook_pct")
+        self.assertEqual(
+            DATA_MONTHLY_HEADERS[-4:-1],
+            ["source", "period_start", "period_end"],
+        )
 
     def test_kpi_columns_match_data_tab_order(self):
         # Cols D-T should match DATA tab order (guests..treat_pct) so the two
@@ -172,7 +179,7 @@ class TestIdempotency(unittest.TestCase):
         # Filter out the call recorded during _build_service setup (the MagicMock auto-tracks accesses)
         write_calls = [
             c for c in append_calls
-            if c.kwargs.get("range") == "DATA_MONTHLY!A2:W"
+            if c.kwargs.get("range") == "DATA_MONTHLY!A2:X"
             and "body" in c.kwargs
         ]
         self.assertEqual(len(write_calls), 1)
@@ -190,7 +197,7 @@ class TestIdempotency(unittest.TestCase):
         append_to_data_monthly(service, CONFIG, rows, dry_run=False)
         write_calls = [
             c for c in service.spreadsheets().values().append.call_args_list
-            if c.kwargs.get("range") == "DATA_MONTHLY!A2:W"
+            if c.kwargs.get("range") == "DATA_MONTHLY!A2:X"
             and "body" in c.kwargs
         ]
         self.assertEqual(len(write_calls), 0)
@@ -210,7 +217,7 @@ class TestHappyPath(unittest.TestCase):
 
         write_calls = [
             c for c in service.spreadsheets().values().append.call_args_list
-            if c.kwargs.get("range") == "DATA_MONTHLY!A2:W"
+            if c.kwargs.get("range") == "DATA_MONTHLY!A2:X"
             and "body" in c.kwargs
         ]
         self.assertEqual(len(write_calls), 1)
@@ -219,7 +226,7 @@ class TestHappyPath(unittest.TestCase):
 
         # First row column-by-column
         first = values[0]
-        self.assertEqual(len(first), 23)
+        self.assertEqual(len(first), 24)  # +1 for rebook_pct appended 2026-05-27
         self.assertEqual(first[0], "Blaine")             # loc_name
         self.assertEqual(first[1], "2026-03")            # year_month
         self.assertEqual(first[2], "zenoti")             # platform
@@ -243,7 +250,7 @@ class TestHappyPath(unittest.TestCase):
         append_to_data_monthly(service, CONFIG, rows, dry_run=False)
         write_calls = [
             c for c in service.spreadsheets().values().append.call_args_list
-            if c.kwargs.get("range") == "DATA_MONTHLY!A2:W"
+            if c.kwargs.get("range") == "DATA_MONTHLY!A2:X"
             and "body" in c.kwargs
         ]
         values = write_calls[0].kwargs["body"]["values"]

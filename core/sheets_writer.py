@@ -427,6 +427,11 @@ DATA_MONTHLY_HEADERS = [
     "color", "color_pct",
     "treat_count", "treat", "treat_pct",
     "source", "period_start", "period_end",
+    # 2026-05-27: rebook_pct added at salon level (per-stylist rebook
+    # doesn't exist in either Zenoti or SU PDFs). Append-only — appended at
+    # the end so existing rows don't need migration; reader pads missing
+    # trailing cells with empty string per Sheets convention.
+    "rebook_pct",
 ]
 
 
@@ -523,6 +528,7 @@ def append_to_data_monthly(
             r.get("source", ""),
             r.get("period_start", ""),
             r.get("period_end", ""),
+            r.get("rebook_pct", 0),
         ])
 
     if not new_rows:
@@ -531,7 +537,7 @@ def append_to_data_monthly(
 
     service.spreadsheets().values().append(
         spreadsheetId=sheet_id,
-        range="DATA_MONTHLY!A2:W",
+        range="DATA_MONTHLY!A2:X",
         valueInputOption="USER_ENTERED",
         insertDataOption="INSERT_ROWS",
         body={"values": new_rows},
@@ -558,6 +564,14 @@ STYLISTS_DATA_MONTHLY_HEADERS = [
     "invoices", "guests", "net_service", "net_product",
     "avg_ticket", "pph", "ppg", "production_hours",
     "source", "period_start", "period_end",
+    # 2026-05-27: added per-stylist Req % and Avg Service Time (min).
+    # SU: both columns directly in the Employee Summary table.
+    # Zenoti: req_pct computed as REQ SERVICES QTY / SERVICE QTY from
+    # EMPLOYEE PERFORMANCE DETAILS; avg_service_time_min deferred for
+    # Zenoti until we settle on a denominator (in-service vs production
+    # hours give wildly different answers).
+    # Appended at the end — readers pad missing trailing cells.
+    "req_pct", "avg_service_time_min",
 ]
 
 
@@ -639,6 +653,8 @@ def append_to_stylists_data_monthly(
             r.get("source", ""),
             r.get("period_start", ""),
             r.get("period_end", ""),
+            r.get("req_pct", 0),
+            r.get("avg_service_time_min", 0),
         ])
 
     if not new_rows:
@@ -647,7 +663,7 @@ def append_to_stylists_data_monthly(
 
     service.spreadsheets().values().append(
         spreadsheetId=sheet_id,
-        range="STYLISTS_DATA_MONTHLY!A2:P",
+        range="STYLISTS_DATA_MONTHLY!A2:R",
         valueInputOption="USER_ENTERED",
         insertDataOption="INSERT_ROWS",
         body={"values": new_rows},

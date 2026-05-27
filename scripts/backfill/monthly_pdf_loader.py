@@ -213,6 +213,20 @@ def _build_stylist_rows(
             production_hours = float(emp.get("production_hours") or 0)
             pph = float(emp.get("net_service_per_hr") or 0)
             ppg = (net_product / invoices) if invoices else 0
+            # Zenoti req%: always compute from req_services_count / service_qty.
+            # The PDF's bracketed "(0.00)" pct for individual stylist rows
+            # turns out to be a share-of-role-group metric that doesn't match
+            # what we want (per-stylist request rate). Sample from May 2026
+            # Elk River: Amanda has req_count=5, svc_qty=10 → 50%, but the
+            # parenthesized value reads "(0.00)" — clearly a different metric.
+            # Computing from counts gives us the true per-stylist request rate.
+            req_count = int(emp.get("req_services_count") or 0)
+            svc_qty = int(emp.get("service_qty") or 0)
+            req_pct = (req_count / svc_qty) if svc_qty else 0.0
+            # Per-stylist avg service time isn't cleanly extractable from
+            # Zenoti — in-service vs production hours give very different
+            # denominators. Deferred per Karissa's "accuracy first" rule.
+            avg_service_time_min = 0.0
         else:  # salon_ultimate
             guests = int(emp.get("guests") or 0)
             invoices = guests  # SU doesn't separate invoice vs guest at stylist level
@@ -221,6 +235,10 @@ def _build_stylist_rows(
             production_hours = float(emp.get("production_hours") or 0)
             pph = float(emp.get("pph") or 0)
             ppg = float(emp.get("ppg") or 0)
+            # SU parser already returns request_pct as fraction 0-1 and
+            # avg_service_time_min directly from the Employee Summary table.
+            req_pct = float(emp.get("request_pct") or 0)
+            avg_service_time_min = float(emp.get("avg_service_time_min") or 0)
         out.append({
             "year_month": year_month,
             "name": name,
@@ -238,6 +256,8 @@ def _build_stylist_rows(
             "source": source,
             "period_start": period_start,
             "period_end": period_end,
+            "req_pct": req_pct,
+            "avg_service_time_min": avg_service_time_min,
         })
     return out
 
@@ -256,6 +276,11 @@ def _build_row(
     total_sales = float(k.get("total_sales") or 0)
     product = float(k.get("product_net") or 0)
     product_pct = (product / total_sales) if total_sales else 0
+
+    # Both parsers return salon-level rebook_pct as a decimal fraction (0-1).
+    # DATA_MONTHLY stores the fraction; dashboard scales to percent at display.
+    # Verified 2026-05-27 against Apple Valley PDF (PDF: 13.14%, parser: 0.1314).
+    rebook_pct = float(k.get("rebook_pct") or 0)
 
     return {
         "loc_name": config_loc["name"],
@@ -281,6 +306,7 @@ def _build_row(
         "source": source,
         "period_start": period_start,
         "period_end": period_end,
+        "rebook_pct": rebook_pct,
     }
 
 

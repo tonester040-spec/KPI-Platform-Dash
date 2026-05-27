@@ -273,8 +273,11 @@ def load_data_monthly_history(service, config: dict) -> dict:
     """
     sheet_id = config["sheet_id"]
     try:
+        # Range extended to col X (24 cols) to pick up `rebook_pct` added
+        # 2026-05-27. Old rows that pre-date the column still read fine —
+        # the pad-with-empty loop below normalizes row width.
         result = service.spreadsheets().values().get(
-            spreadsheetId=sheet_id, range="DATA_MONTHLY!A2:W",
+            spreadsheetId=sheet_id, range="DATA_MONTHLY!A2:X",
             valueRenderOption="UNFORMATTED_VALUE",
             dateTimeRenderOption="FORMATTED_STRING",
         ).execute()
@@ -289,7 +292,7 @@ def load_data_monthly_history(service, config: dict) -> dict:
     from collections import defaultdict
     loc_rows: dict[str, list] = defaultdict(list)
     for row in rows:
-        row = row + [""] * (23 - len(row))
+        row = row + [""] * (24 - len(row))
         loc_name = str(row[0]).strip()
         if loc_name:
             loc_rows[loc_name].append(row)
@@ -312,6 +315,7 @@ def load_data_monthly_history(service, config: dict) -> dict:
             "wax_pct":     [_safe_float(r[14]) for r in mrows],   # col O
             "color_pct":   [_safe_float(r[16]) for r in mrows],   # col Q
             "treat_pct":   [_safe_float(r[19]) for r in mrows],   # col T
+            "rebook_pct":  [_safe_float(r[23]) for r in mrows],   # col X (added 2026-05-27)
         }
     log.info("Loaded monthly history for %d locations from DATA_MONTHLY", len(history))
     return history
@@ -373,7 +377,8 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
             # — pad the prepend with zeros so chart arrays stay aligned with
             # `weeks` length (dashboard does `.slice(-take)` across keys).
             monthly_len = len(m.get("weeks", []))
-            for arr_key in ("weeks", "pph", "ticket", "services", "product", "ppg"):
+            for arr_key in ("weeks", "pph", "ticket", "services", "product", "ppg",
+                            "req_pct", "svc_time"):
                 if arr_key in m and arr_key in existing:
                     existing[arr_key] = list(m[arr_key]) + list(existing[arr_key])
             for arr_key in ("rebook", "color"):
@@ -392,9 +397,12 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
             monthly_weeks = list(m.get("weeks", []))
             monthly_product = list(m.get("product", []))
             monthly_ppg = list(m.get("ppg", []))
-            # product/ppg come from monthly (computed per Karissa's formulas);
-            # rebook/color are zero-padded because we don't have per-stylist
-            # values for them in any source today.
+            monthly_req = list(m.get("req_pct", []))
+            monthly_svc = list(m.get("svc_time", []))
+            # product/ppg/req_pct/svc_time come from monthly (extracted per
+            # Karissa's formulas or directly from POS tables); rebook/color
+            # stay zero-padded because we don't have per-stylist values for
+            # them in any source today.
             by_name[name] = {
                 "name":        name,
                 "loc_name":    m.get("loc_name", ""),
@@ -410,6 +418,8 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
                 "services":    list(m.get("services", [])),
                 "color":       [0] * len(monthly_weeks),
                 "ppg":         monthly_ppg if monthly_ppg else [0] * len(monthly_weeks),
+                "req_pct":     monthly_req if monthly_req else [0] * len(monthly_weeks),
+                "svc_time":    monthly_svc if monthly_svc else [0] * len(monthly_weeks),
                 # cur_* present but zeroed — downstream filters skip these
                 # records, but the keys exist so any defensive `.get()` works.
                 "cur_pph":     0,
@@ -417,6 +427,8 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
                 "cur_product": monthly_product[-1] if monthly_product else 0,
                 "cur_ticket":  0,
                 "cur_ppg":     monthly_ppg[-1] if monthly_ppg else 0,
+                "cur_req_pct": monthly_req[-1] if monthly_req else 0,
+                "cur_svc_time": monthly_svc[-1] if monthly_svc else 0,
             }
     # Stable ordering: original weekly order, then monthly-only stylists sorted alphabetically
     weekly_names = [s["name"] for s in weekly]
@@ -434,8 +446,12 @@ def load_stylists_data_monthly_history(service, config: dict) -> dict:
     """
     sheet_id = config["sheet_id"]
     try:
+        # Range extended to col R (18 cols) to pick up `req_pct` and
+        # `avg_service_time_min` added 2026-05-27. Old rows that pre-date
+        # those columns still read fine — the pad-with-empty loop below
+        # normalizes row width.
         result = service.spreadsheets().values().get(
-            spreadsheetId=sheet_id, range="STYLISTS_DATA_MONTHLY!A2:P",
+            spreadsheetId=sheet_id, range="STYLISTS_DATA_MONTHLY!A2:R",
             valueRenderOption="UNFORMATTED_VALUE",
             dateTimeRenderOption="FORMATTED_STRING",
         ).execute()
@@ -451,7 +467,7 @@ def load_stylists_data_monthly_history(service, config: dict) -> dict:
     from collections import defaultdict
     stylist_rows: dict[str, list] = defaultdict(list)
     for row in rows:
-        row = row + [""] * (16 - len(row))
+        row = row + [""] * (18 - len(row))
         name = str(row[1]).strip()  # col B
         if name:
             stylist_rows[name].append(row)
@@ -485,6 +501,8 @@ def load_stylists_data_monthly_history(service, config: dict) -> dict:
             "ppg":      [_safe_float(r[11]) for r in srows],  # col L
             "services": [_safe_int(r[5])    for r in srows],  # col F invoices
             "product":  [product_pct_for(r) for r in srows],
+            "req_pct":  [_safe_float(r[16]) for r in srows],  # col Q (added 2026-05-27)
+            "svc_time": [_safe_float(r[17]) for r in srows],  # col R (added 2026-05-27)
         }
     log.info("Loaded monthly history for %d stylists from STYLISTS_DATA_MONTHLY", len(stylists))
     return stylists
@@ -549,16 +567,21 @@ def load_stylist_data(service, config: dict,
             "ticket":      [_safe_float(r[SCOL["avg_ticket"]]) for r in srows],
             "services":    [_safe_int(r[SCOL["services"]]) for r in srows],
             "color":       [_safe_float(r[SCOL["color_pct"]]) for r in srows],
-            # ppg isn't a column in STYLISTS_DATA yet — initialize zero-padded
-            # so the monthly fallback merge can prepend real values from
-            # STYLISTS_DATA_MONTHLY without length-mismatching the other arrays.
+            # ppg/req_pct/svc_time aren't columns in STYLISTS_DATA yet —
+            # initialize zero-padded so the monthly fallback merge can
+            # prepend real values from STYLISTS_DATA_MONTHLY without
+            # length-mismatching the other arrays.
             "ppg":         [0.0] * len(srows),
+            "req_pct":     [0.0] * len(srows),
+            "svc_time":    [0.0] * len(srows),
             # Current-week convenience fields
             "cur_pph":     _safe_float(latest[SCOL["pph"]]),
             "cur_rebook":  _safe_float(latest[SCOL["rebook_pct"]]),
             "cur_product": _safe_float(latest[SCOL["product_pct"]]),
             "cur_ticket":  _safe_float(latest[SCOL["avg_ticket"]]),
             "cur_ppg":     0.0,
+            "cur_req_pct": 0.0,
+            "cur_svc_time": 0.0,
         })
 
     log.info("Loaded %d stylists from STYLISTS_DATA", len(stylists))

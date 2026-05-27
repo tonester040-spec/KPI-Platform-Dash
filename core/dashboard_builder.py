@@ -64,6 +64,10 @@ def _build_loc_hist(locations: list[dict]) -> str:
         guests_arr=hist.get("guests", [loc.get("guests", 0)] * 12)
         tick_arr = hist.get("avg_ticket", [loc.get("avg_ticket", 0)] * 12)
         wax_arr  = hist.get("wax_pct", [loc.get("wax_pct", 0)] * 12)
+        # Salon-level rebook_pct from DATA_MONTHLY backfill (Apr/May 2026).
+        # Stored as decimal 0-1 in the Sheet; fmt_pct_arr scales to 0-100 for
+        # display. Pre-Apr months show 0 (data column added 2026-05-27).
+        rebook_arr = hist.get("rebook_pct", [0] * 12)
 
         def fmt_arr(arr, prec=2):
             return "[" + ",".join(f"{float(v):.{prec}f}" for v in arr[-12:]) + "]"
@@ -79,6 +83,7 @@ def _build_loc_hist(locations: list[dict]) -> str:
         lines.append(f"    g:  {fmt_arr(guests_arr, 0)},")
         lines.append(f"    at: {fmt_arr(tick_arr, 2)},")
         lines.append(f"    w:  {fmt_pct_arr(wax_arr, 1)},")
+        lines.append(f"    rb: {fmt_pct_arr(rebook_arr, 1)},")
         lines.append(f"  }},")
 
     lines.append("};")
@@ -103,6 +108,13 @@ def _build_stylist_data(stylists: list[dict]) -> str:
             "ticket":  [round(v, 2) for v in s.get("ticket", [])[-12:]],
             "services":[int(v) for v in s.get("services", [])[-12:]],
             "color":   [round(v, 1) for v in s.get("color", [])[-12:]],
+            # Per-stylist Request % (loyalty proxy — share of services where
+            # guest asked for this stylist by name). Stored as decimal (0-1);
+            # dashboard JS multiplies by 100 for display.
+            "req":     [round(v, 4) for v in s.get("req_pct", [])[-12:]],
+            # Per-stylist Avg Service Time in minutes — efficiency metric.
+            # SU only; zero for Zenoti stylists until we settle on a denominator.
+            "svc":     [round(v, 1) for v in s.get("svc_time", [])[-12:]],
         })
 
     return "const STYLIST_DATA = " + json.dumps(records, separators=(",", ":")) + ";"
