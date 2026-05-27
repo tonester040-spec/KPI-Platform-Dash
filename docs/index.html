@@ -242,6 +242,17 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 .si-trend-up{color:var(--green)}
 .si-trend-down{color:var(--red)}
 .si-sparkline-cell{flex:0 0 auto;align-items:center;justify-content:flex-end}
+/* KPI strip — 6 metrics shown per stylist card with threshold color coding.
+   Green = top quartile (>= p75), red = bottom quartile (<= p25), gray = mid,
+   neutral/muted = missing data. */
+.si-kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.si-kpi-cell{padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--bg-card)}
+.si-kpi-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap}
+.si-kpi-val{font-size:13px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);line-height:1}
+.si-kpi-strong .si-kpi-val{color:var(--green)}
+.si-kpi-weak .si-kpi-val{color:var(--red)}
+.si-kpi-none .si-kpi-val{color:var(--text-muted);font-weight:500}
+@media(max-width:600px){.si-kpi-strip{grid-template-columns:repeat(3,1fr)}}
 .si-card-expand{padding:14px 16px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border);transition:opacity .25s ease}
 .si-intel-row{margin-bottom:10px}
 .si-intel-row:last-child{margin-bottom:0}
@@ -1760,6 +1771,10 @@ const COACH_DATA = (function() {
       // (avgRebook4 < 0.25) still makes sense for request rate too.
       rb: padTo12(s.req || [], 0),
       pp: padTo12(s.product || [], 0),
+      // 2026-05-27: extended for composite multi-metric coaching scoring.
+      pg: padTo12(s.ppg || [], 0),       // dollars
+      tk: padTo12(s.ticket || [], 0),    // dollars
+      sv: padTo12(s.services || [], 0),  // count
     };
   }).filter(function(s) {
     // Skip rows that have nothing meaningful (Receptionist / Business
@@ -1796,65 +1811,199 @@ function buildStylistIntelligence() {
   COACH_DATA.forEach(function(s){siComputeCoachingOutput(s);});
   siBuilt=true;
 }
-function siComputeMetrics(s) {
-  s._si={};var pph=s.pph,rb=s.rb,pp=s.pp;
-  s._si.curPPH=pph[pph.length-1];s._si.curRebook=rb[rb.length-1];s._si.curProduct=pp[pp.length-1];
-  var l4=pph.slice(-4);s._si.avgPPH4=l4.reduce(function(a,b){return a+b;},0)/l4.length;
-  var r4=rb.slice(-4);s._si.avgRebook4=r4.reduce(function(a,b){return a+b;},0)/r4.length;
-  var p4=pp.slice(-4);s._si.avgProduct4=p4.reduce(function(a,b){return a+b;},0)/p4.length;
-  var w9=pph[9],w10=pph[10],w11=pph[11];
-  s._si.trend3=w11-w9;s._si.trend3pct=w9>0?((w11-w9)/w9*100):0;s._si.declining3=(w10<w9)&&(w11<w10);
-  var f4=pph.slice(0,4),af4=f4.reduce(function(a,b){return a+b;},0)/f4.length;
-  s._si.improvement=af4>0?((s._si.avgPPH4-af4)/af4*100):0;
-  s._si.onboardWeek=Math.round(s.tm*4.33);s._si.hasSufficient=s.tm>=3;
+// 2026-05-27: composite multi-metric scoring — classifications now consider
+// 6 KPIs (PPH, PPG, Product %, Request %, Avg Ticket, Services) instead of
+// just PPH+Rebook. Top Performer = strong in 3+. Needs Attention = weak in 2+.
+// Retention Risk = declining trend in PPH OR Request %. Thresholds are
+// network percentiles (25th = weak, 75th = strong) so they auto-adjust.
+var SI_KPI_KEYS = ['pph','pg','pp','rb','tk','sv'];  // match COACH_DATA array keys
+var SI_KPI_LABELS = {pph:'PPH', pg:'PPG', pp:'Product %', rb:'Request %', tk:'Avg Ticket', sv:'Services'};
+var SI_KPI_FMT = {
+  pph: function(v){return '$'+v.toFixed(2);},
+  pg:  function(v){return '$'+v.toFixed(2);},
+  pp:  function(v){return v.toFixed(1)+'%';},
+  rb:  function(v){return (v*100).toFixed(1)+'%';},  // rb stored as fraction 0-1
+  tk:  function(v){return '$'+v.toFixed(2);},
+  sv:  function(v){return Math.round(v).toString();},
+};
+var SI_NET_THRESH = {};  // {pph: {p25, p75, mean}, pg: {...}, ...}
+
+function siMean4(arr) {
+  var l = arr.slice(-4), n = l.length;
+  return n ? l.reduce(function(a,b){return a+b;},0)/n : 0;
 }
+function siPercentile(sorted, p) {
+  if (!sorted.length) return 0;
+  var idx = Math.floor(sorted.length * p);
+  return sorted[Math.min(idx, sorted.length-1)];
+}
+
+function siComputeMetrics(s) {
+  s._si = {};
+  // Current week + 4-week averages for each KPI
+  SI_KPI_KEYS.forEach(function(k){
+    var arr = s[k] || [];
+    s._si['cur_'+k] = arr.length ? arr[arr.length-1] : 0;
+    s._si['avg4_'+k] = siMean4(arr);
+  });
+  // Backwards-compatible aliases (other code paths still read these names)
+  s._si.curPPH = s._si.cur_pph;
+  s._si.curRebook = s._si.cur_rb;
+  s._si.curProduct = s._si.cur_pp;
+  s._si.avgPPH4 = s._si.avg4_pph;
+  s._si.avgRebook4 = s._si.avg4_rb;
+  s._si.avgProduct4 = s._si.avg4_pp;
+  // Trend: PPH and Request % (declining either signals retention risk).
+  var pph = s.pph, rb = s.rb;
+  var p9=pph[9]||0, p11=pph[11]||0;
+  s._si.trend3 = p11 - p9;
+  s._si.trend3pct = p9>0 ? ((p11-p9)/p9*100) : 0;
+  s._si.declining3_pph = (pph[10]||0) < p9 && p11 < (pph[10]||0);
+  var r9=rb[9]||0, r11=rb[11]||0;
+  s._si.declining3_rb = (rb[10]||0) < r9 && r11 < (rb[10]||0);
+  s._si.declining3 = s._si.declining3_pph || s._si.declining3_rb;
+  // Improvement: first 4 vs last 4 weeks of PPH
+  var f4=pph.slice(0,4),af4=f4.length?f4.reduce(function(a,b){return a+b;},0)/f4.length:0;
+  s._si.improvement = af4>0 ? ((s._si.avgPPH4 - af4)/af4*100) : 0;
+  s._si.onboardWeek = Math.round(s.tm*4.33);
+  s._si.hasSufficient = s.tm >= 3;
+}
+
 function siComputeLocAverages() {
   var g={};
   COACH_DATA.forEach(function(s){if(!g[s.lc])g[s.lc]={pph:[],rb:[]};g[s.lc].pph.push(s._si.avgPPH4);g[s.lc].rb.push(s._si.avgRebook4);});
   Object.keys(g).forEach(function(lc){SI_LOC_AVG_PPH[lc]=g[lc].pph.reduce(function(a,b){return a+b;},0)/g[lc].pph.length;SI_LOC_AVG_RB[lc]=g[lc].rb.reduce(function(a,b){return a+b;},0)/g[lc].rb.length;});
 }
+
 function siComputeNetworkThresholds() {
-  var all=COACH_DATA.map(function(s){return s._si.avgPPH4;}).sort(function(a,b){return a-b;});
-  SI_NETWORK_AVG_PPH=all.reduce(function(a,b){return a+b;},0)/all.length;
-  SI_TOP20_THRESHOLD=all[Math.floor(all.length*0.80)];
-  var imps=COACH_DATA.filter(function(s){return s._si.hasSufficient;}).map(function(s){return s._si.improvement;}).sort(function(a,b){return a-b;});
-  SI_MOST_IMPROVED_THRESHOLD=imps.length>0?imps[Math.floor(imps.length*0.80)]:5;
+  // 25th / 75th percentile per KPI across all stylists with sufficient
+  // history. New hires (tm < 3) excluded from threshold calc so a flood
+  // of new stylists doesn't drag the network average down.
+  var pool = COACH_DATA.filter(function(s){return s._si.hasSufficient;});
+  if (!pool.length) pool = COACH_DATA;  // fallback: everyone is new
+  SI_KPI_KEYS.forEach(function(k){
+    var vals = pool.map(function(s){return s._si['avg4_'+k];}).filter(function(v){return v>0;}).sort(function(a,b){return a-b;});
+    SI_NET_THRESH[k] = {
+      p25: siPercentile(vals, 0.25),
+      p75: siPercentile(vals, 0.75),
+      mean: vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : 0,
+    };
+  });
+  // Legacy globals for code paths that still read them
+  SI_NETWORK_AVG_PPH = SI_NET_THRESH.pph ? SI_NET_THRESH.pph.mean : 0;
+  SI_TOP20_THRESHOLD = SI_NET_THRESH.pph ? SI_NET_THRESH.pph.p75 : 0;
+  var imps = pool.map(function(s){return s._si.improvement;}).sort(function(a,b){return a-b;});
+  SI_MOST_IMPROVED_THRESHOLD = imps.length ? siPercentile(imps, 0.80) : 5;
 }
+
+function siCountStrongKpis(s) {
+  // How many of the 6 KPIs is this stylist at or above the 75th percentile for?
+  return SI_KPI_KEYS.reduce(function(n, k){
+    var t = SI_NET_THRESH[k];
+    return n + ((t && s._si['avg4_'+k] >= t.p75 && s._si['avg4_'+k] > 0) ? 1 : 0);
+  }, 0);
+}
+function siCountWeakKpis(s) {
+  // How many KPIs is this stylist at or below the 25th percentile for?
+  // We DON'T count zero-value KPIs as "weak" because that often means missing
+  // data (e.g. Avg Service Time is 0 for Zenoti stylists by design) rather
+  // than a real performance issue.
+  return SI_KPI_KEYS.reduce(function(n, k){
+    var t = SI_NET_THRESH[k], v = s._si['avg4_'+k];
+    return n + ((t && v > 0 && v <= t.p25) ? 1 : 0);
+  }, 0);
+}
+function siWeakKpiList(s) {
+  return SI_KPI_KEYS.filter(function(k){
+    var t = SI_NET_THRESH[k], v = s._si['avg4_'+k];
+    return t && v > 0 && v <= t.p25;
+  });
+}
+function siStrongKpiList(s) {
+  return SI_KPI_KEYS.filter(function(k){
+    var t = SI_NET_THRESH[k];
+    return t && s._si['avg4_'+k] >= t.p75 && s._si['avg4_'+k] > 0;
+  });
+}
+
 function siComputeFocusTags(s) {
-  s._si.tags=[];
-  if(!s._si.hasSufficient){s._si.tags.push('new_hire');return;}
-  var la=SI_LOC_AVG_PPH[s.lc]||SI_NETWORK_AVG_PPH;
-  if(s._si.declining3&&s._si.curPPH<la)s._si.tags.push('retention_risk');
-  if(s._si.tags.indexOf('retention_risk')===-1&&(s._si.avgPPH4<la*0.90||s._si.avgRebook4<0.25))s._si.tags.push('needs_attention');
-  if(s._si.avgPPH4>=SI_TOP20_THRESHOLD)s._si.tags.push('top_performers');
-  if(s._si.improvement>0&&s._si.improvement>=SI_MOST_IMPROVED_THRESHOLD)s._si.tags.push('most_improved');
-  if(s._si.tags.length===0)s._si.tags.push('stable');
+  s._si.tags = [];
+  // hasSufficient gates the "new_hire" classification. STYLIST_DATA doesn't
+  // currently carry hire dates per stylist, so tm defaults to 0 for everyone
+  // — which would tag the entire roster as "new_hire". Distinguish:
+  //   tm > 0 and tm < 3  → genuinely new (existing logic)
+  //   tm === 0           → tenure unknown → classify on KPIs anyway
+  //   tm >= 3            → established
+  // Once hire dates land in STYLIST_DATA we'll get real new_hire flagging.
+  if (s.tm > 0 && s.tm < 3) { s._si.tags.push('new_hire'); return; }
+  s._si.strongKpis = siStrongKpiList(s);
+  s._si.weakKpis = siWeakKpiList(s);
+  var strongN = s._si.strongKpis.length, weakN = s._si.weakKpis.length;
+  // Retention Risk: 3-week declining trend in PPH or Request % AND current
+  // value is below network average. The "AND below avg" guard keeps a top
+  // performer who dipped slightly from triggering false alarms.
+  var pphMean = SI_NET_THRESH.pph ? SI_NET_THRESH.pph.mean : 0;
+  if (s._si.declining3 && s._si.curPPH < pphMean) s._si.tags.push('retention_risk');
+  // Needs Attention: weak in 2+ KPIs and not already on retention_risk
+  if (s._si.tags.indexOf('retention_risk') === -1 && weakN >= 2) s._si.tags.push('needs_attention');
+  // Top Performer: strong in 3+ KPIs (true all-rounder)
+  if (strongN >= 3) s._si.tags.push('top_performers');
+  // Most Improved: positive improvement above the 80th percentile
+  if (s._si.improvement > 0 && s._si.improvement >= SI_MOST_IMPROVED_THRESHOLD) s._si.tags.push('most_improved');
+  if (s._si.tags.length === 0) s._si.tags.push('stable');
 }
+
 function siResolvePrimaryFocus(s) {
   for(var i=0;i<FOCUS_PRIORITY.length;i++){if(s._si.tags.indexOf(FOCUS_PRIORITY[i])!==-1){s._si.primaryFocus=FOCUS_PRIORITY[i];return;}}
   s._si.primaryFocus='stable';
 }
+
+function siKpiPretty(k, v) { return (SI_KPI_FMT[k]||function(x){return String(x);})(v); }
+
 function siComputeCoachingOutput(s) {
-  var f=s._si.primaryFocus,la=SI_LOC_AVG_PPH[s.lc]||SI_NETWORK_AVG_PPH,pct,delta;
-  if(f==='retention_risk'){
-    pct=Math.abs(s._si.trend3pct).toFixed(1);delta=Math.abs(s._si.curPPH-la).toFixed(2);
-    s._si.why='PPH has dropped '+pct+'% over 3 weeks. Currently at $'+s._si.curPPH.toFixed(2)+' vs $'+la.toFixed(2)+' location avg ($'+delta+' below).';
-    s._si.urgency='🔴 Address this week';s._si.action='Schedule a 1:1 today. Review service mix and client list. Identify root cause before it compounds.';
-  } else if(f==='needs_attention'){
-    if(s._si.avgRebook4<0.25){s._si.why='Request rate at '+(s._si.avgRebook4*100).toFixed(0)+'% — below the 25% baseline (few clients ask for them by name).';}
-    else{s._si.why='PPH is '+((1-s._si.avgPPH4/la)*100).toFixed(1)+'% below location average ($'+s._si.avgPPH4.toFixed(2)+' vs $'+la.toFixed(2)+').';}
-    s._si.urgency='🟡 Monitor closely';s._si.action='Coach on client retention: introduce yourself fully, recap the service, recommend a follow-up. Build the personal book.';
-  } else if(f==='new_hire'){
-    s._si.why='Week ~'+s._si.onboardWeek+' of onboarding. Tenure: '+s.tm.toFixed(1)+' months.';
-    s._si.urgency='🟢 Check in this week';s._si.action='Confirm they understand client retention basics — name introduction, service recap, and asking the guest to request them next time.';
-  } else if(f==='top_performers'){
-    s._si.why='Consistently top-tier PPH of $'+s._si.avgPPH4.toFixed(2)+' (top 20% network). Request rate '+(s._si.avgRebook4*100).toFixed(0)+'%.';
-    s._si.urgency='⭐ Recognize and leverage';s._si.action='Ask them to mentor one stylist this week. Share what is working in the next team huddle.';
-  } else if(f==='most_improved'){
-    s._si.why='PPH up '+s._si.improvement.toFixed(1)+'% comparing first 4 weeks to last 4 weeks.';
-    s._si.urgency='🌱 Reinforce momentum';s._si.action='Acknowledge improvement publicly in the next huddle.';
+  var f = s._si.primaryFocus;
+  var pphMean = SI_NET_THRESH.pph ? SI_NET_THRESH.pph.mean : 0;
+  if (f === 'retention_risk') {
+    var declineSrc = s._si.declining3_pph ? 'PPH' : 'Request %';
+    var pct = Math.abs(declineSrc==='PPH' ? s._si.trend3pct : 0).toFixed(1);
+    if (declineSrc === 'PPH') {
+      s._si.why = 'PPH has dropped '+pct+'% over 3 weeks. Currently at $'+s._si.curPPH.toFixed(2)+' vs $'+pphMean.toFixed(2)+' network avg.';
+    } else {
+      s._si.why = 'Request rate has declined 3 weeks running — currently at '+(s._si.curRebook*100).toFixed(0)+'%. Client loyalty is slipping.';
+    }
+    s._si.urgency = '🔴 Address this week';
+    s._si.action = 'Schedule a 1:1 today. Review service mix, client list, and recent reviews. Identify root cause before it compounds.';
+  } else if (f === 'needs_attention') {
+    var weakLabels = s._si.weakKpis.map(function(k){return SI_KPI_LABELS[k];}).join(', ');
+    s._si.why = 'Below the 25th percentile of the network in: '+weakLabels+'.';
+    // Tailor action to the weakest dimension
+    if (s._si.weakKpis.indexOf('rb') !== -1) {
+      s._si.action = 'Coach on client retention: name introduction, service recap, recommend a return appointment. Build the personal book.';
+    } else if (s._si.weakKpis.indexOf('pg') !== -1 || s._si.weakKpis.indexOf('pp') !== -1) {
+      s._si.action = 'Product attach is the gap. Walk the line during their next service set — what are they recommending, what are they leaving on the table?';
+    } else if (s._si.weakKpis.indexOf('tk') !== -1) {
+      s._si.action = 'Avg ticket is low. Review service menu pricing knowledge, add-on services, and upsell scripts.';
+    } else {
+      s._si.action = 'Pair them with a top performer for a side-by-side. Identify the 1-2 habits to copy.';
+    }
+    s._si.urgency = '🟡 Monitor closely';
+  } else if (f === 'new_hire') {
+    s._si.why = 'Week ~'+s._si.onboardWeek+' of onboarding. Tenure: '+s.tm.toFixed(1)+' months.';
+    s._si.urgency = '🟢 Check in this week';
+    s._si.action = 'Confirm they understand client retention basics — name introduction, service recap, and asking the guest to request them next time.';
+  } else if (f === 'top_performers') {
+    var strongLabels = s._si.strongKpis.map(function(k){return SI_KPI_LABELS[k];}).join(', ');
+    s._si.why = 'Top 25% of the network in: '+strongLabels+'. PPH $'+s._si.avgPPH4.toFixed(2)+', Request rate '+(s._si.avgRebook4*100).toFixed(0)+'%.';
+    s._si.urgency = '⭐ Recognize and leverage';
+    s._si.action = 'Ask them to mentor one stylist this week. Share their playbook in the next team huddle.';
+  } else if (f === 'most_improved') {
+    s._si.why = 'PPH up '+s._si.improvement.toFixed(1)+'% comparing first 4 weeks to last 4 weeks.';
+    s._si.urgency = '🌱 Reinforce momentum';
+    s._si.action = 'Acknowledge improvement publicly in the next huddle. Ask what shifted so others can learn.';
   } else {
-    s._si.why='Performing consistently near location average.';s._si.urgency='✅ Steady';s._si.action='Standard check-in.';
+    s._si.why = 'Performing consistently near network average.';
+    s._si.urgency = '✅ Steady';
+    s._si.action = 'Standard check-in.';
   }
 }
 function siGetPriorityCounts() {
@@ -1883,7 +2032,13 @@ function siGetVisibleStylists() {
     if(siFilters.tenure==='veteran'&&s.tm<24)return false;
     return true;
   });
-  if(siFilters.sort==='pph_desc')r.sort(function(a,b){return b._si.avgPPH4-a._si.avgPPH4;});
+  // Sort options: each KPI's 4-week average + special trend/improvement orderings.
+  if(siFilters.sort==='pph_desc')r.sort(function(a,b){return b._si.avg4_pph-a._si.avg4_pph;});
+  else if(siFilters.sort==='pg_desc')r.sort(function(a,b){return b._si.avg4_pg-a._si.avg4_pg;});
+  else if(siFilters.sort==='pp_desc')r.sort(function(a,b){return b._si.avg4_pp-a._si.avg4_pp;});
+  else if(siFilters.sort==='rb_desc')r.sort(function(a,b){return b._si.avg4_rb-a._si.avg4_rb;});
+  else if(siFilters.sort==='tk_desc')r.sort(function(a,b){return b._si.avg4_tk-a._si.avg4_tk;});
+  else if(siFilters.sort==='sv_desc')r.sort(function(a,b){return b._si.avg4_sv-a._si.avg4_sv;});
   else if(siFilters.sort==='decline_first')r.sort(function(a,b){return a._si.trend3-b._si.trend3;});
   else if(siFilters.sort==='improved_first')r.sort(function(a,b){return b._si.improvement-a._si.improvement;});
   return r;
@@ -1929,7 +2084,7 @@ function renderSIFilterBar() {
   if(siFilters.focus!=='all'||siFilters.location!=='all'||siFilters.tenure!=='all')h+='<button class="si-clear-btn" onclick="siClearAllFilters()">✕ Clear filters</button>';
   h+='</div>';
   h+='<div class="si-sort-row">';
-  [['pph_desc','↓ PPH'],['decline_first','↓ Decline'],['improved_first','↑ Improved']].forEach(function(o){h+='<button class="si-sort-pill'+(siFilters.sort===o[0]?' active':'')+'" data-sortid="'+o[0]+'" onclick="siSetSort(this.dataset.sortid)">'+o[1]+'</button>';});
+  [['pph_desc','↓ PPH'],['pg_desc','↓ PPG'],['pp_desc','↓ Product %'],['rb_desc','↓ Request %'],['tk_desc','↓ Avg Ticket'],['sv_desc','↓ Services'],['decline_first','↓ Decline'],['improved_first','↑ Improved']].forEach(function(o){h+='<button class="si-sort-pill'+(siFilters.sort===o[0]?' active':'')+'" data-sortid="'+o[0]+'" onclick="siSetSort(this.dataset.sortid)">'+o[1]+'</button>';});
   h+='</div>';
   var el=document.getElementById('siFilterBar');if(el)el.innerHTML=h;
 }
@@ -1954,9 +2109,26 @@ function renderSICard(s) {
   var pphTrend=s._si.trend3>=0?'+$'+s._si.trend3.toFixed(2):'-$'+Math.abs(s._si.trend3).toFixed(2);
   var trendCls=s._si.trend3>=0?'si-trend-up':'si-trend-down';
   var spark=buildSparkline(s.pph,color);
-  var rbPct=(s._si.avgRebook4*100).toFixed(0)+'%';
   var tenStr=s.tm<12?s.tm.toFixed(1)+' mo':(s.tm/12).toFixed(1)+' yr';
   var plt=s.plt==='zenoti'?'Zenoti':'SalonUlt';
+  // 2026-05-27: KPI strip — show all 6 KPIs with color-coded thresholds.
+  // Green = at or above network 75th percentile (strong)
+  // Red   = at or below network 25th percentile (weak)
+  // Gray  = within the middle band
+  // Skip the cell entirely when the value is 0 (missing data) to avoid
+  // flagging Zenoti Avg Service Time, etc., as "weak" by data absence.
+  var kpiStrip = SI_KPI_KEYS.map(function(k){
+    var v = s._si['avg4_'+k];
+    var t = SI_NET_THRESH[k];
+    var cls = 'si-kpi-mid';
+    if (!t || v === 0) { cls = 'si-kpi-none'; }
+    else if (v >= t.p75) { cls = 'si-kpi-strong'; }
+    else if (v <= t.p25) { cls = 'si-kpi-weak'; }
+    return '<div class="si-kpi-cell '+cls+'">'
+      + '<div class="si-kpi-label">'+SI_KPI_LABELS[k]+'</div>'
+      + '<div class="si-kpi-val">'+(v===0?'—':siKpiPretty(k,v))+'</div>'
+    + '</div>';
+  }).join('');
   return '<div class="si-card" id="si-card-'+s.id+'">'
     +'<div class="si-card-header" data-stylistid="'+s.id+'" onclick="siToggleCard(this.dataset.stylistid)">'
       +'<div class="si-card-name">'+s.fn+' '+s.ln+'</div>'
@@ -1970,6 +2142,7 @@ function renderSICard(s) {
       +'<div class="si-metric"><span class="si-metric-label">Tenure</span><span class="si-metric-value">'+tenStr+'</span></div>'
       +'<div class="si-metric si-sparkline-cell">'+spark+'</div>'
     +'</div>'
+    +'<div class="si-kpi-strip">'+kpiStrip+'</div>'
     +'<div class="si-card-expand" id="expand-'+s.id+'" style="display:none;opacity:0">'
       +'<div class="si-intel-row"><div class="si-intel-label">Why this week</div><div class="si-intel-text">'+(s._si.why||'')+'</div></div>'
       +'<div class="si-intel-row"><div class="si-intel-label">Urgency</div><div class="si-intel-text">'+(s._si.urgency||'')+'</div></div>'
