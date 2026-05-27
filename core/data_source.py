@@ -107,6 +107,7 @@ def load_location_data(service, config: dict) -> list[dict]:
         spreadsheetId=sheet_id,
         range="CURRENT!A2:T",
         valueRenderOption="UNFORMATTED_VALUE",
+        dateTimeRenderOption="FORMATTED_STRING",
     ).execute()
 
     rows = result.get("values", [])
@@ -165,6 +166,7 @@ def load_historical_data(service, config: dict, weeks: int = 12) -> dict:
         spreadsheetId=sheet_id,
         range="DATA!A2:T",
         valueRenderOption="UNFORMATTED_VALUE",
+        dateTimeRenderOption="FORMATTED_STRING",
     ).execute()
 
     rows = result.get("values", [])
@@ -213,6 +215,7 @@ def load_stylist_data(service, config: dict) -> list[dict]:
         spreadsheetId=sheet_id,
         range="STYLISTS_DATA!A2:L",
         valueRenderOption="UNFORMATTED_VALUE",
+        dateTimeRenderOption="FORMATTED_STRING",
     ).execute()
 
     rows = result.get("values", [])
@@ -273,6 +276,7 @@ def read_cumulative_mtd_snapshots(service, config: dict, year_month: str) -> lis
             spreadsheetId=sheet_id,
             range="CUMULATIVE_MTD!A2:V",
             valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING",
         ).execute()
     except Exception as e:
         # Most likely "Unable to parse range" because tab doesn't exist yet
@@ -324,6 +328,7 @@ def read_stylists_cumulative_mtd_snapshots(service, config: dict, year_month: st
             spreadsheetId=sheet_id,
             range="STYLISTS_CUMULATIVE_MTD!A2:O",
             valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING",
         ).execute()
     except Exception as e:
         log.info("STYLISTS_CUMULATIVE_MTD tab not yet present (or read failed): %s", e)
