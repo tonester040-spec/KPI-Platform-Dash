@@ -137,6 +137,11 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
 
     new_pph = differenced.get("pph", 0)
     new_ticket = differenced.get("avg_ticket", 0)
+    # product_pct comes back from _recompute_stylist_kpis as a decimal (0-1).
+    # The stylist `product` array on the dashboard convention is percent scale
+    # (0-100), so scale here at the boundary. Karissa golden rule:
+    # product_pct = product_net / (net_service + net_product).
+    new_product_pct = differenced.get("product_pct", 0) * 100
 
     pph_arr = shaped.get("pph") or []
     shaped["pph"] = list(pph_arr[:-1]) + [new_pph] if pph_arr else [new_pph]
@@ -144,14 +149,17 @@ def _attach_history_to_weekly_stylist(original_input: dict, differenced: dict) -
     ticket_arr = shaped.get("ticket") or []
     shaped["ticket"] = list(ticket_arr[:-1]) + [new_ticket] if ticket_arr else [new_ticket]
 
+    product_arr = shaped.get("product") or []
+    shaped["product"] = (
+        list(product_arr[:-1]) + [new_product_pct] if product_arr else [new_product_pct]
+    )
+
     shaped["cur_pph"] = new_pph
     shaped["cur_ticket"] = new_ticket
-    # cur_product / cur_rebook are NOT recomputed by differencing (rebook isn't
-    # cumulative-MTD; product_pct is recomputed at the location level but not
-    # surfaced per stylist in the differenced shape). Preserve from original
-    # so the archetype classifier in enrich_stylists still has values to work
-    # against. A follow-up can add stylist product_pct differencing if needed.
-    shaped.setdefault("cur_product", original_input.get("cur_product", 0))
+    shaped["cur_product"] = new_product_pct
+    # cur_rebook is salon-level only (no per-stylist source in any POS); preserve
+    # whatever the original input had (typically 0) so archetype classification
+    # in enrich_stylists doesn't crash on a missing key.
     shaped.setdefault("cur_rebook", original_input.get("cur_rebook", 0))
 
     return shaped

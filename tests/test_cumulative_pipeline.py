@@ -308,6 +308,7 @@ class TestSnapshotAndDifferenceLiveStylistReshape(unittest.TestCase):
         # History preserved (length-2 arrays)
         self.assertEqual(len(s["pph"]), 2)
         self.assertEqual(len(s["ticket"]), 2)
+        self.assertEqual(len(s["product"]), 2)
         # Latest pph entry replaced with differenced true-weekly
         # ((1500 - 600) / (35 - 15) = 900 / 20 = 45.0)
         self.assertAlmostEqual(s["pph"][-1], 45.0, places=2)
@@ -315,8 +316,15 @@ class TestSnapshotAndDifferenceLiveStylistReshape(unittest.TestCase):
         self.assertEqual(s["pph"][0], 55.0)
         # cur_pph mirrors the differenced value
         self.assertAlmostEqual(s["cur_pph"], 45.0, places=2)
-        # cur_product / cur_rebook preserved from original input
-        self.assertEqual(s["cur_product"], 13.5)
+        # cur_product comes from the differenced product_pct, scaled to percent
+        # (Karissa golden rule: product_pct = net_product / (net_service + net_product))
+        # Differenced: net_service=900, net_product=180 → product_pct = 180/1080 ≈ 0.1667
+        # Scaled to percent: ≈ 16.67
+        self.assertAlmostEqual(s["cur_product"], 180.0 / 1080.0 * 100, places=2)
+        # product array's latest entry replaced with the differenced value, older entry untouched
+        self.assertAlmostEqual(s["product"][-1], 180.0 / 1080.0 * 100, places=2)
+        self.assertEqual(s["product"][0], 12.5)
+        # cur_rebook preserved from original input (no per-stylist rebook source)
         self.assertEqual(s["cur_rebook"], 45.0)
 
         # Static identity preserved

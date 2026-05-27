@@ -366,10 +366,19 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
     for name, m in monthly.items():
         if name in by_name:
             existing = by_name[name]
-            # Prepend monthly arrays before weekly arrays (oldest first)
-            for arr_key in ("weeks", "pph", "ticket", "services"):
+            # Prepend monthly arrays before weekly arrays (oldest first).
+            # `product` is derived in load_stylists_data_monthly_history from
+            # Karissa's golden formula product_net/(net_service+net_product).
+            # `rebook` and `color` aren't captured at stylist grain in monthly
+            # — pad the prepend with zeros so chart arrays stay aligned with
+            # `weeks` length (dashboard does `.slice(-take)` across keys).
+            monthly_len = len(m.get("weeks", []))
+            for arr_key in ("weeks", "pph", "ticket", "services", "product"):
                 if arr_key in m and arr_key in existing:
                     existing[arr_key] = list(m[arr_key]) + list(existing[arr_key])
+            for arr_key in ("rebook", "color"):
+                if arr_key in existing:
+                    existing[arr_key] = [0] * monthly_len + list(existing[arr_key])
         else:
             # Stylist only in monthly — synthesize a historical-only record.
             #
@@ -380,6 +389,11 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
             # history rendered) but never crash on missing cur_* fields and
             # never get incorrectly tagged with a "Needs Coaching" archetype
             # just because they have no live week.
+            monthly_weeks = list(m.get("weeks", []))
+            monthly_product = list(m.get("product", []))
+            # product comes from monthly (computed per Karissa's formula);
+            # rebook/color are zero-padded because we don't have per-stylist
+            # values for them in any source today.
             by_name[name] = {
                 "name":        name,
                 "loc_name":    m.get("loc_name", ""),
@@ -387,18 +401,18 @@ def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
                 "status":      "active",
                 "tenure":      0,
                 "is_historical_only": True,
-                "weeks":       list(m.get("weeks", [])),
+                "weeks":       monthly_weeks,
                 "pph":         list(m.get("pph", [])),
-                "rebook":      [0] * len(m.get("weeks", [])),
-                "product":     [0] * len(m.get("weeks", [])),
+                "rebook":      [0] * len(monthly_weeks),
+                "product":     monthly_product if monthly_product else [0] * len(monthly_weeks),
                 "ticket":      list(m.get("ticket", [])),
                 "services":    list(m.get("services", [])),
-                "color":       [0] * len(m.get("weeks", [])),
+                "color":       [0] * len(monthly_weeks),
                 # cur_* present but zeroed — downstream filters skip these
                 # records, but the keys exist so any defensive `.get()` works.
                 "cur_pph":     0,
                 "cur_rebook":  0,
-                "cur_product": 0,
+                "cur_product": monthly_product[-1] if monthly_product else 0,
                 "cur_ticket":  0,
             }
     # Stable ordering: original weekly order, then monthly-only stylists sorted alphabetically
@@ -447,6 +461,17 @@ def load_stylists_data_monthly_history(service, config: dict) -> dict:
         def week_for(r):
             we = _to_date_str(r[15])  # period_end (col P / index 15)
             return we if we else f"{r[0]}-28"
+
+        # Karissa golden rule: product_pct = product_net / total_sales,
+        # where total_sales = service_net + product_net (NOT tax-inclusive).
+        # Per-stylist values come from EMPLOYEE SALE DETAILS (net_service, net_product).
+        # Returned as a percentage (0-100) to match the weekly STYLISTS_DATA column.
+        def product_pct_for(r):
+            net_service = _safe_float(r[7])  # col H
+            net_product = _safe_float(r[8])  # col I
+            total = net_service + net_product
+            return round(net_product / total * 100, 2) if total > 0 else 0.0
+
         stylists[name] = {
             "name":     name,
             "loc_name": str(latest[2]),       # col C
@@ -456,6 +481,7 @@ def load_stylists_data_monthly_history(service, config: dict) -> dict:
             "ticket":   [_safe_float(r[9])  for r in srows],  # col J avg_ticket
             "ppg":      [_safe_float(r[11]) for r in srows],  # col L
             "services": [_safe_int(r[5])    for r in srows],  # col F invoices
+            "product":  [product_pct_for(r) for r in srows],
         }
     log.info("Loaded monthly history for %d stylists from STYLISTS_DATA_MONTHLY", len(stylists))
     return stylists

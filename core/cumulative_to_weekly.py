@@ -116,10 +116,16 @@ def _recompute_stylist_kpis(diffed: dict) -> dict:
     # guests if invoices=0.
     denom = invoices if invoices else guests
 
+    # Karissa golden rule: product_pct = product_net / total_sales,
+    # where total_sales = net_service + net_product (pre-tax, both columns).
+    # Returned as a decimal (0-1) — caller scales to percent if needed.
+    total_sales = net_service + net_product
+
     return {
         "avg_ticket": _safe_div(net_service + net_product, denom),
         "pph": _safe_div(net_service, production_hours),
         "ppg": _safe_div(net_product, denom),
+        "product_pct": _safe_div(net_product, total_sales),
     }
 
 
