@@ -419,57 +419,57 @@ tr.row-bottom td:first-child{border-left:3px solid var(--red);padding-left:13px;
 ═══════════════════════════════════════════════════════ */
 const CURRENT_WEEK = '2026-03-09';
 // KPI_DATA_START
-// Generated: 2026-05-27T03:17:49Z
+// Generated: 2026-05-27T03:42:39Z
 const WEEKS_12 = [
-  '46166'
+  '2026-05-24','2026-05-24','2026-05-24'
 ];
 const LOC_HIST = {
   'Andover FS': { plat:'zenoti',
-    s:  [23731],
-    h:  [37.65],
-    p:  [800.0],
-    g:  [432],
-    at: [54.93],
-    w:  [1340.0],
+    s:  [23731,23731,23731],
+    h:  [37.65,37.65,37.65],
+    p:  [8.0,8.0,8.0],
+    g:  [432,432,432],
+    at: [54.93,54.93,54.93],
+    w:  [13.4,13.4,13.4],
   },
   'Blaine': { plat:'zenoti',
-    s:  [42144],
-    h:  [50.73],
-    p:  [430.0],
-    g:  [706],
-    at: [59.69],
-    w:  [1660.0],
+    s:  [42144,42144,42144],
+    h:  [50.73,50.73,50.73],
+    p:  [4.3,4.3,4.3],
+    g:  [706,706,706],
+    at: [59.69,59.69,59.69],
+    w:  [16.6,16.6,16.6],
   },
   'Crystal FS': { plat:'zenoti',
-    s:  [50167],
-    h:  [48.97],
-    p:  [720.0],
-    g:  [922],
-    at: [54.41],
-    w:  [1210.0],
+    s:  [50167,50167,50167],
+    h:  [48.97,48.97,48.97],
+    p:  [7.2,7.2,7.2],
+    g:  [922,922,922],
+    at: [54.41,54.41,54.41],
+    w:  [12.1,12.1,12.1],
   },
   'Elk River FS': { plat:'zenoti',
-    s:  [26917],
-    h:  [44.63],
-    p:  [500.0],
-    g:  [616],
-    at: [43.70],
-    w:  [1350.0],
+    s:  [26917,26917,26917],
+    h:  [44.63,44.63,44.63],
+    p:  [5.0,5.0,5.0],
+    g:  [616,616,616],
+    at: [43.70,43.70,43.70],
+    w:  [13.5,13.5,13.5],
   },
   'Roseville': { plat:'zenoti',
-    s:  [36377],
-    h:  [39.24],
-    p:  [340.0],
-    g:  [872],
-    at: [41.72],
-    w:  [580.0],
+    s:  [36377,36377,36377],
+    h:  [39.24,39.24,39.24],
+    p:  [3.4,3.4,3.4],
+    g:  [872,872,872],
+    at: [41.72,41.72,41.72],
+    w:  [5.8,5.8,5.8],
   },
 };
 
 /* ═══════════════════════════════════════════════════════
    MONTHLY TREND DATA (Karissa Q7 — weeks-as-columns + MTD)
 ═══════════════════════════════════════════════════════ */
-const MONTHLY_TREND_DATA = {"Andover FS":{"current_month":"","weeks":[],"sales":[],"mtd_total":0},"Blaine":{"current_month":"","weeks":[],"sales":[],"mtd_total":0},"Crystal FS":{"current_month":"","weeks":[],"sales":[],"mtd_total":0},"Elk River FS":{"current_month":"","weeks":[],"sales":[],"mtd_total":0},"Roseville":{"current_month":"","weeks":[],"sales":[],"mtd_total":0}};
+const MONTHLY_TREND_DATA = {"Andover FS":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24"],"sales":[23730.54,23730.54,23730.54],"mtd_total":71191.62},"Blaine":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24"],"sales":[42143.7,42143.7,42143.7],"mtd_total":126431.1},"Crystal FS":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24"],"sales":[50167.35,50167.35,50167.35],"mtd_total":150502.05},"Elk River FS":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24"],"sales":[26916.75,26916.75,26916.75],"mtd_total":80750.25},"Roseville":{"current_month":"2026-05","weeks":["2026-05-24","2026-05-24","2026-05-24"],"sales":[36376.7,36376.7,36376.7],"mtd_total":109130.1}};
 
 /* ═══════════════════════════════════════════════════════
    STYLIST DATA
@@ -479,7 +479,7 @@ const STYLIST_DATA = [];
 /* ═══════════════════════════════════════════════════════
    COACH CARD DATA
 ═══════════════════════════════════════════════════════ */
-const COACH_CARD_DATA = {"coach_name":"Jenn","week_ending":"2026-05-24","territory_headline":"Territory generated $179,336 across 5 locations this week; Blaine leads at $50.73 PPH (#4 in network), while Andover FS sits last in your portfolio at $37.65 PPH \u2014 $8.64 below network average and ranked 10th of 12. Three of your five locations are running below the $46.29 network average, so this week's calls need to push on the bottom half.","star_of_week":{"location":"Blaine","pph":50.73,"recognition_line":"Blaine, you're running $50.73 PPH \u2014 $4.44 above network average and the strongest in Jenn's territory this week. That's the standard."},"priority_call":{"location":"Andover FS","network_rank":10,"issue":"PPH of $37.65 is $8.64 below the network average of $46.29 and ranks 10th of 12 locations. Product attachment is at 10% \u2014 matching the network floor \u2014 and avg ticket of $54.93 suggests volume isn't the issue; revenue per hour is.","probable_cause":"Low PPH relative to a reasonable avg ticket points to either underutilized hours, too many lower-tier services being booked, or stylist downtime between appointments. Product at exactly network minimum suggests no active selling culture.","coaching_question":"Your avg ticket is $54.93 \u2014 that's not low \u2014 but PPH is $8.64 under network average, which tells me hours aren't being used efficiently. Walk me through a typical Friday: how full is the book, and are there gaps between appointments, or is this a service-mix issue where stylists are doing more cuts than color?"},"one_to_watch":{"location":"Roseville","trend":"Roseville is sitting at $39.24 PPH with an avg ticket of $41.72 \u2014 the lowest avg ticket in the territory and $14.97 below Blaine's $59.69. Product attachment is 0%, and with 872 guests this week, there's volume but no yield. Only one week of trend data available, so movement in either direction next week will be the tell.","threshold":"If PPH stays below $41.00 or avg ticket does not move above $43.00 next week, escalate to Priority Call. Zero product attachment across 872 guests is the leading indicator \u2014 if it doesn't appear by week 2, the revenue gap will compound.","weeks_until_critical":2},"location_cards":[{"name":"Andover FS","pph":37.65,"pph_vs_network":-8.64,"avg_ticket":54.93,"guests":432,"product_pct":0.1,"revenue_to_goal_pct":0,"flag":"WATCH","talking_points":["PPH is $37.65 \u2014 $8.64 below the $46.29 network average and ranked 10th of 12 \u2014 yet avg ticket is $54.93, which is solid. That gap between decent ticket and low PPH points to scheduling inefficiency, not service quality. Ask the manager: how many hours are on the clock each day versus how many are actually booked, and where are the gaps?","Product attachment is sitting at exactly 10% \u2014 the network floor, not a target. With 432 guests through the door, even moving to 15% attachment would meaningfully shift revenue. Ask: which stylists are recommending at checkout, and does the team know what the network benchmark is for product?"]},{"name":"Blaine","pph":50.73,"pph_vs_network":4.44,"avg_ticket":59.69,"guests":706,"product_pct":0.0,"revenue_to_goal_pct":0,"flag":"STAR","talking_points":["PPH at $50.73 is $4.44 above network average and the top performer in Jenn's territory \u2014 acknowledge that explicitly. But product attachment is showing 0%, which is almost certainly a data capture issue on Zenoti rather than a true zero. Ask the manager: how is retail being rung up, and is it being attached to the service ticket or processed separately?","Avg ticket of $59.69 is the highest in the territory by $4.76 over second place. Ask what's driving it \u2014 is this a service-mix win (more color, more add-ons), a pricing difference, or stylist behavior? That answer should be packaged and shared across the territory."]},{"name":"Crystal FS","pph":48.97,"pph_vs_network":2.68,"avg_ticket":54.41,"guests":922,"product_pct":0.1,"revenue_to_goal_pct":0,"flag":"SOLID","talking_points":["Crystal is $2.68 above network average at $48.97 PPH and pulling the highest guest count in the territory at 922 \u2014 that's a high-volume location performing above average. The question is whether capacity is the ceiling: are stylists fully booked, or is there room to push PPH toward $52\u2013$53 by shifting the service mix toward higher-yield appointments?","Product at 10% matches the network floor across 922 guests \u2014 that's a significant missed opportunity. Ask the manager: with this much traffic, is there a checkout process in place, and which stylists are consistently recommending versus skipping the conversation entirely?"]},{"name":"Elk River FS","pph":44.63,"pph_vs_network":-1.66,"avg_ticket":43.7,"guests":616,"product_pct":0.0,"revenue_to_goal_pct":0,"flag":"WATCH","talking_points":["PPH is $44.63 \u2014 $1.66 below network average and ranked 8th of 12. It's not in crisis, but avg ticket at $43.70 is the second-lowest in the territory and $16.99 below Blaine. Ask the manager: what does the service menu look like in terms of mix \u2014 is the book heavy on cuts and light on color or texture services that would lift the ticket?","Product attachment is showing 0%, same as Blaine \u2014 flag this as a potential Zenoti data capture issue before assuming no retail is moving. Ask: how is retail being recorded at checkout, and can the manager pull last week's retail dollar total to cross-check?"]},{"name":"Roseville","pph":39.24,"pph_vs_network":-7.05,"avg_ticket":41.72,"guests":872,"product_pct":0.0,"revenue_to_goal_pct":0,"flag":"WATCH","talking_points":["PPH is $39.24 \u2014 $7.05 below network average \u2014 and avg ticket of $41.72 is the lowest in the territory. With 872 guests, this location has volume. The revenue is being left on the table through low ticket yield, not low traffic. Ask the manager: what is the current service mix, and are stylists being scheduled to capacity or running light books?","Product attachment is 0% across 872 guests. That number has to be a tracking issue or a complete absence of retail selling \u2014 either way, it needs immediate clarity. Ask: is retail being captured in Zenoti, and if yes, who are the one or two stylists who are still offering product at checkout?"]}],"stylist_spotlight":{"recognition":{"name":"N/A","location":"Blaine","pph":0.0,"rebook_rate":0.0,"note":"No individual stylist data available this week. Blaine's location-level PPH of $50.73 is the territory high \u2014 when stylist data comes through, look here first for the individual driving that number."},"concern":{"name":"N/A","location":"Andover FS","pph":0.0,"rebook_rate":0.0,"note":"No individual stylist data available this week. Andover's location-level underperformance at $37.65 PPH suggests at least one stylist is pulling the average down \u2014 prioritize getting stylist-level breakout from the manager on your call."}},"pph_comparison":[{"location":"Andover FS","this_week":37.65,"last_week":37.65,"delta":0.0},{"location":"Blaine","this_week":50.73,"last_week":50.73,"delta":0.0},{"location":"Crystal FS","this_week":48.97,"last_week":48.97,"delta":0.0},{"location":"Elk River FS","this_week":44.63,"last_week":44.63,"delta":0.0},{"location":"Roseville","this_week":39.24,"last_week":39.24,"delta":0.0}]};
+const COACH_CARD_DATA = {"coach_name":"Jenn","week_ending":"2026-05-24","territory_headline":"Territory revenue sits at $179,336 across 5 locations, with Blaine leading at $50.73 PPH \u2014 $4.44 above network average \u2014 and Andover dragging at $37.65 PPH, $8.64 below network and ranked 10th of 12. Three of five locations are below the $46.29 network average, which means this week's calls are mostly about closing gaps, not celebrating wins.","star_of_week":{"location":"Blaine","pph":50.73,"recognition_line":"Blaine posted $50.73 PPH on 706 guests this week \u2014 $4.44 above network average and the strongest PPH in Jenn's territory. That's the bar."},"priority_call":{"location":"Andover FS","network_rank":10,"issue":"PPH of $37.65 is $8.64 below the network average of $46.29 and ranked 10th of 12 locations. Avg ticket is $54.93 but product attachment is only 10% \u2014 matching network floor, not network standard. Zero rebook data is a visibility problem on top of a performance problem.","probable_cause":"Low service mix complexity or heavy reliance on quick, low-priced services. Product attachment at 10% suggests either no offer happening at checkout or a team that's checked out on retail. Missing rebook data means the manager may not be tracking retention at all.","coaching_question":"PPH has been flat at $37.65 for at least 3 weeks and you're sitting 10th out of 12 in the network \u2014 walk me through what a typical Saturday looks like on the floor. Is the team upselling any services, or are they running through guests as fast as possible? And why don't we have rebook numbers?"},"one_to_watch":{"location":"Roseville","trend":"PPH flat at $39.24 for 3 consecutive weeks. Ranked 9th of 12 in the network, $7.05 below network average. Avg ticket of $41.72 is the second lowest in the territory. Product attachment is 0% reported \u2014 either a data issue or retail has fully stopped.","threshold":"If PPH does not move above $42.00 within 2 weeks, or if product attachment remains at 0%, escalate to Priority Call. A continued flat trend at this level with no retail activity points to a culture or leadership issue that coaching calls alone won't fix.","weeks_until_critical":2},"location_cards":[{"name":"Andover FS","pph":37.65,"pph_vs_network":-8.64,"avg_ticket":54.93,"guests":432,"product_pct":0.1,"revenue_to_goal_pct":0,"flag":"WATCH","talking_points":["PPH is $37.65 \u2014 $8.64 below the $46.29 network average and ranked 10th of 12. Avg ticket of $54.93 is decent but PPH suggests stylists are either underbooked or running short on hours. Ask the manager: are stylists fully scheduled, or are there gaps mid-week that aren't being filled with walk-ins or add-ons?","Product attachment is at 10%, sitting at the absolute floor of the network average. Ask: which stylists are recommending product at checkout, and which ones have stopped? Is there a script or standard, or is it left to individual effort?"]},{"name":"Blaine","pph":50.73,"pph_vs_network":4.44,"avg_ticket":59.69,"guests":706,"product_pct":0.0,"revenue_to_goal_pct":0,"flag":"STAR","talking_points":["PPH of $50.73 leads Jenn's territory and sits $4.44 above network average. Avg ticket of $59.69 is the highest in the territory. Ask the manager: what's driving the higher ticket \u2014 service mix, add-ons, or a specific set of stylists? Let's document it and replicate it elsewhere.","Product attachment is reporting at 0%, which is almost certainly a data or tracking issue given the strong overall performance. Ask: is retail being rung up under a different category, or is product genuinely not being tracked? We need clean data here to understand the full picture."]},{"name":"Crystal FS","pph":48.97,"pph_vs_network":2.68,"avg_ticket":54.41,"guests":922,"product_pct":0.1,"revenue_to_goal_pct":0,"flag":"SOLID","talking_points":["PPH of $48.97 on 922 guests \u2014 the highest guest volume in the territory and $2.68 above network average. That's a strong foundation. Ask: is the team managing that volume without sacrificing service quality, or are there signs of guest experience shortcuts under the pressure of high traffic?","Product attachment is at 10% \u2014 at network floor given 922 guests, there's real dollar opportunity here. Ask the manager: if even 20% of guests purchased one product, what does that do to weekly revenue? Which stylists are consistently recommending, and what are they saying that works?"]},{"name":"Elk River FS","pph":44.63,"pph_vs_network":-1.66,"avg_ticket":43.7,"guests":616,"product_pct":0.0,"revenue_to_goal_pct":0,"flag":"WATCH","talking_points":["PPH of $44.63 is $1.66 below network average \u2014 close, but avg ticket of $43.70 is the lowest in the territory by a significant margin. That gap between PPH and avg ticket suggests stylists are moving fast but not adding value per visit. Ask: are add-on services being offered consistently, or is the team focused on throughput over ticket?","Product attachment is reporting 0%. Ask the manager directly: is retail being offered at checkout or has the team deprioritized it? If it's a data issue, fix the tracking. If it's a behavior issue, which stylists need the most support getting back to offering?"]},{"name":"Roseville","pph":39.24,"pph_vs_network":-7.05,"avg_ticket":41.72,"guests":872,"product_pct":0.0,"revenue_to_goal_pct":0,"flag":"WATCH","talking_points":["PPH of $39.24 on 872 guests is ranked 9th of 12 in the network. Avg ticket of $41.72 is the lowest in the territory. High guest count with low ticket means the team is busy but leaving money on the table on nearly every visit. Ask: what does the service menu look like in terms of what guests are actually booking \u2014 is it dominated by basic cuts with no add-ons?","Product attachment is at 0% \u2014 on 872 guests, that's a significant missed revenue opportunity every single week. Ask: is there a retail display at checkout, and is the team trained on a recommendation process? What happened to product sales, and when did it stop being a priority?"]}],"stylist_spotlight":{"recognition":{"name":"N/A","location":"Blaine","pph":50.73,"rebook_rate":0,"note":"Stylist-level data is not available this week. Blaine's location performance at $50.73 PPH and $59.69 avg ticket is the territory benchmark \u2014 when stylist data is restored, prioritize identifying the top performer here for individual recognition."},"concern":{"name":"N/A","location":"Andover FS","pph":37.65,"rebook_rate":0,"note":"Stylist-level data is not available this week. Andover's $37.65 PPH and 10th network rank make it the priority location for stylist-level review \u2014 when data is available, look for who is dragging the floor average down and whether it's a scheduling, skill, or motivation issue."}},"pph_comparison":[{"location":"Andover FS","this_week":37.65,"last_week":37.65,"delta":0.0},{"location":"Blaine","this_week":50.73,"last_week":50.73,"delta":0.0},{"location":"Crystal FS","this_week":48.97,"last_week":48.97,"delta":0.0},{"location":"Elk River FS","this_week":44.63,"last_week":44.63,"delta":0.0},{"location":"Roseville","this_week":39.24,"last_week":39.24,"delta":0.0}]};
 // KPI_DATA_END
 /* ═══════════════════════════════════════════════════════
    DERIVED — LOCATIONS
