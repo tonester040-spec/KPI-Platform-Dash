@@ -659,6 +659,262 @@ def append_to_stylists_data_monthly(
     )
 
 
+# ─── CUMULATIVE_MTD tab (weekly snapshots of cumulative month-to-date) ────────
+#
+# Source-of-truth storage for raw cumulative-MTD snapshots from Elaina's
+# weekly POS reports. One row per location per Monday — multiple rows
+# accumulate per month as the cumulative grows (Week 1, Week 1+2, Week 1+2+3,
+# etc.). The next Monday's pipeline reads the most recent prior snapshot
+# and subtracts to produce true weekly values for DATA.
+#
+# Karissa confirmed 2026-05-26:
+#   Q1: cumulative resets at start of each month
+#   Q2: Week 1 starts on the 1st (could be a partial Wed-Sun)
+#   Q3: last week ends on month's last day (could be a 1-3 day partial)
+#   Q4: ALL fields are MTD (everything builds up)
+#   Q5: numbers can occasionally DECREASE if refunds happen — accept negatives
+#   Q9: salon totals may include corrections that per-stylist totals don't
+#       (explains Prior Lake $34 stylist-sum drift — known POS quirk, not bug)
+#   Q10: Elaina sends ONE report per Monday, never re-sent
+#
+# Idempotency key: (loc_name, year_month, week_ending) — three-column natural key.
+
+CUMULATIVE_MTD_HEADERS = [
+    "loc_name", "year_month", "week_ending", "platform",
+    "guests", "total_sales", "service", "product", "product_pct",
+    "ppg", "pph", "avg_ticket", "prod_hours",
+    "wax_count", "wax", "wax_pct",
+    "color", "color_pct",
+    "treat_count", "treat", "treat_pct",
+    "source",
+]
+
+
+def _ensure_cumulative_mtd_tab(service, sheet_id: str) -> None:
+    """Create CUMULATIVE_MTD with header row if the tab doesn't exist."""
+    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing_titles = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if "CUMULATIVE_MTD" in existing_titles:
+        return
+
+    log.info("CUMULATIVE_MTD tab not found — creating with header row")
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"addSheet": {"properties": {"title": "CUMULATIVE_MTD"}}}]},
+    ).execute()
+    service.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range="CUMULATIVE_MTD!A1:V1",
+        valueInputOption="USER_ENTERED",
+        body={"values": [CUMULATIVE_MTD_HEADERS]},
+    ).execute()
+
+
+def append_to_cumulative_mtd(
+    service,
+    config: dict,
+    rows: list[dict],
+    dry_run: bool = False,
+):
+    """Append cumulative-MTD snapshot rows. Idempotent on (loc_name, year_month, week_ending).
+
+    Each row supplies the 22 fields named in ``CUMULATIVE_MTD_HEADERS``.
+    Reads CUMULATIVE_MTD!A2:C to find existing (loc_name, year_month, week_ending)
+    keys; rows whose key is already present are skipped — safe to re-run on
+    the same Monday.
+    """
+    if not rows:
+        log.info("append_to_cumulative_mtd: no rows — skipping")
+        return
+
+    week_endings = sorted({r.get("week_ending", "") for r in rows if r.get("week_ending")})
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_cumulative_mtd — would append %d rows for week_endings=%s",
+            len(rows), week_endings,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    _ensure_cumulative_mtd_tab(service, sheet_id)
+
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="CUMULATIVE_MTD!A2:C",
+    ).execute()
+    existing_keys = {
+        (r[0], r[1], r[2]) for r in existing.get("values", []) if len(r) >= 3
+    }
+
+    new_rows = []
+    for r in rows:
+        key = (r.get("loc_name", ""), r.get("year_month", ""), r.get("week_ending", ""))
+        if key in existing_keys:
+            log.info(
+                "append_to_cumulative_mtd: skipping existing (loc=%s, ym=%s, we=%s)",
+                *key,
+            )
+            continue
+        new_rows.append([
+            r.get("loc_name", ""),
+            r.get("year_month", ""),
+            r.get("week_ending", ""),
+            r.get("platform", ""),
+            r.get("guests", 0),
+            r.get("total_sales", 0),
+            r.get("service", 0),
+            r.get("product", 0),
+            r.get("product_pct", 0),
+            r.get("ppg", 0),
+            r.get("pph", 0),
+            r.get("avg_ticket", 0),
+            r.get("prod_hours", 0),
+            r.get("wax_count", 0),
+            r.get("wax", 0),
+            r.get("wax_pct", 0),
+            r.get("color", 0),
+            r.get("color_pct", 0),
+            r.get("treat_count", 0),
+            r.get("treat", 0),
+            r.get("treat_pct", 0),
+            r.get("source", ""),
+        ])
+
+    if not new_rows:
+        log.info("append_to_cumulative_mtd: all rows already present — nothing to write")
+        return
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="CUMULATIVE_MTD!A2:V",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": new_rows},
+    ).execute()
+
+    log.info(
+        "CUMULATIVE_MTD tab: appended %d snapshot rows (week_endings=%s)",
+        len(new_rows), week_endings,
+    )
+
+
+# ─── STYLISTS_CUMULATIVE_MTD tab ──────────────────────────────────────────────
+#
+# Same pattern as CUMULATIVE_MTD but at stylist grain. Idempotency key is
+# (year_month, week_ending, name, loc_name).
+
+STYLISTS_CUMULATIVE_MTD_HEADERS = [
+    "year_month", "week_ending", "name", "loc_name", "loc_id", "platform",
+    "invoices", "guests", "net_service", "net_product",
+    "avg_ticket", "pph", "ppg", "production_hours",
+    "source",
+]
+
+
+def _ensure_stylists_cumulative_mtd_tab(service, sheet_id: str) -> None:
+    """Create STYLISTS_CUMULATIVE_MTD with header row if the tab doesn't exist."""
+    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing_titles = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if "STYLISTS_CUMULATIVE_MTD" in existing_titles:
+        return
+
+    log.info("STYLISTS_CUMULATIVE_MTD tab not found — creating with header row")
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=sheet_id,
+        body={"requests": [{"addSheet": {"properties": {"title": "STYLISTS_CUMULATIVE_MTD"}}}]},
+    ).execute()
+    service.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_CUMULATIVE_MTD!A1:O1",
+        valueInputOption="USER_ENTERED",
+        body={"values": [STYLISTS_CUMULATIVE_MTD_HEADERS]},
+    ).execute()
+
+
+def append_to_stylists_cumulative_mtd(
+    service,
+    config: dict,
+    rows: list[dict],
+    dry_run: bool = False,
+):
+    """Append stylist cumulative-MTD snapshots. Idempotent on (ym, we, name, loc)."""
+    if not rows:
+        log.info("append_to_stylists_cumulative_mtd: no rows — skipping")
+        return
+
+    week_endings = sorted({r.get("week_ending", "") for r in rows if r.get("week_ending")})
+
+    if dry_run:
+        log.info(
+            "DRY RUN: append_to_stylists_cumulative_mtd — would append %d rows for week_endings=%s",
+            len(rows), week_endings,
+        )
+        return
+
+    sheet_id = config["sheet_id"]
+
+    _ensure_stylists_cumulative_mtd_tab(service, sheet_id)
+
+    existing = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_CUMULATIVE_MTD!A2:D",
+    ).execute()
+    existing_keys = {
+        (r[0], r[1], r[2], r[3]) for r in existing.get("values", []) if len(r) >= 4
+    }
+
+    new_rows = []
+    for r in rows:
+        key = (
+            r.get("year_month", ""),
+            r.get("week_ending", ""),
+            r.get("name", ""),
+            r.get("loc_name", ""),
+        )
+        if key in existing_keys:
+            log.info(
+                "append_to_stylists_cumulative_mtd: skipping existing %s",
+                key,
+            )
+            continue
+        new_rows.append([
+            r.get("year_month", ""),
+            r.get("week_ending", ""),
+            r.get("name", ""),
+            r.get("loc_name", ""),
+            r.get("loc_id", ""),
+            r.get("platform", ""),
+            r.get("invoices", 0),
+            r.get("guests", 0),
+            r.get("net_service", 0),
+            r.get("net_product", 0),
+            r.get("avg_ticket", 0),
+            r.get("pph", 0),
+            r.get("ppg", 0),
+            r.get("production_hours", 0),
+            r.get("source", ""),
+        ])
+
+    if not new_rows:
+        log.info("append_to_stylists_cumulative_mtd: all rows already present — nothing to write")
+        return
+
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range="STYLISTS_CUMULATIVE_MTD!A2:O",
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body={"values": new_rows},
+    ).execute()
+
+    log.info(
+        "STYLISTS_CUMULATIVE_MTD tab: appended %d snapshot rows (week_endings=%s)",
+        len(new_rows), week_endings,
+    )
+
+
 # ─── Dual-write shadow hook (v2 parallel Sheet) ───────────────────────────────
 #
 # This is the bridge between the legacy pipeline and the new v2 Sheets. It is

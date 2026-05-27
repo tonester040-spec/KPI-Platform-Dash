@@ -5,7 +5,10 @@ KPI Platform — weekly pipeline orchestrator.
 
 Pipeline sequence:
   1. Load config + authenticate
-  2. Read current week data from Google Sheets (DATA, STYLISTS_DATA)
+  2. Read current week data from Google Sheets (CURRENT, STYLISTS_DATA, DATA)
+  2b. Cumulative-MTD snapshot + differencing — convert cumulative values
+      from CURRENT into true weekly values (per Karissa 2026-05-26 reveal:
+      Elaina's reports are cumulative month-to-date, not weekly snapshots)
   3. Enrich data (ranks, deltas, flags)
   4. Generate AI cards (location summaries, stylist notes, coach briefing)
   5. Write back to Sheets (CURRENT, STYLISTS_CURRENT, ALERTS)
@@ -115,6 +118,23 @@ def main():
     if not locations:
         log.error("No location data found in CURRENT tab — aborting pipeline.")
         sys.exit(1)
+
+    # ── Step 2b: Cumulative-MTD → weekly differencing ──────────────────────────
+    # Karissa's POS reports are cumulative-MTD (confirmed 2026-05-26).
+    # CURRENT holds cumulative values entered each Monday; we snapshot to
+    # CUMULATIVE_MTD, look up the prior week's snapshot, and subtract to
+    # get true weekly values before downstream enrichment.
+    # First Monday of a month has no prior → weekly = current as-is.
+    _step(2, "Cumulative-MTD → weekly differencing")
+    from core import cumulative_pipeline
+    locations, stylists = cumulative_pipeline.snapshot_and_difference(
+        service, config,
+        cumulative_locations=locations,
+        cumulative_stylists=stylists,
+        source_label="current_tab",
+        dry_run=DRY_RUN,
+    )
+    _ok("Differencing", f"{len(locations)} location weekly records, {len(stylists)} stylist weekly records")
 
     # ── Step 3: Data processor ────────────────────────────────────────────────
     _step(3, "Data processor — enrichment")

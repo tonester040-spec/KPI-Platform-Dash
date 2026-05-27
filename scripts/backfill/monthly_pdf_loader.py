@@ -159,14 +159,19 @@ def _validate_parse_result(
     emp_sum = sum(float(e.get("net_service") or 0) for e in employees)
     delta = round(emp_sum - karissa_service_net, 2)
     if employees and abs(delta) > tolerance:
+        # Karissa 2026-05-26 Q9 confirmed: salon-total corrections don't always
+        # propagate to per-stylist breakdowns. This is normal POS quirk drift,
+        # not a parser bug. Downgrade from error → warning so it doesn't block
+        # writes but is still surfaced for transparency.
         issues.append(ValidationIssue(
             location=loc_name,
-            severity="error",
+            severity="warning",
             code="STYLIST_SUM_MISMATCH",
             message=(
                 f"sum(employees.net_service)={emp_sum:,.2f} does not match "
                 f"karissa.service_net={karissa_service_net:,.2f} "
-                f"(delta={delta:+,.2f}, tolerance=${tolerance:.2f})"
+                f"(delta={delta:+,.2f}, tolerance=${tolerance:.2f}). "
+                f"Karissa Q9: salon-level corrections don't always reach per-stylist totals."
             ),
             details={"emp_sum": emp_sum, "service_net": karissa_service_net, "delta": delta},
         ))
