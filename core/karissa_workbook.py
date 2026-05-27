@@ -151,10 +151,31 @@ def _recompute_canonical(raw: dict) -> dict:
 
 
 # ─── Styling helpers ──────────────────────────────────────────────────────────
+#
+# Color palette extracted from Karissa's May 2026.xlsx tracker (see ARGB values
+# in column dumps via openpyxl):
+#   Cyan    #00B0F0   header banner (row 1 across; top + bottom block header row)
+#   Green   #92D050   right-side reference section headers (2025 ref + prior-month)
+#   Peach   #FBE4D5   "Diff" / "Dif" column headers
+#   Yellow  #FEF2CB   row 16 network averages (diff cells)
+#   LtGreen #E2EFD9   row 16 trailing accent (AT avg)
 
-NAVY = "0F1117"
-LGRAY = "F2F2F2"
-GOLD = "F4D03F"
+FILL_CYAN   = PatternFill("solid", fgColor="00B0F0") if False else None  # lazy-init below
+FILL_GREEN  = None
+FILL_PEACH  = None
+FILL_YELLOW = None
+FILL_LTGRN  = None
+
+
+def _init_fills():
+    """Lazy-init the PatternFill objects (openpyxl may not be available at import)."""
+    global FILL_CYAN, FILL_GREEN, FILL_PEACH, FILL_YELLOW, FILL_LTGRN
+    if FILL_CYAN is None:
+        FILL_CYAN   = PatternFill("solid", fgColor="00B0F0")
+        FILL_GREEN  = PatternFill("solid", fgColor="92D050")
+        FILL_PEACH  = PatternFill("solid", fgColor="FBE4D5")
+        FILL_YELLOW = PatternFill("solid", fgColor="FEF2CB")
+        FILL_LTGRN  = PatternFill("solid", fgColor="E2EFD9")
 
 
 def _border() -> Border:
@@ -609,6 +630,54 @@ def _build_weekly_tab(
     for col in range(2, max(top_cols.values()) + 1):
         ws.column_dimensions[get_column_letter(col)].width = 13
 
+    # ── Apply Karissa's color schema ──
+    _init_fills()
+    top_max = max(top_cols.values())
+    bot_max = max(bot_cols.values())
+    width = max(top_max, bot_max)
+
+    # Row 1: cyan banner across the full width of the top block.
+    for c in range(1, top_max + 1):
+        ws.cell(row=1, column=c).fill = FILL_CYAN
+
+    # Row 2: cyan for the top-block KPI headers (cols up to and including the
+    # left-side block — i.e. through "Projection" and Wk4's "Goals" col).
+    left_block_last = top_cols.get("goal", top_cols["projection"])
+    for c in range(top_cols["guests"], left_block_last + 1):
+        ws.cell(row=2, column=c).fill = FILL_CYAN
+    # Row 2: green for the 2025 reference section (excluding Diff / Dif).
+    for key in ("y2025_total", "y2025_guests", "y2025_ppg", "y2025_at"):
+        if key in top_cols:
+            ws.cell(row=2, column=top_cols[key]).fill = FILL_GREEN
+    # Row 2: peach for the diff column headers.
+    for key in ("ppg_diff", "at_diff"):
+        if key in top_cols:
+            ws.cell(row=2, column=top_cols[key]).fill = FILL_PEACH
+
+    # Row 16: cyan network-average band for PPG / PPH / Avg Tkt; yellow for
+    # the right-side diff averages; light-green accent on the trailing AT diff.
+    for key in ("ppg", "pph", "avg_ticket", "prod_hours"):
+        if key in top_cols:
+            ws.cell(row=16, column=top_cols[key]).fill = FILL_CYAN
+    if "ppg_diff" in top_cols:
+        ws.cell(row=16, column=top_cols["ppg_diff"]).fill = FILL_YELLOW
+    if "at_diff" in top_cols:
+        ws.cell(row=16, column=top_cols["at_diff"]).fill = FILL_LTGRN
+
+    # Row 18: cyan for the bottom-block service-mix headers (Wax/Color/Trmt
+    # primaries); green for the right-side prior-month + current-month
+    # reference headers.
+    primary_keys = ("wax_count", "wax_net", "wax_pct", "color_net", "color_pct",
+                    "treat_count", "treat_net", "treat_pct")
+    ws.cell(row=18, column=1).fill = FILL_CYAN  # date cell
+    for key in primary_keys:
+        if key in bot_cols:
+            ws.cell(row=18, column=bot_cols[key]).fill = FILL_CYAN
+    for key in ("prior_prod_hours", "prior_wax_net", "prior_treat_net",
+                "prior_service", "prior_treat_pct", "prior_wax_pct"):
+        if key in bot_cols:
+            ws.cell(row=18, column=bot_cols[key]).fill = FILL_GREEN
+
 
 # ─── Year Over Year tab builder ───────────────────────────────────────────────
 
@@ -773,6 +842,18 @@ def _build_yoy_tab(
     ws.column_dimensions["A"].width = 16
     for c in range(2, 16):
         ws.column_dimensions[get_column_letter(c)].width = 14
+
+    # Karissa's YoY tab uses cyan headers across the three sub-tables.
+    _init_fills()
+    # Table 1 header row (row 1)
+    for c in range(1, 12):
+        ws.cell(row=1, column=c).fill = FILL_CYAN
+    # Table 2 header row (row 17)
+    for c in range(1, 7):
+        ws.cell(row=17, column=c).fill = FILL_CYAN
+    # Table 3 header row (row 18, cols K-O)
+    for c in range(11, 16):
+        ws.cell(row=18, column=c).fill = FILL_CYAN
 
 
 # ─── Public entry point ───────────────────────────────────────────────────────
