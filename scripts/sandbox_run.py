@@ -343,6 +343,66 @@ def run_sandbox() -> int:
         _skip("ai_coach_cards", "data_processor failed")
         results["ai_coach_cards"] = None
 
+    # ── Module 10: cumulative_pipeline (DRY_RUN — no Sheets writes) ───────────
+    _section("10", "cumulative_pipeline — DRY RUN cumulative-MTD → weekly differencing")
+    try:
+        from unittest.mock import MagicMock, patch
+        from core import cumulative_pipeline
+
+        mock_service = MagicMock()
+        mock_config = {"sheet_id": "sandbox_sheet"}
+        # Simulate "Week 2" scenario: current has Week 1 prior to subtract
+        cur_loc = {
+            "loc_name": "Blaine", "loc_id": "z002", "platform": "zenoti",
+            "week_ending": "2026-04-12",
+            "guests": 562, "total_sales": 36357.5, "service": 32132.5,
+            "product": 4225.0, "product_pct": 0.116, "ppg": 7.52, "pph": 55.98,
+            "avg_ticket": 64.69, "prod_hours": 574.0,
+            "wax_count": 80, "wax": 1440.0, "wax_pct": 0.143,
+            "color": 10866.0, "color_pct": 0.338,
+            "treat_count": 100, "treat": 1800.0, "treat_pct": 0.178,
+        }
+        prior_snapshot = {
+            "loc_name": "Blaine", "year_month": "2026-04", "week_ending": "2026-04-05",
+            "platform": "zenoti",
+            "guests": 280, "total_sales": 18000.0, "service": 16000.0,
+            "product": 2000.0, "product_pct": 0.111, "ppg": 7.14, "pph": 57.14,
+            "avg_ticket": 64.29, "prod_hours": 280.0,
+            "wax_count": 40, "wax": 720.0, "wax_pct": 0.143,
+            "color": 5300.0, "color_pct": 0.331,
+            "treat_count": 50, "treat": 900.0, "treat_pct": 0.179,
+            "source": "current_tab",
+        }
+        with patch(
+            "core.cumulative_pipeline.read_cumulative_mtd_snapshots",
+            return_value=[prior_snapshot],
+        ), patch(
+            "core.cumulative_pipeline.read_stylists_cumulative_mtd_snapshots",
+            return_value=[],
+        ):
+            weekly_locs, _weekly_styls = cumulative_pipeline.snapshot_and_difference(
+                mock_service, mock_config,
+                cumulative_locations=[cur_loc], cumulative_stylists=[],
+                source_label="sandbox", dry_run=True,
+            )
+        assert len(weekly_locs) == 1, f"expected 1 weekly location, got {len(weekly_locs)}"
+        w = weekly_locs[0]
+        assert w["loc_name"] == "Blaine"
+        assert w["loc_id"] == "z002"
+        assert w["guests"] == 282, f"expected 282 (562-280), got {w['guests']}"
+        assert abs(w["service"] - (32132.5 - 16000.0)) < 0.01
+        # PPH recomputed from differenced primitives
+        expected_pph = (32132.5 - 16000.0) / (574.0 - 280.0)
+        assert abs(w["pph"] - expected_pph) < 0.01
+        _pass(
+            "cumulative_pipeline",
+            f"week-2 diff produced 282 guests, ${w['service']:,.2f} service, ${w['pph']:.2f} PPH (recomputed)",
+        )
+        results["cumulative_pipeline"] = True
+    except Exception as exc:
+        _fail("cumulative_pipeline", exc)
+        results["cumulative_pipeline"] = False
+
     # ── Summary ────────────────────────────────────────────────────────────────
     print()
     print("╔══════════════════════════════════════════════════════════╗")

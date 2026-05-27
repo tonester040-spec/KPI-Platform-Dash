@@ -35,7 +35,14 @@ Google Sheets (source of truth — Karissa's team enters current week into CURRE
 main.py (pipeline orchestrator)
     ↓ reads
 core/data_source.py       → reads CURRENT (locations), STYLISTS_DATA, DATA (history) tabs
-core/data_processor.py    → enriches, ranks, flags
+core/cumulative_pipeline.py → snapshot CURRENT (cumulative-MTD) to CUMULATIVE_MTD,
+                             look up prior week's snapshot for same year_month,
+                             difference current vs prior to produce TRUE WEEKLY
+                             records. Per Karissa 2026-05-26: source POS reports
+                             are cumulative-MTD with hard month boundaries.
+                             Week 1 of month = current as-is (no prior to subtract).
+                             Derived KPIs recomputed from differenced primitives.
+core/data_processor.py    → enriches, ranks, flags (now operates on true weekly)
 core/ai_cards.py          → Claude API summaries per location + stylist
                              (claude-haiku-4-5-20251001 for bulk stylist cards,
                               claude-sonnet-4-6 for coach briefing)
@@ -276,6 +283,8 @@ Source of truth: `config/customers/karissa_001.json`
 | `WEEK_ENDING`     | Manual reference tab — **not read by pipeline code** (pipeline reads week_ending from row data in CURRENT/DATA tabs) |
 | `DATA_MONTHLY`    | **Monthly grain historical backfill.** 23 cols A-W keyed by `(loc_name, year_month)`. Mirrors DATA's KPIs plus `source` / `period_start` / `period_end` provenance. Append-only, idempotent. Populated for backfill (Mar/Apr/May 2026) and intended to back YOY / MTD / pacing features. **Not read by the weekly pipeline** — exists in parallel to DATA, never to replace it. Auto-created by `core/sheets_writer.py::_ensure_data_monthly_tab()` on first write. |
 | `STYLISTS_DATA_MONTHLY` | **Monthly stylist roster historical backfill.** 16 cols A-P keyed by `(year_month, name, loc_name)`. Append-only, idempotent. Auto-created. Source column distinguishes `zenoti_xlsx` (March, from Employee KPI .xlsx exports), `zenoti_monthly_pdf`, and `su_monthly_pdf` (April/May, from monthly POS PDFs). |
+| `CUMULATIVE_MTD` | **Weekly cumulative-MTD snapshots.** 22 cols A-V keyed by `(loc_name, year_month, week_ending)`. Each Monday's pipeline run writes one snapshot per location capturing the cumulative-month-to-date values entered into CURRENT. Next Monday's run reads these to compute the prior-week subtraction for `core/cumulative_to_weekly.py` differencing. Auto-created. Append-only, idempotent. |
+| `STYLISTS_CUMULATIVE_MTD` | **Weekly cumulative-MTD stylist snapshots.** 15 cols A-O keyed by `(year_month, week_ending, name, loc_name)`. Same role as CUMULATIVE_MTD but at stylist grain. |
 
 **Data flow:** Karissa's team enters current week data into CURRENT tab manually. The pipeline reads CURRENT (current week) + DATA (location history) + STYLISTS_DATA (stylist history), enriches everything, then writes back to CURRENT + STYLISTS_CURRENT + ALERTS, and appends to DATA + STYLISTS_DATA.
 
@@ -332,7 +341,7 @@ What the sandbox does:
 - Confirms all 9 modules pass before any real API credential is connected
 - Fires a deliberate test alert so the alerter path is confirmed working
 
-**Sandbox must show 9/9 PASS before any release is considered shippable.** ✓ (confirmed 2026-04-20 post-audit)
+**Sandbox must show 10/10 PASS before any release is considered shippable.** ✓ (Module 10 `cumulative_pipeline` added 2026-05-26 for the cumulative-MTD → weekly differencing step.)
 
 ---
 
@@ -447,6 +456,42 @@ The app is installable on iPhone (Add to Home Screen). Components:
 - **Voice profile** — `build_profile.py` and `voice_profile.py` are written and wired in. Awaiting Karissa's sample emails to be placed in `voice/samples/` and `build_profile.py` run once.
 - **Manager coach card emails** — `send_manager_coach_cards()` is built and wired into `main.py` Step 7b. Awaiting Tony to fill in real email addresses for Jess and Jenn in `config/customers/karissa_001.json` → `managers[].email`. Currently empty strings — coach cards generate but emails silently skip.
 - **Manager coach cards (pipeline)** — `core/ai_coach_cards.py` is built and wired into `main.py` Steps 4b and 5. Coach card JSON is injected into `COACH_CARD_DATA` in jess.html / jenn.html on every Monday pipeline run. Coach briefs also written to ALERTS!A100 (JESS_BRIEF) and ALERTS!A101 (JENN_BRIEF).
+
+## Cumulative-MTD → weekly differencing (`core/cumulative_pipeline.py`)
+
+**Karissa reveal 2026-05-26:** Elaina's weekly POS reports are NOT independent weekly snapshots — they're cumulative month-to-date that reset each month-start. Week 1's report covers the 1st through the first Sunday; Week 2 covers 1st through second Sunday; and so on. The "monthly" April PDFs Tony has are the final-week cumulative for that month.
+
+Karissa's full Q&A (13 questions) is captured in the May 26 conversation thread; key answers:
+
+| Question | Answer | Code implication |
+|---|---|---|
+| Q1: Time period covered | Always from 1st of month through most recent Sunday; resets each month | Cumulative-MTD model confirmed |
+| Q2: New-month mid-week | Week 1 starts on the 1st (could be Wed-Sun, 5-day partial) | Hard month-start boundary |
+| Q3: Last week of month | Always ends on month's last day (could be 1-3 day partial) | Hard month-end boundary |
+| Q4: All fields MTD? | Yes — sales, guests, percentages all build up | Difference ALL primitives, recompute ALL ratios |
+| Q5: Numbers ever decrease? | Yes — if refunds happen (but never that much) | `core/cumulative_to_weekly._safe_div` handles negatives gracefully |
+| Q6: Stylist data MTD too? | Yes — each stylist's numbers are her MTD | Same differencing applied to stylist records |
+| Q7: Dashboard preference | Weekly columns + monthly total ("monthly adding up as the month goes on") | Phase 2 dashboard restructure |
+| Q8: Coach Card comparison | "You guys pick" — we picked true week-over-week | Aligns with Q7 weekly-columns view |
+| Q9: Late corrections | Salon-level updates, but per-stylist totals don't always reflect them | `STYLIST_SUM_MISMATCH` downgraded from error → warning (explains Prior Lake April $34 drift) |
+| Q10: Re-sent reports? | No — one report per Monday, never re-sent | Pipeline can assume each Monday's snapshot is final |
+| Q11: Holiday weeks | Show zero row | `_safe_div` returns 0 for all KPIs when guests=0 |
+| Q12: Zenoti vs SU shape? | Same — both cumulative-MTD | Single pipeline handles both |
+| Q13: 2025 historical | Same format; Karissa maintains her own monthly YOY by hand | Future: ask for her file to populate 2025 DATA_MONTHLY quickly |
+
+### Architecture
+
+- **`core/sheets_writer.py`** — adds `append_to_cumulative_mtd()` + `append_to_stylists_cumulative_mtd()` + auto-creators for the two new tabs (idempotent, mirror DATA_MONTHLY pattern).
+- **`core/cumulative_to_weekly.py`** — pure-function differencing math. `difference_location_record(current_mtd, prior_mtd_or_None)` returns a weekly record with differenced primitives and recomputed derived KPIs. Handles Week 1 (no prior), zero-guest weeks (`_safe_div` → 0), and negative diffs from refunds.
+- **`core/data_source.py`** — adds `read_cumulative_mtd_snapshots(service, config, year_month)` and `find_latest_priors_by_location/stylist()` helpers.
+- **`core/cumulative_pipeline.py`** — orchestrator that ties it together. `snapshot_and_difference()` runs as Step 2b in `main.py`, between data_source and data_processor.
+
+### Hard rules
+
+- **CURRENT tab now means cumulative-MTD** (Karissa's team enters this Monday's cumulative). Pipeline overwrites CURRENT with the differenced weekly after processing.
+- **DATA tab now holds true weekly rows** (differenced). Empty until first live Monday run; populates organically going forward.
+- **Derived KPIs (pct, avg, PPH) are NEVER subtracted directly** — they're recomputed from the differenced primitives. Otherwise the math is meaningless.
+- **STYLIST_SUM_MISMATCH is a warning, not an error** (per Karissa Q9 — salon-level corrections don't always reach per-stylist totals; explains Prior Lake's $34 April gap).
 
 ## Historical backfill — `scripts/backfill/`
 

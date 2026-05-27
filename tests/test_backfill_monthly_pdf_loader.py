@@ -231,15 +231,20 @@ class TestValidateParseResult(unittest.TestCase):
         self.assertEqual(len(infos), 1)
         self.assertEqual(infos[0].code, "GUEST_COUNT_MISMATCH")
 
-    def test_stylist_sum_mismatch_outside_tolerance_is_error(self):
+    def test_stylist_sum_mismatch_outside_tolerance_is_warning(self):
+        """Per Karissa Q9: salon-level corrections don't always reach per-stylist
+        totals. STYLIST_SUM_MISMATCH is a known POS quirk, not a parser bug —
+        treated as warning (informational), not error (blocking)."""
         loc = {"name": "Andover FS"}
         # service_net = 28917.40, emp_sum = 28910.00 → delta = -7.40, > 0.01 tolerance
         parsed = _clean_zenoti_parsed(service_net=28917.40, emp_sum=28910.00)
         issues = _validate_parse_result(parsed, loc, tolerance=0.01)
+        warnings = [i for i in issues if i.severity == "warning"]
         errors = [i for i in issues if i.severity == "error"]
-        self.assertEqual(len(errors), 1)
-        self.assertEqual(errors[0].code, "STYLIST_SUM_MISMATCH")
-        self.assertAlmostEqual(errors[0].details["delta"], -7.40, places=2)
+        self.assertEqual(errors, [])  # NOT an error anymore
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings[0].code, "STYLIST_SUM_MISMATCH")
+        self.assertAlmostEqual(warnings[0].details["delta"], -7.40, places=2)
 
     def test_stylist_sum_within_tolerance_passes(self):
         loc = {"name": "Andover FS"}
@@ -420,9 +425,8 @@ REAL_CONFIG_PATH = _REPO_ROOT / "config" / "customers" / "karissa_001.json"
 )
 class TestRealAprilIntegration(unittest.TestCase):
     def test_all_12_april_pdfs_emit_rows(self):
-        """All 12 April PDFs should parse and emit a row, even Prior Lake which
-        has a known $34 stylist-sum anomaly (caught as STYLIST_SUM_MISMATCH error).
-        """
+        """All 12 April PDFs should parse and emit a row. Prior Lake's $34
+        stylist-sum drift is now a WARNING (not error) per Karissa Q9."""
         config = json.loads(REAL_CONFIG_PATH.read_text())
         rows, _stylists, issues = load_monthly_pdfs(
             REAL_APRIL_DIR, config,
@@ -430,23 +434,26 @@ class TestRealAprilIntegration(unittest.TestCase):
         )
         self.assertEqual(len(rows), 12, f"Expected 12 rows, got {len(rows)}")
 
-    def test_april_known_anomaly_prior_lake_34_stylist_gap(self):
+    def test_april_known_anomaly_prior_lake_34_stylist_gap_is_warning(self):
         """Prior Lake's April PDF has sum(emp)=41827 vs service_net=41861 (delta=-34).
-        The validator MUST flag this so the orchestrator stops before writing.
-        Decision pending Tony review whether to accept the $34 gap as immaterial.
-        """
+        Per Karissa Q9, salon-level corrections don't always propagate to per-stylist
+        totals — this is normal POS quirk drift. Surfaced as warning (informational),
+        not error (blocking) so backfill writes proceed without --accept flag."""
         config = json.loads(REAL_CONFIG_PATH.read_text())
         _, _stylists, issues = load_monthly_pdfs(
             REAL_APRIL_DIR, config,
             year_month="2026-04", period_start="2026-04-01", period_end="2026-04-30",
         )
         errors = [i for i in issues if i["severity"] == "error"]
-        # Exactly one known error: Prior Lake stylist sum
-        self.assertEqual(len(errors), 1, f"Expected exactly 1 known anomaly, got: {errors}")
-        e = errors[0]
-        self.assertEqual(e["location"], "Prior Lake")
-        self.assertEqual(e["code"], "STYLIST_SUM_MISMATCH")
-        self.assertAlmostEqual(e["details"]["delta"], -34.0, places=2)
+        warnings = [i for i in issues if i["severity"] == "warning"]
+        # Zero errors now — Prior Lake $34 is a warning, not a blocker
+        self.assertEqual(errors, [], f"Unexpected errors: {errors}")
+        # Exactly one warning: Prior Lake stylist sum drift
+        prior_lake_warnings = [w for w in warnings if w["location"] == "Prior Lake"]
+        self.assertEqual(len(prior_lake_warnings), 1)
+        w = prior_lake_warnings[0]
+        self.assertEqual(w["code"], "STYLIST_SUM_MISMATCH")
+        self.assertAlmostEqual(w["details"]["delta"], -34.0, places=2)
 
     def test_april_clean_locations(self):
         """Spot-check the 11 locations that DO reconcile cleanly."""

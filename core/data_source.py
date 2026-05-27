@@ -257,6 +257,152 @@ def load_stylist_data(service, config: dict) -> list[dict]:
     return stylists
 
 
+def read_cumulative_mtd_snapshots(service, config: dict, year_month: str) -> list[dict]:
+    """Read all CUMULATIVE_MTD snapshot rows for a given year_month.
+
+    Returns list of dicts mirroring CUMULATIVE_MTD_HEADERS in core/sheets_writer.py.
+    Returns [] if the tab doesn't exist, is empty, or has no rows for that
+    year_month. Never raises — missing tab is normal on first run.
+    """
+    sheet_id = config["sheet_id"]
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="CUMULATIVE_MTD!A2:V",
+        ).execute()
+    except Exception as e:
+        # Most likely "Unable to parse range" because tab doesn't exist yet
+        log.info("CUMULATIVE_MTD tab not yet present (or read failed): %s", e)
+        return []
+
+    rows = result.get("values", [])
+    out: list[dict] = []
+    for row in rows:
+        row = row + [""] * (22 - len(row))
+        if not row[0] or row[1] != year_month:
+            continue
+        out.append({
+            "loc_name":    row[0],
+            "year_month":  row[1],
+            "week_ending": row[2],
+            "platform":    row[3],
+            "guests":      _safe_int(row[4]),
+            "total_sales": _safe_float(row[5]),
+            "service":     _safe_float(row[6]),
+            "product":     _safe_float(row[7]),
+            "product_pct": _safe_float(row[8]),
+            "ppg":         _safe_float(row[9]),
+            "pph":         _safe_float(row[10]),
+            "avg_ticket":  _safe_float(row[11]),
+            "prod_hours":  _safe_float(row[12]),
+            "wax_count":   _safe_int(row[13]),
+            "wax":         _safe_float(row[14]),
+            "wax_pct":     _safe_float(row[15]),
+            "color":       _safe_float(row[16]),
+            "color_pct":   _safe_float(row[17]),
+            "treat_count": _safe_int(row[18]),
+            "treat":       _safe_float(row[19]),
+            "treat_pct":   _safe_float(row[20]),
+            "source":      row[21],
+        })
+    log.info("Loaded %d CUMULATIVE_MTD snapshots for %s", len(out), year_month)
+    return out
+
+
+def read_stylists_cumulative_mtd_snapshots(service, config: dict, year_month: str) -> list[dict]:
+    """Read all STYLISTS_CUMULATIVE_MTD snapshot rows for a given year_month.
+
+    Same pattern as read_cumulative_mtd_snapshots but for stylist-grain data.
+    """
+    sheet_id = config["sheet_id"]
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="STYLISTS_CUMULATIVE_MTD!A2:O",
+        ).execute()
+    except Exception as e:
+        log.info("STYLISTS_CUMULATIVE_MTD tab not yet present (or read failed): %s", e)
+        return []
+
+    rows = result.get("values", [])
+    out: list[dict] = []
+    for row in rows:
+        row = row + [""] * (15 - len(row))
+        if not row[0] or row[0] != year_month:
+            continue
+        out.append({
+            "year_month":       row[0],
+            "week_ending":      row[1],
+            "name":             row[2],
+            "loc_name":         row[3],
+            "loc_id":           row[4],
+            "platform":         row[5],
+            "invoices":         _safe_int(row[6]),
+            "guests":           _safe_int(row[7]),
+            "net_service":      _safe_float(row[8]),
+            "net_product":      _safe_float(row[9]),
+            "avg_ticket":       _safe_float(row[10]),
+            "pph":              _safe_float(row[11]),
+            "ppg":              _safe_float(row[12]),
+            "production_hours": _safe_float(row[13]),
+            "source":           row[14],
+        })
+    log.info("Loaded %d STYLISTS_CUMULATIVE_MTD snapshots for %s", len(out), year_month)
+    return out
+
+
+def derive_year_month(week_ending: str) -> str:
+    """'2026-04-12' -> '2026-04'. Tolerant of empty/short input.
+
+    Month-boundary rule (per Karissa Q2/Q3): Week 1 of a month starts on
+    the 1st, last week ends on month-end. So the year_month is always
+    derivable from the first 7 chars of any valid week_ending.
+    """
+    return week_ending[:7] if week_ending and len(week_ending) >= 7 else ""
+
+
+def find_latest_priors_by_location(
+    snapshots: list[dict],
+    current_week_ending: str,
+) -> dict[str, dict]:
+    """For each loc_name in snapshots, return the snapshot with the largest
+    week_ending that is STRICTLY LESS THAN current_week_ending.
+
+    Returns {} if no priors exist (e.g., Week 1 of month — all snapshots
+    are the current ones we just stored).
+    """
+    by_loc: dict[str, dict] = {}
+    for s in snapshots:
+        we = s.get("week_ending", "")
+        if not we or we >= current_week_ending:
+            continue  # skip empty, current, or future
+        loc = s.get("loc_name", "")
+        if not loc:
+            continue
+        if loc not in by_loc or we > by_loc[loc]["week_ending"]:
+            by_loc[loc] = s
+    return by_loc
+
+
+def find_latest_priors_by_stylist(
+    snapshots: list[dict],
+    current_week_ending: str,
+) -> dict[tuple[str, str], dict]:
+    """For each (name, loc_name), return the snapshot with the largest
+    week_ending < current_week_ending. Returns {} if none."""
+    by_key: dict[tuple[str, str], dict] = {}
+    for s in snapshots:
+        we = s.get("week_ending", "")
+        if not we or we >= current_week_ending:
+            continue
+        key = (s.get("name", ""), s.get("loc_name", ""))
+        if not key[0]:
+            continue
+        if key not in by_key or we > by_key[key]["week_ending"]:
+            by_key[key] = s
+    return by_key
+
+
 def load_all(config_path: Path) -> tuple[dict, list, list, dict]:
     """
     Convenience loader: returns (config, locations, stylists, history).
