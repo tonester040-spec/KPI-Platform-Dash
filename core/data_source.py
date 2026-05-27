@@ -192,11 +192,17 @@ def load_location_data(service, config: dict) -> list[dict]:
     return locations
 
 
-def load_historical_data(service, config: dict, weeks: int = 12) -> dict:
+def load_historical_data(service, config: dict, weeks: int = 12,
+                         include_monthly_fallback: bool = True) -> dict:
     """
     Read DATA tab — all historical rows for all locations.
     Returns dict: { loc_name: { metric_key: [list of weekly values, oldest→newest] } }
     Limits to the most recent `weeks` weeks per location.
+
+    Phase 2.5: when include_monthly_fallback=True (default), also reads
+    DATA_MONTHLY and merges those entries chronologically BEFORE weekly rows.
+    This gives the dashboard real backfilled history (Mar/Apr/May 2026 monthly
+    aggregates) when DATA is sparse — without polluting DATA itself.
     """
     sheet_id = config["sheet_id"]
     log.info("Reading DATA tab (last %d weeks) from sheet %s", weeks, sheet_id)
@@ -237,15 +243,227 @@ def load_historical_data(service, config: dict, weeks: int = 12) -> dict:
             "treat_pct":  [_safe_float(r[COL["treat_pct"]]) for r in recent],
         }
 
-    log.info("Loaded history for %d locations", len(history))
+    log.info("Loaded weekly history for %d locations", len(history))
+
+    if include_monthly_fallback:
+        monthly = load_data_monthly_history(service, config)
+        if monthly:
+            history = merge_history(history, monthly, weeks=weeks)
+            log.info("Merged in monthly history; total locations now %d", len(history))
+
     return history
 
 
-def load_stylist_data(service, config: dict) -> list[dict]:
+# ─── Phase 2.5: DATA_MONTHLY fallback for dashboard history ───────────────────
+#
+# When DATA tab is sparse (typical right after go-live), dashboard charts
+# look bare. These helpers pull backfilled monthly aggregates from
+# DATA_MONTHLY / STYLISTS_DATA_MONTHLY and emit them in the same shape as
+# weekly history, with month-end dates as synthetic week_endings. Treats
+# "March monthly total" as one data point in the historical series.
+
+def load_data_monthly_history(service, config: dict) -> dict:
+    """Read DATA_MONTHLY and return history dict matching load_historical_data shape.
+
+    Each monthly row becomes one historical entry with week_ending = the row's
+    period_end (or month-end derived from year_month if period_end is blank).
+    Sorted oldest -> newest per location.
+
+    Returns {} if tab missing or empty. Safe to call on first-ever pipeline run.
+    """
+    sheet_id = config["sheet_id"]
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id, range="DATA_MONTHLY!A2:W",
+            valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING",
+        ).execute()
+    except Exception as e:
+        log.info("DATA_MONTHLY tab not present (or read failed): %s", e)
+        return {}
+
+    rows = result.get("values", [])
+    if not rows:
+        return {}
+
+    from collections import defaultdict
+    loc_rows: dict[str, list] = defaultdict(list)
+    for row in rows:
+        row = row + [""] * (23 - len(row))
+        loc_name = str(row[0]).strip()
+        if loc_name:
+            loc_rows[loc_name].append(row)
+
+    history = {}
+    for loc_name, mrows in loc_rows.items():
+        # Sort by year_month (col B / index 1) — oldest first
+        mrows.sort(key=lambda r: str(r[1]))
+        # week_ending from period_end (W/22); fall back to year_month + "-28" mid-month-ish
+        def week_for(r):
+            we = _to_date_str(r[22])
+            return we if we else (f"{r[1]}-28" if r[1] else "")
+        history[loc_name] = {
+            "weeks":       [week_for(r) for r in mrows],
+            "pph":         [_safe_float(r[9])  for r in mrows],   # col J = pph
+            "total_sales": [_safe_float(r[4])  for r in mrows],   # col E
+            "guests":      [_safe_int(r[3])    for r in mrows],   # col D
+            "product_pct": [_safe_float(r[7])  for r in mrows],   # col H
+            "avg_ticket":  [_safe_float(r[10]) for r in mrows],   # col K
+            "wax_pct":     [_safe_float(r[14]) for r in mrows],   # col O
+            "color_pct":   [_safe_float(r[16]) for r in mrows],   # col Q
+            "treat_pct":   [_safe_float(r[19]) for r in mrows],   # col T
+        }
+    log.info("Loaded monthly history for %d locations from DATA_MONTHLY", len(history))
+    return history
+
+
+def merge_history(weekly: dict, monthly: dict, weeks: int = 12) -> dict:
+    """Merge monthly history (oldest first) + weekly history into one series.
+
+    For each location key in either source, returns a dict with the last
+    `weeks` entries combined, with monthly entries placed BEFORE weekly ones
+    chronologically. Both sources MUST share the same KPI keys.
+    """
+    out: dict[str, dict] = {}
+    keys = set(weekly.keys()) | set(monthly.keys())
+    for loc in keys:
+        m = monthly.get(loc, {})
+        w = weekly.get(loc, {})
+        # Detect KPI keys to merge (anything that's a list)
+        kpi_keys = set()
+        for src in (m, w):
+            for k, v in src.items():
+                if isinstance(v, list):
+                    kpi_keys.add(k)
+        merged: dict[str, list] = {}
+        for k in kpi_keys:
+            m_vals = m.get(k, [])
+            w_vals = w.get(k, [])
+            combined = m_vals + w_vals  # monthly first (older), then weekly (newer)
+            merged[k] = combined[-weeks:] if weeks else combined
+        out[loc] = merged
+    return out
+
+
+def _merge_stylist_rosters(weekly: list[dict], monthly: dict) -> list[dict]:
+    """Merge weekly stylist dicts (from STYLISTS_DATA) with monthly stylist
+    dicts (from STYLISTS_DATA_MONTHLY).
+
+    Resulting list contains the UNION of stylists from both sources. For
+    stylists present in both, monthly history is prepended (older) to weekly
+    arrays. Static fields (loc_name, loc_id, status, tenure) prefer weekly
+    when present.
+
+    Args:
+      weekly: list of stylist dicts from load_stylist_data's main read
+      monthly: dict keyed by stylist name from load_stylists_data_monthly_history
+
+    Returns: merged list of stylist dicts in stable order
+      (weekly first, then monthly-only stylists alphabetical).
+    """
+    by_name: dict[str, dict] = {s["name"]: s for s in weekly}
+    # Merge monthly history into existing weekly entries
+    for name, m in monthly.items():
+        if name in by_name:
+            existing = by_name[name]
+            # Prepend monthly arrays before weekly arrays (oldest first)
+            for arr_key in ("weeks", "pph", "ticket", "services"):
+                if arr_key in m and arr_key in existing:
+                    existing[arr_key] = list(m[arr_key]) + list(existing[arr_key])
+        else:
+            # Stylist only in monthly — synthesize a full record
+            by_name[name] = {
+                "name":        name,
+                "loc_name":    m.get("loc_name", ""),
+                "loc_id":      m.get("loc_id", ""),
+                "status":      "active",
+                "tenure":      0,
+                "weeks":       list(m.get("weeks", [])),
+                "pph":         list(m.get("pph", [])),
+                "rebook":      [0] * len(m.get("weeks", [])),
+                "product":     [0] * len(m.get("weeks", [])),
+                "ticket":      list(m.get("ticket", [])),
+                "services":    list(m.get("services", [])),
+                "color":       [0] * len(m.get("weeks", [])),
+                # cur_* convenience fields — take last value from monthly arrays
+                "cur_pph":     (m.get("pph") or [0])[-1],
+                "cur_rebook":  0,
+                "cur_product": 0,
+                "cur_ticket":  (m.get("ticket") or [0])[-1],
+            }
+    # Stable ordering: original weekly order, then monthly-only stylists sorted alphabetically
+    weekly_names = [s["name"] for s in weekly]
+    monthly_only = sorted(n for n in monthly if n not in set(weekly_names))
+    ordered = [by_name[n] for n in weekly_names] + [by_name[n] for n in monthly_only]
+    return ordered
+
+
+def load_stylists_data_monthly_history(service, config: dict) -> dict:
+    """Read STYLISTS_DATA_MONTHLY and return per-stylist history dict.
+
+    Returns {stylist_name: {loc_name, loc_id, weeks[], pph[], product[], ticket[], services[]}}.
+    Each monthly snapshot becomes one historical entry with week_ending = period_end.
+    For stylists who worked at multiple locations, the latest loc_name is used.
+    """
+    sheet_id = config["sheet_id"]
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id, range="STYLISTS_DATA_MONTHLY!A2:P",
+            valueRenderOption="UNFORMATTED_VALUE",
+            dateTimeRenderOption="FORMATTED_STRING",
+        ).execute()
+    except Exception as e:
+        log.info("STYLISTS_DATA_MONTHLY tab not present (or read failed): %s", e)
+        return {}
+
+    rows = result.get("values", [])
+    if not rows:
+        return {}
+
+    # Group by stylist name + loc_name (a stylist can have entries at multiple locs)
+    from collections import defaultdict
+    stylist_rows: dict[str, list] = defaultdict(list)
+    for row in rows:
+        row = row + [""] * (16 - len(row))
+        name = str(row[1]).strip()  # col B
+        if name:
+            stylist_rows[name].append(row)
+
+    stylists: dict[str, dict] = {}
+    for name, srows in stylist_rows.items():
+        # Sort by year_month (col A / index 0) — oldest first
+        srows.sort(key=lambda r: str(r[0]))
+        latest = srows[-1]
+        def week_for(r):
+            we = _to_date_str(r[15])  # period_end (col P / index 15)
+            return we if we else f"{r[0]}-28"
+        stylists[name] = {
+            "name":     name,
+            "loc_name": str(latest[2]),       # col C
+            "loc_id":   str(latest[3]),       # col D
+            "weeks":    [week_for(r) for r in srows],
+            "pph":      [_safe_float(r[10]) for r in srows],  # col K (zero in March)
+            "ticket":   [_safe_float(r[9])  for r in srows],  # col J avg_ticket
+            "ppg":      [_safe_float(r[11]) for r in srows],  # col L
+            "services": [_safe_int(r[5])    for r in srows],  # col F invoices
+        }
+    log.info("Loaded monthly history for %d stylists from STYLISTS_DATA_MONTHLY", len(stylists))
+    return stylists
+
+
+def load_stylist_data(service, config: dict,
+                      include_monthly_fallback: bool = True) -> list[dict]:
     """
     Read STYLISTS_DATA tab — all stylist rows (full history).
     Returns list of dicts grouped by stylist name.
     Each stylist dict contains arrays of weekly values.
+
+    Phase 2.5: when include_monthly_fallback=True (default), also reads
+    STYLISTS_DATA_MONTHLY. If STYLISTS_DATA is empty (typical right after
+    go-live before any real weekly Mondays have run), the monthly roster
+    becomes the entire return so the dashboard Stylists tab has content.
+    If STYLISTS_DATA has rows, they're merged with monthly entries placed
+    chronologically before (older).
     """
     sheet_id = config["sheet_id"]
     log.info("Reading STYLISTS_DATA tab from sheet %s", sheet_id)
@@ -260,7 +478,8 @@ def load_stylist_data(service, config: dict) -> list[dict]:
     rows = result.get("values", [])
     if not rows:
         log.warning("STYLISTS_DATA tab is empty")
-        return []
+        # Phase 2.5: fall through to monthly fallback below instead of returning []
+        rows = []
 
     # Group rows by stylist name
     from collections import defaultdict, OrderedDict
@@ -299,6 +518,11 @@ def load_stylist_data(service, config: dict) -> list[dict]:
         })
 
     log.info("Loaded %d stylists from STYLISTS_DATA", len(stylists))
+
+    if include_monthly_fallback:
+        monthly_stylists = load_stylists_data_monthly_history(service, config)
+        stylists = _merge_stylist_rosters(stylists, monthly_stylists)
+        log.info("After monthly fallback merge: %d stylists total", len(stylists))
     return stylists
 
 
