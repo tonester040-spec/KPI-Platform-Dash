@@ -421,8 +421,8 @@ def _build_stylists(wb, data: dict, ai_cards: dict):
             "⭐" if is_star else "",
             f"${pph:.2f}",
             f"{vs_net:+.2f}" if vs_net else "—",
-            f"{s.get('cur_rebook', 0):.1f}%",
-            f"{s.get('cur_product', 0):.1f}%",
+            f"{s.get('cur_rebook', 0):.1%}",
+            f"{s.get('cur_product', 0):.1%}",
             f"${s.get('cur_ticket', 0):.2f}",
             note,
         ]
