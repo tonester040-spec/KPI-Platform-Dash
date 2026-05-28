@@ -3,6 +3,16 @@
 
 ---
 
+## 🚨 READ FIRST: Karissa's Golden Rules
+
+**Before computing or displaying ANY KPI, read [`KARISSA_GOLDEN_RULES.md`](./KARISSA_GOLDEN_RULES.md) at the repo root.**
+
+It's the canonical formula spec — every rule Karissa has confirmed (via two rounds of Q&A on 2026-05-27), every edge case, every reconciliation we owe her, and the source-of-truth on which fields come from which POS section. If anything in CLAUDE.md's KPI section conflicts with that doc, **the doc wins**. CLAUDE.md will fall out of sync occasionally; the Golden Rules doc gets updated every time a new Karissa answer changes a contract.
+
+Specifically, do not skip `KARISSA_GOLDEN_RULES.md` §3 (PPG reconciliation), §6 (Color %), or §7 (edge cases) — these are the spots where naive math diverges from what Karissa wants on the printed dashboard.
+
+---
+
 ## What this project is
 
 A weekly salon analytics platform for **Karissa**, a multi-location salon owner in Minnesota. Two automated pipelines run via GitHub Actions:

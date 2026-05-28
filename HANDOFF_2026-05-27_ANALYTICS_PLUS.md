@@ -1,6 +1,9 @@
 # HANDOFF — Analytics Plus Migration (2026-05-27)
 
-**For the next Claude session.** Read CLAUDE.md first for project basics, then this doc for the work in flight.
+**For the next Claude session.** Read in this order:
+1. `CLAUDE.md` — project basics
+2. **`KARISSA_GOLDEN_RULES.md` — the formula bible. Do not write a single line of parser code without reading this. It captures every Karissa-confirmed rule from 2026-05-27 including the PPG reconciliation exception that surprises every model.**
+3. This doc — Analytics Plus migration plan
 
 ---
 
