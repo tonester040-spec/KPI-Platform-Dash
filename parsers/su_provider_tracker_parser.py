@@ -19,16 +19,28 @@ RECONCILIATION (the safety net). Unlike Zenoti — where salon-supremacy is a *m
 reconciliation because stylist and salon totals diverge — SU stylist-grain ties to SU
 salon-grain natively, to the penny. The Provider Tracker Totals row Service Sales equals the
 matched Salon Dashboard's Total Service exactly (Apple Valley 4/1-4/12: 36,718.05 ==
-36,718.05). The per-row sum reconciles to the Totals row:
+36,718.05). The per-row sum reconciles to the Totals row, for BOTH service AND retail:
 
-    sum(active stylist Service) + sum(filtered/artifact Service) == Totals Service
+    sum(ALL rows incl artifacts, Service) == Totals Service
+    sum(ALL rows incl artifacts, Retail)  == Totals Retail
 
-We assert THIS identity (active + filtered == Totals), NOT the narrower "active == Totals",
-because artifact rows can carry service adjustments: Lakeville 4/1-4/12 routes a -$17.50
-refund through the "House _" pseudo-provider, so its active-stylist sum (13,298.10) exceeds
-the Totals (13,280.60) by exactly that 17.50. Apple Valley's artifacts are all zero, so there
-active == Totals == 36,718.05. Fail loud (strict=True) on any residual > $0.01 — that gap is
-the signature of a dropped or misparsed stylist row.
+We sum ALL provider rows (artifacts INCLUDED), NOT the narrower "active stylists == Totals",
+because artifact rows carry real money that belongs to the salon total: Lakeville 4/1-4/12
+routes a -$17.50 refund through "House _" (a SERVICE adjustment), and Farmington's "House _"
+holds +$26.25 of unattributed RETAIL. Excluding artifacts before reconciling would falsely
+fail — the exact parallel to Track C's negative None/Other service buckets. Two distinct
+operations on artifact rows: (a) INCLUDE them in the reconciliation sum; (b) EXCLUDE them
+from the emitted STYLISTS_DATA rows. Fail loud (strict=True) on any residual > $0.01 on
+either leg — that gap is the signature of a dropped or misparsed row.
+
+Reconciliation is MONEY-ONLY. Guest counts are NOT reconciled and must NOT be asserted:
+per-stylist Service Clients don't reliably sum to the salon serviced-guest count (Farmington
+4/1-4/12: real-stylist client sum 517 vs Provider Tracker Totals row 514 vs Salon Dashboard
+serviced guests 516 — three numbers, same window; Apple Valley/Lakeville happen to tie at the
+Totals row but the stylist sums still drift). That's SU's guest-counting nature (a guest seen
+by two providers / a split service counts differently across grains), not a money problem —
+every dollar reconciles. Salon-supremacy (Track C) owns the authoritative guest_count; the
+Totals-row value is read directly, never derived by summing stylists.
 
 HOURS (do NOT reconcile into a false match). Col D "Hours Worked" (AV total 776.45) is
 clocked/worked hours — a DIFFERENT metric from the Salon Dashboard's "Production Hours"
@@ -49,9 +61,10 @@ Brittany Gold 18.08h, Jessica Marsh 28.49h — front-desk/training/assist, and a
 departure signal). Those rows are kept; rows that are all-zero, and the artifact
 pseudo-providers, are filtered.
 
-VALIDATED: Apple Valley 04/01-04/12/2026 -> Totals service 36,718.05 / retail 4,624.38 /
-hours worked 776.45 / service clients 647; 17 active stylists; 3 artifacts (Booked Online /
-House _ / Salon Ultimate) + 16 all-zero rows filtered; reconciliation gap $0.00.
+VALIDATED (all 3 SU locations, 04/01-04/12/2026, service & retail gap $0.00 each):
+  Apple Valley  service 36,718.05 / retail 4,624.38 / 647 Totals clients / 17 active
+  Lakeville     service 13,280.60 / retail 1,200.05 / 291 Totals clients / 10 active (House _ svc -17.50)
+  Farmington    service 22,619.75 / retail 2,050.35 / 514 Totals clients / 11 active (House _ retail +26.25; TWO "Salon Ultimate" artifact rows)
 """
 from __future__ import annotations
 
@@ -247,7 +260,11 @@ def _parse_grid(grid, *, strict=True) -> dict:
     active: list[dict] = []
     artifact_names: list[str] = []
     zero_row_count = 0
-    filtered_service = 0.0      # service summed over artifact + all-zero rows
+    # service AND retail summed over the filtered rows (artifacts + all-zero). Both are
+    # needed: artifact rows carry real money that belongs to the salon total — Lakeville's
+    # House _ holds -$17.50 service, Farmington's House _ holds +$26.25 retail.
+    filtered_service = 0.0
+    filtered_retail = 0.0
     totals: dict | None = None
 
     for row in grid[header_idx + 1:]:
@@ -262,51 +279,86 @@ def _parse_grid(grid, *, strict=True) -> dict:
             break
         fields = _build_stylist_fields(row, colmap)
         svc = fields["service_net"] or 0.0
+        ret = fields["product_net"] or 0.0
         hrs = fields["hours_worked"] or 0.0
         if nkey in _ARTIFACT_NAMES:
-            artifact_names.append(fields["name"])
+            artifact_names.append(fields["name"])     # set-membership filter — handles Farmington's TWO "Salon Ultimate" rows
             filtered_service += svc
+            filtered_retail += ret
             continue
         if svc > 0 or hrs > 0:
             active.append(fields)
         else:
             zero_row_count += 1
             filtered_service += svc
+            filtered_retail += ret
 
+    # ── Reconciliation is MONEY-ONLY: ALL rows (artifacts INCLUDED) must sum to the
+    #    Totals row for BOTH service AND retail. We do NOT reconcile guest counts —
+    #    per-stylist Service Clients don't reliably sum to the salon serviced-guest count
+    #    (Farmington: stylist-sum 517 vs Totals row 514 vs Salon Dashboard 516, same
+    #    window). That's SU's guest-counting nature (split services / shared guests), not a
+    #    money problem; salon-supremacy (Track C) owns the authoritative guest_count. ──
     totals_service = totals["service_net"] if totals else None
+    totals_retail = totals["product_net"] if totals else None
+
     active_service_sum = round(sum(f["service_net"] or 0.0 for f in active), 2)
+    active_retail_sum = round(sum(f["product_net"] or 0.0 for f in active), 2)
     filtered_service_sum = round(filtered_service, 2)
-    all_sum = round(active_service_sum + filtered_service_sum, 2)
-    gap = round(totals_service - all_sum, 2) if totals_service is not None else None
-    reconciled = gap is not None and abs(gap) <= 0.01
-    active_vs_totals_gap = (
+    filtered_retail_sum = round(filtered_retail, 2)
+    all_service_sum = round(active_service_sum + filtered_service_sum, 2)
+    all_retail_sum = round(active_retail_sum + filtered_retail_sum, 2)
+
+    service_gap = round(totals_service - all_service_sum, 2) if totals_service is not None else None
+    retail_gap = round(totals_retail - all_retail_sum, 2) if totals_retail is not None else None
+    service_ok = service_gap is not None and abs(service_gap) <= 0.01
+    retail_ok = retail_gap is not None and abs(retail_gap) <= 0.01
+    reconciled = service_ok and retail_ok
+    active_vs_totals_service_gap = (
         round(totals_service - active_service_sum, 2) if totals_service is not None else None
+    )
+    active_vs_totals_retail_gap = (
+        round(totals_retail - active_retail_sum, 2) if totals_retail is not None else None
     )
 
     flags: list[str] = []
-    if totals_service is None:
+    if totals is None:
         msg = f"su_pt_no_totals_row [{canonical or store_name}]: Totals row not found"
         flags.append(msg)
         if strict:
             raise ValueError(msg)
-    elif not reconciled:
-        msg = (
-            f"su_pt_unreconciled [{canonical or store_name}]: "
-            f"active({active_service_sum}) + filtered({filtered_service_sum}) = {all_sum} "
-            f"!= Totals service({totals_service}); gap={gap}"
-        )
-        flags.append(msg)
-        if strict:
-            raise ValueError(msg)
+    else:
+        problems = []
+        if not service_ok:
+            problems.append(
+                f"SERVICE active({active_service_sum})+filtered({filtered_service_sum})"
+                f"={all_service_sum} != Totals({totals_service}) gap={service_gap}"
+            )
+        if not retail_ok:
+            problems.append(
+                f"RETAIL active({active_retail_sum})+filtered({filtered_retail_sum})"
+                f"={all_retail_sum} != Totals({totals_retail}) gap={retail_gap}"
+            )
+        if problems:
+            msg = f"su_pt_unreconciled [{canonical or store_name}]: " + " ; ".join(problems)
+            flags.append(msg)
+            if strict:
+                raise ValueError(msg)
 
-    # Informational (NOT fatal): artifacts carried a service adjustment, so the active
-    # sum differs from the Totals even though the row sum reconciles (e.g. Lakeville's
-    # -$17.50 House _ refund). Surfaced so the divergence is never a silent surprise.
-    if active_vs_totals_gap not in (None, 0.0):
+    # Informational (NOT fatal): artifacts carried money, so the active-stylist sum differs
+    # from the Totals even though the row sum reconciles. Surfaced so it's never a silent
+    # surprise (Lakeville's -$17.50 House _ service refund; Farmington's +$26.25 House _ retail).
+    if active_vs_totals_service_gap not in (None, 0.0):
         flags.append(
             f"su_pt_artifact_service_adjustment [{canonical or store_name}]: active stylist "
-            f"service {active_service_sum} != Totals {totals_service} by {active_vs_totals_gap} "
+            f"service {active_service_sum} != Totals {totals_service} by {active_vs_totals_service_gap} "
             f"(routed through artifact/zero rows; included in the salon total)"
+        )
+    if active_vs_totals_retail_gap not in (None, 0.0):
+        flags.append(
+            f"su_pt_artifact_retail_adjustment [{canonical or store_name}]: active stylist "
+            f"retail {active_retail_sum} != Totals {totals_retail} by {active_vs_totals_retail_gap} "
+            f"(unattributed retail in artifact/zero rows; included in the salon total)"
         )
 
     return {
@@ -327,10 +379,16 @@ def _parse_grid(grid, *, strict=True) -> dict:
         "totals_hours_worked": totals["hours_worked"] if totals else None,
         "totals_service_clients": totals["guest_count"] if totals else None,
         "active_service_sum": active_service_sum,
+        "active_retail_sum": active_retail_sum,
         "filtered_service_sum": filtered_service_sum,
-        "reconciliation_gap": gap,
-        "reconciled": reconciled,
-        "active_vs_totals_gap": active_vs_totals_gap,
+        "filtered_retail_sum": filtered_retail_sum,
+        "all_service_sum": all_service_sum,
+        "all_retail_sum": all_retail_sum,
+        "service_gap": service_gap,
+        "retail_gap": retail_gap,
+        "reconciled": reconciled,                      # True only when BOTH service & retail tie
+        "active_vs_totals_service_gap": active_vs_totals_service_gap,
+        "active_vs_totals_retail_gap": active_vs_totals_retail_gap,
         "flags": flags,
     }
 
