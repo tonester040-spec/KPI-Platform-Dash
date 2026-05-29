@@ -8,17 +8,28 @@ so the next Monday pipeline run writes fully fresh data from the real PDFs.
 WHAT GETS WIPED
 ───────────────
   V1 sheet (production)            data rows cleared, header kept
+    current-week (rebuilt Monday):
     • CURRENT                      (rebuilt by tier2_pdf_batch.py Monday)
-    • DATA                         (append ledger — loses history, see note)
     • STYLISTS_CURRENT             (rebuilt by main.py Monday)
-    • STYLISTS_DATA                (append ledger — loses history, see note)
     • ALERTS                       (rebuilt by main.py Monday)
+    auxiliary orphans (no code reader — recon only):
     • WEEKLY_DATA                  (if present — auxiliary, safe)
+    • MONTHLY_PACING               (if present — auxiliary, safe)
+    history ledgers (governed by --skip-history):
+    • DATA                         (append ledger — loses history, see note)
+    • STYLISTS_DATA                (append ledger — loses history, see note)
+    • DATA_MONTHLY                 (monthly backfill — PDF-era stopgap)
+    • STYLISTS_DATA_MONTHLY        (monthly stylist backfill — PDF-era stopgap)
+    • CUMULATIVE_MTD               (weekly cumulative-MTD snapshots)
+    • STYLISTS_CUMULATIVE_MTD      (weekly cumulative-MTD stylist snapshots)
 
 WHAT IS PRESERVED (never touched)
 ─────────────────────────────────
     • GOALS            — Karissa's manually-entered annual targets +
                          daily_goal_divisor + day_goal_divisor. Loss = bad.
+    • MONTHLY_GOALS    — Karissa's manually-entered monthly $ targets +
+                         daily_goal_divisor + day_goal_divisor (per loc-month).
+                         No POS backfill regenerates these. Loss = bad.
     • WEEK_ENDING      — Manual reference tab, not auto-regenerated.
     • any tab not in the wipe list above
 
@@ -69,6 +80,15 @@ import os
 import sys
 from pathlib import Path
 
+# Windows consoles default to cp1252, which can't encode the ✓/→ status glyphs
+# this script prints — an unhandled encode error mid-apply would leave a partial
+# wipe. Force UTF-8 so it runs identically on Windows and on the Linux CI runner.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:  # noqa: BLE001
+    pass
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
@@ -85,15 +105,22 @@ _V1_WIPE_TABS = [
     ("CURRENT",          "A2:T",  "current-week snapshot (rebuilt Monday)"),
     ("STYLISTS_CURRENT", "A2:L",  "current-week stylist snapshot"),
     ("ALERTS",           "A2:F",  "alerts + coach briefs"),
-    ("WEEKLY_DATA",      "A2:ZZ", "auxiliary weekly aggregates (if present)"),
+    ("WEEKLY_DATA",      "A2:ZZ", "auxiliary weekly aggregates (orphan — no code reader)"),
+    ("MONTHLY_PACING",   "A2:ZZ", "auxiliary monthly pacing (orphan — no code reader)"),
 ]
 
 _V1_HISTORY_TABS = [
-    ("DATA",             "A2:T",  "location history (append ledger)"),
-    ("STYLISTS_DATA",    "A2:L",  "stylist history (append ledger)"),
+    ("DATA",                    "A2:T",  "location history (append ledger)"),
+    ("STYLISTS_DATA",           "A2:L",  "stylist history (append ledger)"),
+    ("DATA_MONTHLY",            "A2:ZZ", "monthly location backfill (PDF-era stopgap)"),
+    ("STYLISTS_DATA_MONTHLY",   "A2:ZZ", "monthly stylist backfill (PDF-era stopgap)"),
+    ("CUMULATIVE_MTD",          "A2:ZZ", "weekly cumulative-MTD snapshots (differencing source)"),
+    ("STYLISTS_CUMULATIVE_MTD", "A2:ZZ", "weekly cumulative-MTD stylist snapshots"),
 ]
 
-_V1_PROTECTED = {"GOALS", "WEEK_ENDING"}
+# GOALS + MONTHLY_GOALS are Karissa's hand-typed targets/divisors — no POS
+# backfill regenerates them. WEEK_ENDING is a manual reference tab.
+_V1_PROTECTED = {"GOALS", "MONTHLY_GOALS", "WEEK_ENDING"}
 
 # V2 tabs — schema is the v2 store's view. Same safety: preserve GOALS.
 # Names pulled from core/google_sheets_store.py. If a tab doesn't exist,
@@ -213,6 +240,14 @@ def main() -> int:
     parser.add_argument("--confirm-wipe", default="",
                         help='Required for --apply. Must equal "WIPE-{customer}".')
     args = parser.parse_args()
+
+    # Local-dev convenience: load .env if present (matches scripts/backfill/run_batch.py).
+    # In CI the secret is already in the environment, so this is a no-op there.
+    try:
+        from dotenv import load_dotenv  # type: ignore
+        load_dotenv(_REPO_ROOT / ".env")
+    except Exception:  # noqa: BLE001
+        pass
 
     if not os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
         raise SystemExit(

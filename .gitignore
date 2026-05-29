@@ -22,6 +22,9 @@ build/
 .env
 .env.*
 
+# ── Local MCP config (Zenoti/Tableau endpoint + PAT ref — keep out of public repo)
+.mcp.json
+
 # ── OS / Editor ────────────────────────────────────────
 .DS_Store
 Thumbs.db
