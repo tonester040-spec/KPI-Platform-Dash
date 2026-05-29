@@ -8,8 +8,9 @@ Layers:
   2. ENGINE     — the SHARED locations_grouper._build_row emits the identical 39-col
                   contract for an SU location_id (z010 -> Apple Valley / salon_ultimate).
                   Proves SU rides the same engine — NO schema fork.
-  3. ACCEPTANCE — real Apple Valley .xls (soffice -> openpyxl), penny/integer exact per
-                  the Track C spec. Skips cleanly if the file or LibreOffice is absent.
+  3. ACCEPTANCE — real SU .xls files (Apple Valley, Lakeville, Farmington) via
+                  soffice -> openpyxl, penny/integer exact. Data-driven; each location
+                  skips cleanly if its file (or LibreOffice) is absent.
 
 Run:  python tests/test_su_dashboard_parser.py
 """
@@ -24,10 +25,56 @@ if str(_REPO_ROOT) not in sys.path:
 from parsers import su_dashboard_parser as S  # noqa: E402
 from parsers import locations_grouper as L  # noqa: E402
 
-SU_XLS_CANDIDATES = [
-    os.environ.get("SU_APPLE_VALLEY_XLS"),
-    r"C:\Users\TonyGrant\Downloads\FS_Salon_Dashboard Apple Valley.xls",
-    "FS_Salon_Dashboard Apple Valley.xls",
+# Real-file acceptance specs — one per SU location, penny/integer exact. Each entry
+# skips cleanly if its file is absent. avg_ticket / ppg_net in "row" equal SU's OWN
+# printed Avg Ticket / PPG (independent cross-check). Values verified 2026-05-29.
+SU_ACCEPTANCE = [
+    {
+        "label": "Apple Valley (z010)",
+        "candidates": [os.environ.get("SU_APPLE_VALLEY_XLS"),
+                       r"C:\Users\TonyGrant\Downloads\FS_Salon_Dashboard Apple Valley.xls",
+                       "FS_Salon_Dashboard Apple Valley.xls"],
+        "parse": {"store_name": "FS - Apple Valley Pilot Knob",
+                  "period_start": "2026-05-17", "period_end": "2026-05-23",
+                  "service_net": 22810.65, "product_net": 2219.25, "total_sales_net": 25029.90,
+                  "guest_count": 428, "productive_hours": 427.45, "color_net": 6501.50,
+                  "wax_net": 1587.20, "wax_count": 84, "treatment_net": 2652.50,
+                  "treatment_count": 136, "tips_total": 4242.02},
+        "row": {"location_id": "z010", "location_name_canonical": "Apple Valley",
+                "pos_system": "salon_ultimate", "guest_count": 428,
+                "avg_ticket": 58.48, "ppg_net": 5.19, "color_pct": 0.285},
+        "must_enumerate": {"None", "Other"},     # two negative adjustment buckets
+    },
+    {
+        "label": "Lakeville (su001)",
+        "candidates": [os.environ.get("SU_LAKEVILLE_XLS"),
+                       r"C:\Users\TonyGrant\Downloads\Salon Summary Lakeville 4-1 - 4-12.xls"],
+        "parse": {"store_name": "FS - Lakeville Timbercrest",
+                  "period_start": "2026-04-01", "period_end": "2026-04-12",
+                  "service_net": 13280.60, "product_net": 1200.05, "total_sales_net": 14480.65,
+                  "guest_count": 298, "productive_hours": 366.63, "color_net": 3192.00,
+                  "wax_net": 678.40, "wax_count": 38, "treatment_net": 1061.40,
+                  "treatment_count": 53, "tips_total": 2489.99},
+        "row": {"location_id": "su001", "location_name_canonical": "Lakeville",
+                "pos_system": "salon_ultimate", "guest_count": 298,
+                "avg_ticket": 48.59, "ppg_net": 4.03, "color_pct": 0.2404},
+        "must_enumerate": {"None", "Extensions"},  # Lakeville adds an Extensions category
+    },
+    {
+        "label": "Farmington (su002)",
+        "candidates": [os.environ.get("SU_FARMINGTON_XLS"),
+                       r"C:\Users\TonyGrant\Downloads\Salon Summary Farmington 4-1 - 4-12.xls"],
+        "parse": {"store_name": "FS - Farmington",
+                  "period_start": "2026-04-01", "period_end": "2026-04-12",
+                  "service_net": 22619.75, "product_net": 2050.35, "total_sales_net": 24670.10,
+                  "guest_count": 525, "productive_hours": 413.93, "color_net": 4854.50,
+                  "wax_net": 1019.40, "wax_count": 58, "treatment_net": 1788.40,
+                  "treatment_count": 98, "tips_total": 4398.70},
+        "row": {"location_id": "su002", "location_name_canonical": "Farmington",
+                "pos_system": "salon_ultimate", "guest_count": 525,
+                "avg_ticket": 46.99, "ppg_net": 3.91, "color_pct": 0.2146},
+        "must_enumerate": {"None"},
+    },
 ]
 FAILS: list[str] = []
 
@@ -168,42 +215,35 @@ def engine_tests():
 
 
 def acceptance_xls():
-    xls = next((c for c in SU_XLS_CANDIDATES if c and os.path.exists(c)), None)
-    if not xls:
-        print("SKIP - acceptance: 'FS_Salon_Dashboard Apple Valley.xls' not found (set SU_APPLE_VALLEY_XLS)")
-        return
     try:
         S._find_soffice()
     except RuntimeError:
         print("SKIP - acceptance: LibreOffice 'soffice' not available (set SOFFICE_PATH)")
         return
-    print(f"(acceptance file: {xls})")
-
-    ss = S.parse_su_dashboard(xls)
-    pexp = {"service_net": 22810.65, "product_net": 2219.25, "total_sales_net": 25029.90,
-            "guest_count": 428, "productive_hours": 427.45,
-            "color_net": 6501.50, "wax_net": 1587.20, "treatment_net": 2652.50,
-            "wax_count": 84, "treatment_count": 136, "tips_total": 4242.02,
-            "store_name": "FS - Apple Valley Pilot Knob",
-            "period_start": "2026-05-17", "period_end": "2026-05-23"}
-    for k, v in pexp.items():
-        check(f"ACCEPT parse {k} == {v}", ss.get(k) == v)
-    check("ACCEPT parse unique_guests None", ss.get("unique_guests") is None)
-    check("ACCEPT parse service_mix RECONCILED (gap $0.00)", ss.get("service_mix_reconciled") is True)
-    check("ACCEPT parse service_mix gap 0.0", ss.get("service_mix_gap") == 0.0)
-    check("ACCEPT parse no flags", ss.get("flags") == [])
-    check("ACCEPT parse None/Other enumerated (not bucketed)",
-          {"None", "Other"}.issubset(set(ss.get("categories_found") or [])))
-
-    row = S.build_su_location_row(xls)
-    check("ACCEPT row location_id z010", row["location_id"] == "z010")
-    check("ACCEPT row canonical Apple Valley", row["location_name_canonical"] == "Apple Valley")
-    check("ACCEPT row pos_system salon_ultimate", row["pos_system"] == "salon_ultimate")
-    check("ACCEPT row guest_count 428", row["guest_count"] == 428)
-    check("ACCEPT row avg_ticket 58.48 (== SU printed Avg Ticket)", row["avg_ticket"] == 58.48)
-    check("ACCEPT row ppg_net 5.19 (== SU printed PPG)", row["ppg_net"] == 5.19)
-    check("ACCEPT row color_pct 0.285", row["color_pct"] == 0.285)
-    check("ACCEPT row data_complete TRUE", row["data_complete_flag"] is True)
+    ran = 0
+    for spec in SU_ACCEPTANCE:
+        xls = next((c for c in spec["candidates"] if c and os.path.exists(c)), None)
+        if not xls:
+            print(f"SKIP - {spec['label']}: file not found")
+            continue
+        ran += 1
+        lbl = spec["label"]
+        print(f"-- {lbl}: {xls}")
+        ss = S.parse_su_dashboard(xls)
+        for k, v in spec["parse"].items():
+            check(f"[{lbl}] parse {k} == {v}", ss.get(k) == v)
+        check(f"[{lbl}] parse unique_guests None", ss.get("unique_guests") is None)
+        check(f"[{lbl}] parse service_mix RECONCILED (gap $0.00)", ss.get("service_mix_reconciled") is True)
+        check(f"[{lbl}] parse service_mix gap 0.0", ss.get("service_mix_gap") == 0.0)
+        check(f"[{lbl}] parse no flags", ss.get("flags") == [])
+        check(f"[{lbl}] enumerates {sorted(spec['must_enumerate'])} (not bucketed)",
+              spec["must_enumerate"].issubset(set(ss.get("categories_found") or [])))
+        row = S.build_su_location_row(xls)
+        for k, v in spec["row"].items():
+            check(f"[{lbl}] row {k} == {v}", row[k] == v)
+        check(f"[{lbl}] row data_complete TRUE", row["data_complete_flag"] is True)
+    if ran == 0:
+        print("SKIP - acceptance: no SU dashboard files found")
 
 
 if __name__ == "__main__":
