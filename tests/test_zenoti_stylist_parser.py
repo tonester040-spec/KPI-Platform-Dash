@@ -293,9 +293,71 @@ def acceptance():
         print("SKIP - acceptance: no Salon Summary files found")
 
 
+# Breadth sweep — ALL NINE Zenoti salons' real 4/1-4/12/2026 .xls exports (verified
+# 2026-05-29). Forest Lake gets the deep per-stylist spot-checks above; this proves the
+# OTHER 8 reconcile to the penny on every leg (service/product/tips/hours) with clean
+# 18-key emission, incl. artifact handling on real data (Blaine/Crystal/Hudson carry 2
+# routing artifacts, Elk River 1 — included in the sum, excluded from emission, still
+# tying out). Files live in Tony's Downloads (not committed) so the whole sweep SKIPS
+# cleanly off his machine / on CI — Track D pattern.
+_DL = r"C:\Users\TonyGrant\Downloads"
+ZENOTI_XLS_SWEEP = [
+    {"file": "Andover.xls",     "loc_id": "888-10278", "active": 7,  "artifacts": 0,
+     "service": 11216.65, "product": 1056.69, "tips": 1505.50, "hours": 296.66},
+    {"file": "Blaine.xls",      "loc_id": "888-9816",  "active": 12, "artifacts": 2,
+     "service": 20979.45, "product": 974.05,  "tips": 3141.88, "hours": 504.75},
+    {"file": "Crystal.xls",     "loc_id": "888-7663",  "active": 13, "artifacts": 2,
+     "service": 20763.70, "product": 1238.55, "tips": 3139.33, "hours": 460.54},
+    {"file": "Elk River.xls",   "loc_id": "887-10199", "active": 8,  "artifacts": 1,
+     "service": 11775.40, "product": 599.45,  "tips": 2023.85, "hours": 326.62},
+    {"file": "Roseville.xls",   "loc_id": "888-40098", "active": 11, "artifacts": 0,
+     "service": 15413.15, "product": 298.99,  "tips": 2773.56, "hours": 437.69},
+    {"file": "Prior Lake.xls",  "loc_id": "888-11091", "active": 9,  "artifacts": 0,
+     "service": 16443.75, "product": 1290.00, "tips": 2422.43, "hours": 440.13},
+    {"file": "Hudson.xls",      "loc_id": "910-7232",  "active": 9,  "artifacts": 2,
+     "service": 20641.95, "product": 1697.87, "tips": 3434.39, "hours": 323.31},
+    {"file": "New Richmond.xls", "loc_id": "910-6916", "active": 6,  "artifacts": 0,
+     "service": 7536.55,  "product": 639.00,  "tips": 1135.03, "hours": 298.80},
+]
+
+
+def acceptance_sweep():
+    ran = 0
+    for spec in ZENOTI_XLS_SWEEP:
+        path = os.path.join(_DL, spec["file"])
+        if not os.path.exists(path):
+            print(f"SKIP - {spec['file']}: file not found")
+            continue
+        ran += 1
+        lbl = spec["file"]
+        parsed = P.parse_zenoti_salon_summary(path)  # strict=True -> raises if any leg drifts
+        check(f"[{lbl}] loc_id {spec['loc_id']}", parsed["location_id"] == spec["loc_id"])
+        check(f"[{lbl}] period 2026-04-01..2026-04-12",
+              (parsed["period_start"], parsed["period_end"]) == ("2026-04-01", "2026-04-12"))
+        check(f"[{lbl}] RECONCILED all 4 legs gap $0.00", parsed["reconciled"] is True
+              and parsed["service_gap"] == 0.0 and parsed["product_gap"] == 0.0
+              and parsed["tips_gap"] == 0.0 and parsed["hours_gap"] == 0.0)
+        check(f"[{lbl}] salon service {spec['service']}", parsed["salon_service_net"] == spec["service"])
+        check(f"[{lbl}] salon product {spec['product']}", parsed["salon_product_net"] == spec["product"])
+        check(f"[{lbl}] salon tips {spec['tips']}", parsed["salon_tips"] == spec["tips"])
+        check(f"[{lbl}] salon hours {spec['hours']}", parsed["salon_productive_hours"] == spec["hours"])
+        check(f"[{lbl}] active_count {spec['active']}", parsed["active_count"] == spec["active"])
+        check(f"[{lbl}] {spec['artifacts']} artifact row(s)", len(parsed["artifacts"]) == spec["artifacts"])
+        rows = P.build_zenoti_stylist_rows(path)
+        check(f"[{lbl}] emits {spec['active']} clean 18-key zenoti rows w/ year_month",
+              len(rows) == spec["active"] and all(
+                  len(r) == 18 and r["platform"] == "zenoti" and r["loc_id"] == spec["loc_id"]
+                  and r["year_month"] == "2026-04" for r in rows))
+        check(f"[{lbl}] sum(emitted net_service) == salon_service",
+              round(sum(r["net_service"] for r in rows), 2) == spec["service"])
+    if ran == 0:
+        print("SKIP - sweep: no other-location .xls files found")
+
+
 if __name__ == "__main__":
     print("=== HELPERS (pure, synthetic Salon Summary text) ==="); helper_tests()
     print("\n=== CONTRACT (shared 18-key STYLISTS_DATA dict, no fork) ==="); contract_tests()
     print("\n=== ACCEPTANCE: real Forest Lake Salon Summary ==="); acceptance()
+    print("\n=== SWEEP: all 8 other Zenoti salons' real .xls (4/1-4/12) ==="); acceptance_sweep()
     print("\n" + ("ALL PASS" if not FAILS else f"{len(FAILS)} FAILED: {FAILS}"))
     sys.exit(1 if FAILS else 0)
