@@ -157,21 +157,42 @@ def _div(num, den, ndigits):
     return round(num / den, ndigits)
 
 
-def _to_iso(mdy):
-    """'5/1/2026' -> '2026-05-01'. None if it doesn't match."""
-    m = re.match(r"\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$", mdy or "")
-    if not m:
-        return None
-    mo, d, y = (int(x) for x in m.groups())
-    return f"{y:04d}-{mo:02d}-{d:02d}"
+# Month abbreviations for the .xls 'DD Mon YYYY' date dialect.
+_MONTHS = {m: i for i, m in enumerate(
+    ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"),
+    start=1)}
+
+# One date token in EITHER Salon Summary dialect: PDF 'M/D/YYYY' or .xls 'DD Mon YYYY'.
+_DATE = r"(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})"
+
+
+def _to_iso(s):
+    """Salon Summary date -> 'YYYY-MM-DD'. Handles BOTH the PDF 'M/D/YYYY' (e.g.
+    '5/1/2026') and the .xls 'DD Mon YYYY' (e.g. '01 Apr 2026') forms. None if it
+    matches neither."""
+    s = (s or "").strip()
+    m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})$", s)
+    if m:
+        mo, d, y = (int(x) for x in m.groups())
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+    m = re.match(r"(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$", s)
+    if m:
+        mo = _MONTHS.get(m.group(2)[:3].lower())
+        if mo:
+            return f"{int(m.group(3)):04d}-{mo:02d}-{int(m.group(1)):02d}"
+    return None
 
 
 def _parse_period(text):
-    """Salon Summary header 'From: M/D/YYYY To: M/D/YYYY' -> (start_iso, end_iso)."""
-    m = re.search(r"From:\s*(\d{1,2}/\d{1,2}/\d{4})\s*To:\s*(\d{1,2}/\d{1,2}/\d{4})", text)
-    if not m:
-        return (None, None)
-    return _to_iso(m.group(1)), _to_iso(m.group(2))
+    """Salon Summary header window -> (start_iso, end_iso). Tolerates BOTH header
+    dialects: the PDF 'From: 5/1/2026 To: 5/24/2026' and the .xls
+    'From : 01 Apr 2026 To : 12 Apr 2026' (note the space-before-colon and the
+    non-breaking-space padding, both absorbed by \\s). 'From'/'To' are matched
+    independently so whatever pads between them is irrelevant."""
+    fm = re.search(rf"\bFrom\s*:\s*{_DATE}", text)
+    tm = re.search(rf"\bTo\s*:\s*{_DATE}", text)
+    return (_to_iso(fm.group(1)) if fm else None,
+            _to_iso(tm.group(1)) if tm else None)
 
 
 def _resolve_location(text):
