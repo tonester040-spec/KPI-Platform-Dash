@@ -179,7 +179,7 @@ def main():
     # each Monday. The "report month" = month of the most recent Sunday before
     # today (so 6/1 Monday emits May 2026, 6/8 emits June 2026 Week 1, etc).
     _step(6, "Report builder — building Karissa-format Excel workbook")
-    from core import karissa_workbook
+    from core import report_generator
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     week_ending_str = data["network"].get("week_ending", "")
     if week_ending_str:
@@ -195,7 +195,7 @@ def main():
     # and the workbook builder will emit a placeholder.
     from core import sheets_writer as _sw
     sheets_service = _sw._build_service(config) if not DRY_RUN else None
-    report_path = karissa_workbook.build_monthly_workbook(
+    report_path = report_generator.build_monthly_workbook(
         report_year_month, report_path, sheets_service, config, dry_run=DRY_RUN,
     )
     if report_path:
