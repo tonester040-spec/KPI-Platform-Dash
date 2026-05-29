@@ -220,18 +220,23 @@ ACCEPTANCE = [
         },
     },
     {
+        # The real HTML-disguised .xls Tony exports (UTF-8 BOM + <html>; 'From : 01 Apr
+        # 2026' date dialect). Proves the parser is format-agnostic (same code path as the
+        # PDF) AND ties to the Track B brief's example window to the penny. In Downloads
+        # (not committed), so SKIPS cleanly off Tony's machine — Track D pattern.
         "label": "Forest Lake .xls (4/1-4/12 brief example)",
         "candidates": [os.environ.get("ZENOTI_FL_XLS"),
-                       r"C:\Users\TonyGrant\Downloads\Salon_Summary_Forest_Lake.xls",
-                       r"C:\Users\TonyGrant\Downloads\Salon Summary - Forest Lake - 4-1 - 4-12.xls"],
+                       r"C:\Users\TonyGrant\Downloads\Salon Summary Forest Lake.xls",
+                       r"C:\Users\TonyGrant\Downloads\Salon_Summary_Forest_Lake.xls"],
         "location_id": "888-11812", "location_name": "Forest Lake",
         "period": ("2026-04-01", "2026-04-12"),
         "salon_service": 12395.70, "salon_tips": 1844.70,
-        "salon_product": None, "salon_hours": 267.37, "active_count": 6, "artifacts": None,
+        "salon_product": 945.50, "salon_hours": 267.37, "active_count": 6, "artifacts": [],
         "spot": {
             "Danielle Carlson": {"net_service": 3793.20, "tips": 573.29, "service_qty": 99,
                                  "invoice_count": 73, "production_hours": 60.28},
-            "Dani Shearen":     {"net_service": 2820.40, "production_hours": 53.03},
+            "Dani Shearen":     {"net_service": 2820.40, "production_hours": 53.03,
+                                 "tips": 455.50, "service_qty": 75, "invoice_count": 58},
         },
     },
 ]
