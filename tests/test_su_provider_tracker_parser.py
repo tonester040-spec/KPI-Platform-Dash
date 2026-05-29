@@ -39,7 +39,7 @@ PT_ACCEPTANCE = [
         "totals_service": 36718.05, "totals_retail": 4624.38,
         "totals_service_clients": 647, "active_count": 17, "zero_row_count": 16,
         "artifacts": ["Booked Online", "House _", "Salon Ultimate"],
-        "active_vs_totals_gap": 0.0,
+        "active_vs_totals_service_gap": 0.0, "active_vs_totals_retail_gap": 131.88,  # House _ holds 131.88 unattributed retail
         "salon_service": 36718.05, "salon_retail": 4624.38,   # matched Salon Dashboard Total Service / Retail
         # spot-check keys are RICH-DICT field names (parsed["stylists"]), not emitted-row names
         "spot": {
@@ -58,11 +58,12 @@ PT_ACCEPTANCE = [
         "totals_service": 13280.60, "totals_retail": 1200.05,
         "totals_service_clients": 291, "active_count": 10, "zero_row_count": 13,
         "artifacts": ["Booked Online", "House _", "Salon Ultimate"],
-        # Lakeville routes a -$17.50 refund through "House _": active sum exceeds Totals by 17.50,
-        # but active+filtered still reconciles to the penny.
-        "active_vs_totals_gap": -17.50,
+        # Lakeville routes a -$17.50 refund through "House _" (SERVICE adj): active service
+        # exceeds Totals by 17.50, but active+filtered still reconciles to the penny.
+        "active_vs_totals_service_gap": -17.50, "active_vs_totals_retail_gap": 0.0,
         "salon_service": 13280.60, "salon_retail": 1200.05,
-        "spot": {}, "color_spot": {}, "worked_zero_service": set(),
+        "spot": {"Austin House": {"service_net": 2772.40, "hours_worked": 64.80, "guest_count": 51}},
+        "color_spot": {}, "worked_zero_service": set(),
     },
     {
         "label": "Farmington (su002)",
@@ -73,9 +74,11 @@ PT_ACCEPTANCE = [
         "totals_service_clients": 514, "active_count": 11, "zero_row_count": 9,
         # Farmington ships TWO "Salon Ultimate" artifact rows — both must be filtered.
         "artifacts": ["Booked Online", "House _", "Salon Ultimate", "Salon Ultimate"],
-        "active_vs_totals_gap": 0.0,
+        # House _ holds +$26.25 unattributed RETAIL — active retail trails Totals by that.
+        "active_vs_totals_service_gap": 0.0, "active_vs_totals_retail_gap": 26.25,
         "salon_service": 22619.75, "salon_retail": 2050.35,
-        "spot": {}, "color_spot": {}, "worked_zero_service": {"Kylie White"},
+        "spot": {"Kayla Leahy": {"service_net": 3238.0, "hours_worked": 70.06, "guest_count": 86}},
+        "color_spot": {}, "worked_zero_service": {"Kylie White"},
     },
 ]
 FAILS: list[str] = []
@@ -92,11 +95,12 @@ _HEADER = ["Provider Name", "Service Sales", "Retail Sales", "Hours Worked", "Pr
            "First Time", "Avg Ticket", "Color Sales", "Total Color", "Color %", "Total Req", "Req %"]
 
 
-def _synthetic_grid(house_service=0.0, totals_service=6921.0):
+def _synthetic_grid(house_service=0.0, house_retail=0.0, totals_service=6921.0, totals_retail=844.0):
     """Mirror the real Apple Valley Provider Tracker layout (the rows the parser reads).
-    Active stylists = Brittany Gold (worked, zero service) + Chloe + Megan = svc 6921.
-    house_service / totals_service are tunable to exercise the artifact-adjustment and
-    fail-loud reconciliation paths."""
+    Active stylists = Brittany Gold (worked, zero service) + Chloe + Megan: svc 6921, retail 844.
+    house_service / house_retail / totals_service / totals_retail are tunable to exercise the
+    artifact-money-adjustment (Lakeville -17.50 svc / Farmington +26.25 retail) and the
+    fail-loud reconciliation paths on EITHER money leg."""
     return [
         ["Store name:", "FS - Apple Valley Pilot Knob"],
         ["Report period:", "04/01/2026 - 04/12/2026"],
@@ -107,10 +111,10 @@ def _synthetic_grid(house_service=0.0, totals_service=6921.0):
         ["Booked Online", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],          # artifact
         ["Brittany Gold", 0, 0, 18.08, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],      # worked, zero service -> ACTIVE
         ["Chloe Benage", 3184, 266, 61.56, 5.32, 51.72, 2, 50, 6, 12, 3, 69, 1226.5, 11, 22, 43, 86],
-        ["House _", house_service, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],    # artifact (tunable SERVICE adj, e.g. Lakeville's -17.50 refund)
+        ["House _", house_service, house_retail, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # artifact: carries real money (svc and/or retail)
         ["Megan Petersen", 3737, 578, 55.31, 10.7, 67.56, 2, 52, 8, 15.38, 7, 79.91, 1423.75, 6, 11.54, 34, 65.38],
         ["Salon Ultimate", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],         # artifact
-        ["Totals:", totals_service, 4624.38, 776.45, 7.27, 47.29, 26, 647, 95, 14.68, 102, 65, 11143.25, 80, 12.36, 344, 53.17],
+        ["Totals:", totals_service, totals_retail, 776.45, 7.27, 47.29, 26, 647, 95, 14.68, 102, 65, 11143.25, 80, 12.36, 344, 53.17],
     ]
 
 
@@ -140,10 +144,14 @@ def helper_tests():
     check("artifacts filtered (3)", p["artifacts"] == ["Booked Online", "House _", "Salon Ultimate"])
     check("zero_row_count 1 (Amanda)", p["zero_row_count"] == 1)
     check("totals_service 6921.0", p["totals_service"] == 6921.0)
+    check("totals_retail 844.0", p["totals_retail"] == 844.0)
     check("active_service_sum 6921.0", p["active_service_sum"] == 6921.0)
-    check("reconciled True", p["reconciled"] is True)
-    check("reconciliation_gap 0.0", p["reconciliation_gap"] == 0.0)
-    check("active_vs_totals_gap 0.0 (clean)", p["active_vs_totals_gap"] == 0.0)
+    check("active_retail_sum 844.0", p["active_retail_sum"] == 844.0)
+    check("reconciled True (both money legs)", p["reconciled"] is True)
+    check("service_gap 0.0", p["service_gap"] == 0.0)
+    check("retail_gap 0.0", p["retail_gap"] == 0.0)
+    check("active_vs_totals_service_gap 0.0 (clean)", p["active_vs_totals_service_gap"] == 0.0)
+    check("active_vs_totals_retail_gap 0.0 (clean)", p["active_vs_totals_retail_gap"] == 0.0)
     check("no flags (clean)", p["flags"] == [])
     names = {s["name"] for s in p["stylists"]}
     check("Brittany Gold kept (worked, zero service)", "Brittany Gold" in names)
@@ -161,25 +169,46 @@ def helper_tests():
     check("Megan pos_avg_ticket 79.91 retained (cross-check, total-client denom)", megan["pos_avg_ticket"] == 79.91)
     check("Megan pos_color_pct 11.54 retained (count penetration, NOT used)", megan["pos_color_pct"] == 11.54)
 
-    # ── artifact service adjustment (Lakeville-style House _ refund) reconciles + flags ──
+    # ── artifact SERVICE adjustment (Lakeville-style House _ -17.50 refund): all rows incl
+    #    the artifact reconcile, even though active-only would be off by 17.50 ──
     adj = P._parse_grid(_synthetic_grid(house_service=-17.5, totals_service=6903.5))
-    check("adjustment reconciled (active+filtered==totals)", adj["reconciled"] is True)
-    check("adjustment gap 0.0", adj["reconciliation_gap"] == 0.0)
-    check("adjustment filtered_service_sum -17.5", adj["filtered_service_sum"] == -17.5)
-    check("adjustment active_vs_totals_gap -17.5", adj["active_vs_totals_gap"] == -17.5)
-    check("adjustment surfaces a flag", any("artifact_service_adjustment" in f for f in adj["flags"]))
+    check("svc-adjustment reconciled (all rows incl artifact == totals)", adj["reconciled"] is True)
+    check("svc-adjustment service_gap 0.0", adj["service_gap"] == 0.0)
+    check("svc-adjustment retail_gap 0.0", adj["retail_gap"] == 0.0)
+    check("svc-adjustment filtered_service_sum -17.5", adj["filtered_service_sum"] == -17.5)
+    check("svc-adjustment active_vs_totals_service_gap -17.5", adj["active_vs_totals_service_gap"] == -17.5)
+    check("svc-adjustment surfaces service flag", any("artifact_service_adjustment" in f for f in adj["flags"]))
 
-    # ── reconciliation FAIL-LOUD: tamper the Totals so active+filtered != Totals ──
+    # ── artifact RETAIL adjustment (Farmington-style House _ +26.25 unattributed retail) ──
+    radj = P._parse_grid(_synthetic_grid(house_retail=26.25, totals_retail=870.25))
+    check("retail-adjustment reconciled", radj["reconciled"] is True)
+    check("retail-adjustment retail_gap 0.0", radj["retail_gap"] == 0.0)
+    check("retail-adjustment filtered_retail_sum 26.25", radj["filtered_retail_sum"] == 26.25)
+    check("retail-adjustment active_vs_totals_retail_gap 26.25", radj["active_vs_totals_retail_gap"] == 26.25)
+    check("retail-adjustment surfaces retail flag", any("artifact_retail_adjustment" in f for f in radj["flags"]))
+
+    # ── reconciliation FAIL-LOUD on the SERVICE leg ──
     try:
         P._parse_grid(_synthetic_grid(totals_service=7000.0), strict=True)
-        check("tampered totals raises (strict)", False)
+        check("tampered SERVICE totals raises (strict)", False)
     except ValueError as e:
-        check("tampered totals raises (strict)", True)
-        check("raise names the gap 79.0", "79.0" in str(e))
+        check("tampered SERVICE totals raises (strict)", True)
+        check("raise names SERVICE + gap 79.0", "SERVICE" in str(e) and "79.0" in str(e))
     pn = P._parse_grid(_synthetic_grid(totals_service=7000.0), strict=False)
-    check("tampered strict=False -> reconciled False", pn["reconciled"] is False)
-    check("tampered gap 79.0", pn["reconciliation_gap"] == 79.0)
+    check("tampered service strict=False -> reconciled False", pn["reconciled"] is False)
+    check("tampered service_gap 79.0", pn["service_gap"] == 79.0)
     check("tampered records unreconciled flag", any("unreconciled" in f for f in pn["flags"]))
+
+    # ── reconciliation FAIL-LOUD on the RETAIL leg (the leg the v1 build missed) ──
+    try:
+        P._parse_grid(_synthetic_grid(totals_retail=900.0), strict=True)
+        check("tampered RETAIL totals raises (strict)", False)
+    except ValueError as e:
+        check("tampered RETAIL totals raises (strict)", True)
+        check("raise names RETAIL + gap 56.0", "RETAIL" in str(e) and "56.0" in str(e))
+    rn = P._parse_grid(_synthetic_grid(totals_retail=900.0), strict=False)
+    check("tampered retail strict=False -> reconciled False", rn["reconciled"] is False)
+    check("tampered retail_gap 56.0", rn["retail_gap"] == 56.0)
 
 
 def contract_tests():
@@ -247,10 +276,14 @@ def acceptance_xls():
         check(f"[{lbl}] active_count == {spec['active_count']}", parsed["active_count"] == spec["active_count"])
         check(f"[{lbl}] zero_row_count == {spec['zero_row_count']}", parsed["zero_row_count"] == spec["zero_row_count"])
         check(f"[{lbl}] artifacts == {spec['artifacts']}", parsed["artifacts"] == spec["artifacts"])
-        check(f"[{lbl}] RECONCILED (active+filtered==totals, gap $0.00)",
-              parsed["reconciled"] is True and parsed["reconciliation_gap"] == 0.0)
-        check(f"[{lbl}] active_vs_totals_gap == {spec['active_vs_totals_gap']}",
-              parsed["active_vs_totals_gap"] == spec["active_vs_totals_gap"])
+        check(f"[{lbl}] RECONCILED both legs (all rows incl artifacts, service & retail, gap $0.00)",
+              parsed["reconciled"] is True and parsed["service_gap"] == 0.0 and parsed["retail_gap"] == 0.0)
+        check(f"[{lbl}] active_vs_totals_service_gap == {spec['active_vs_totals_service_gap']}",
+              parsed["active_vs_totals_service_gap"] == spec["active_vs_totals_service_gap"])
+        check(f"[{lbl}] active_vs_totals_retail_gap == {spec['active_vs_totals_retail_gap']}",
+              parsed["active_vs_totals_retail_gap"] == spec["active_vs_totals_retail_gap"])
+        # guest count is NOT reconciled (per-stylist client sums drift from the Totals row,
+        # e.g. Farmington 517 vs 514) — we assert the Totals-row value directly, never a sum.
         # Cross-quadrant: Provider Tracker Totals tie to Track C salon-grain service/retail
         check(f"[{lbl}] x-check: Totals service == salon-grain {spec['salon_service']}",
               parsed["totals_service"] == spec["salon_service"])
@@ -278,10 +311,14 @@ def acceptance_xls():
         check(f"[{lbl}] emitted {spec['active_count']} rows", len(rows) == spec["active_count"])
         check(f"[{lbl}] every row 18 keys + salon_ultimate platform",
               all(len(r) == 18 and r["platform"] == "salon_ultimate" and r["loc_id"] == spec["location_id"] for r in rows))
-        # per-row reconciliation: sum of emitted net_service + filtered == totals
-        emitted_sum = round(sum(r["net_service"] for r in rows), 2)
+        # per-row reconciliation through the EMITTED rows: emitted active + filtered == totals,
+        # for BOTH service and retail (proves no active stylist's money was lost in emission)
+        emitted_svc = round(sum(r["net_service"] for r in rows), 2)
+        emitted_ret = round(sum(r["net_product"] for r in rows), 2)
         check(f"[{lbl}] sum(emitted net_service)+filtered == totals_service",
-              round(emitted_sum + parsed["filtered_service_sum"], 2) == spec["totals_service"])
+              round(emitted_svc + parsed["filtered_service_sum"], 2) == spec["totals_service"])
+        check(f"[{lbl}] sum(emitted net_product)+filtered == totals_retail",
+              round(emitted_ret + parsed["filtered_retail_sum"], 2) == spec["totals_retail"])
     if ran == 0:
         print("SKIP - acceptance: no Provider Tracker files found")
 
