@@ -108,9 +108,12 @@ CROSSWALK: dict[str, dict[str, str]] = {
     "888-11091": {"location_name_canonical": "Prior Lake",   "tableau_center_name": "888-11091-Prior Lake",       "pos_system": "zenoti"},
     "910-7232":  {"location_name_canonical": "Hudson",       "tableau_center_name": "910-7232-Hudson",            "pos_system": "zenoti"},
     "910-6916":  {"location_name_canonical": "New Richmond", "tableau_center_name": "910-6916-New Richmond",      "pos_system": "zenoti"},
-    # 3 Salon Ultimate salons — separate SU export, NOT in Zenoti Tableau.
-    # location_id + center string TBD when the SU intake is wired:
-    #   "Apple Valley", "Lakeville", "Farmington"  (pos_system="salon_ultimate")
+    # 3 Salon Ultimate salons — separate SU export (parsers/su_dashboard_parser.py),
+    # NOT in Zenoti Tableau (tableau_center_name=None). location_id = the project-wide
+    # SU id from config/customers/karissa_001.json. Wired 2026-05-29 (SU intake / Track C).
+    "z010":  {"location_name_canonical": "Apple Valley", "tableau_center_name": None, "pos_system": "salon_ultimate"},
+    "su001": {"location_name_canonical": "Lakeville",    "tableau_center_name": None, "pos_system": "salon_ultimate"},
+    "su002": {"location_name_canonical": "Farmington",   "tableau_center_name": None, "pos_system": "salon_ultimate"},
 }
 
 # Reverse map: raw Tableau "center name" -> location_id (for the stylist/Tableau
