@@ -567,6 +567,13 @@ Karissa's full Q&A (13 questions) is captured in the May 26 conversation thread;
 
 ## Historical backfill — `scripts/backfill/`
 
+> **📓 WEEKLY backfill (the big ~1-year, 12-salon, salon+stylist load) has its own
+> canonical runbook: [`BACKFILL_RUNBOOK.md`](./BACKFILL_RUNBOOK.md). Read it first —
+> it covers the folder convention (`backfill/weekly/{Zenoti,SU}/<YYYY-MM-DD>/`), the
+> loader (`scripts/backfill/weekly_run.py`), idempotency, and how a fresh session
+> resumes (the Sheet is the progress ledger). The section below is the older MONTHLY
+> backfill (DATA_MONTHLY).**
+
 One-off loaders that populate **DATA_MONTHLY** and **STYLISTS_DATA_MONTHLY** from 3 months of Karissa's pre-pipeline POS data (Mar/Apr/May 2026). Built 2026-05-26, branch `backfill-data-monthly-2026-05-26`.
 
 ### Why monthly tabs (and not weekly DATA)
