@@ -26,6 +26,56 @@
 
 ---
 
+## Report Time Model & Cumulative-MTD Mechanics — how Elaina's weekly reports accumulate
+
+> Verified directly with Elaina via a 13-question Q&A (the same source behind the Q1–Q13 table in `CLAUDE.md`; this is the canonical version). **These rules govern HOW every number on the report accumulates — they are as load-bearing as the formulas above.** Get the time model wrong and every per-week value is wrong.
+
+### The window (Q1–Q3)
+
+- **Cumulative month-to-date.** Every weekly report covers **the 1st of the current month through the most recent Sunday**, and **resets when a new month starts** (Q1).
+- **Hard month-START boundary.** When a month starts mid-week, those first days are **Week 1 of the NEW month** — they do NOT roll into the prior month. *April 1 (Wed) → April Week 1 = Apr 1–5 (Wed–Sun, a 5-day partial)* (Q2).
+- **Hard month-END boundary.** The **last week always ends on the month's last day**, even when that's a 1–3 day partial (Q3).
+- **Consequence:** weeks are calendar-bounded by the month — Week 1 and the final week can be short (1–5 days), and a week NEVER straddles two months.
+
+### Everything accumulates — primitives AND percentages (Q4, Q6)
+
+- **All fields are MTD** — sales, guests, AND percentages all build up over the month, at **both salon grain (Q4) and per-stylist grain (Q6)**.
+- **⚠️ CALCULATION RULE:** to recover a true single-week value, **difference the raw primitives** from the prior week's cumulative snapshot and then **RECOMPUTE the ratios** from the differenced primitives. **Never subtract a percentage from a percentage** — a cumulative % is not additive.
+
+### Numbers usually grow, but CAN dip (Q5)
+
+- Elaina (verbatim): *"If there is a refund it is removed but there is still growth because there is never that much refunded."*
+- A cumulative number **can decrease** week-over-week when a refund posts, but net growth nearly always wins (refund amounts are small).
+- **⚠️ CALCULATION RULE:** differencing must handle **negative week-deltas** gracefully — no divide-by-zero, no clamping that would hide a real refund.
+
+### Corrections & re-sends (Q9, Q10)
+
+- **One report per Monday, never re-sent** (Q10) — each Monday's snapshot is FINAL.
+- Late corrections therefore flow into the **next** week's cumulative (it's MTD), not a re-issued prior report.
+- Elaina (verbatim, Q9): *"Sometimes but not always — it will for the salon total but doesn't always for staff total."* A correction **may restate the salon total but NOT always the per-stylist totals**.
+- **⚠️ CALCULATION RULE:** a **stylist-sum ≠ salon-total mismatch is EXPECTED** and must be a **warning, never a hard error** (this is why `STYLIST_SUM_MISMATCH` is downgraded). Guest-count is likewise NOT reconciled stylist-vs-salon.
+
+### Closed / holiday weeks (Q11)
+
+- A salon that closes for a week (zero invoices) appears as a **"zero" row — everything 0 — and the row is SHOWN, never skipped**.
+- **⚠️ CALCULATION RULE:** every derived KPI is None-safe; a zero-guest / zero-sales week resolves each ratio to 0 (or blank) and the row stays present in the report.
+
+### Platform parity (Q12)
+
+- **Zenoti and Salon Ultimate reports work identically — both cumulative-MTD** — so one pipeline handles both. Elaina (verbatim): *"both work the same but we can pick whatever time frame we want."* The "any time frame" point matters for backfill: old periods can be re-pulled on demand.
+
+### Historical / 2025 (Q13)
+
+- 2025 reports are the **same MTD format** and **ARE pullable** — Elaina (verbatim): *"we can pull any old data, it just takes time. In my monthly breakdown I have year-over-year comparison."*
+- **Two takeaways:** (1) the weekly backfill loader works on prior-year reports too (same format — see `BACKFILL_RUNBOOK.md`); (2) Karissa **already keeps a monthly YoY breakdown by hand** — a ready-made source for the dashboard's 2025 / YoY columns, alongside (or ahead of) re-pulling weekly history.
+
+### What the dashboard / report should show (Q7, Q8)
+
+- **Q7 (verbatim):** *"Both — weeks in a column, then the monthly adding up as the month goes on; otherwise just month totals."* → **weekly columns + a running monthly total.** This is exactly the `report_generator` layout: cumulative weekly tabs whose Totals row IS the running MTD.
+- **Q8:** Coach-card "this week vs last week" → *"you guys pick what makes sense."* We use **true week-over-week** (this week's differenced value vs last week's), consistent with Q7's weekly-column view.
+
+---
+
 ## 1. Guest Count
 
 ### Salon Ultimate

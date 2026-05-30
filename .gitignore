@@ -66,3 +66,13 @@ data/archive/
 **/Employee KPI*
 **/FS Salon Dashboard*
 .claude/scheduled_tasks.lock
+
+# ── Weekly backfill report files — provided locally, NOT committed ───────────
+# Tony downloads 12 salons × ~52 weeks of POS reports into
+# backfill/weekly/{Zenoti,SU}/<YYYY-MM-DD>/ folders. Bulk inputs (reproducible
+# by re-download, carry stylist names) — keep the repo lean. The loader, the
+# bucket dirs (.gitkeep), and READMEs ARE committed. See BACKFILL_RUNBOOK.md.
+backfill/weekly/Zenoti/**
+backfill/weekly/SU/**
+!backfill/weekly/Zenoti/.gitkeep
+!backfill/weekly/SU/.gitkeep
