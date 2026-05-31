@@ -18,9 +18,9 @@ backfill/weekly/
       ...
   SU/
     2025-06-01/        ← same week-ending date as the Zenoti folder
-      Apple Valley.xls     (3 Salon Ultimate salon reports)
-      Lakeville.xls
-      Farmington.xls
+      FS Salon Dashboard - Apple Valley ….xls     (salon)
+      Provider Tracker Report - Apple Valley ….xls (stylist)
+      ... Lakeville (x2), Farmington (x2)  →  6 files total
     ...
 ```
 
@@ -28,7 +28,8 @@ backfill/weekly/
 
 - **Folder name = the week-ending Sunday, ISO `YYYY-MM-DD`.** Not "Week 1". The
   cumulative-MTD month is derived from this date, and it is the Sheet row key.
-- **One file per salon per week.** 9 in each Zenoti week folder, 3 in each SU week.
+- **Zenoti = 1 file per salon** (the Salon Summary carries salon AND stylist) → **9 per Zenoti week**.
+  **SU = 2 files per salon** (FS Salon Dashboard + Provider Tracker Report) → **6 per SU week**.
 - **The report files themselves are git-ignored** (bulk inputs, carry stylist
   names). Only this README + the empty bucket dirs are committed. You provide the
   files locally; you don't pull them.

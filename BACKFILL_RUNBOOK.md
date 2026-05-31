@@ -52,14 +52,17 @@ own date range. Files win. (See the Tableau notes in the 2026-05-29 session.)
 
 ```
 backfill/weekly/
-  Zenoti/<YYYY-MM-DD>/   9 Zenoti salon report files   (week-ending Sunday)
-  SU/<YYYY-MM-DD>/       3 Salon Ultimate report files (SAME week-ending date)
+  Zenoti/<YYYY-MM-DD>/   9 files — ONE Salon Summary per salon (carries salon AND stylist)
+  SU/<YYYY-MM-DD>/       6 files — per SU salon TWO reports: FS Salon Dashboard (salon)
+                                  + Provider Tracker Report (stylist)   [SAME week-ending date]
 ```
 
 - Folder name = **week-ending Sunday, ISO `YYYY-MM-DD`** (e.g. `2025-06-01`). This
   is the row key and the source of `year_month` — **never** "Week 1".
-- One file per salon. Salon is identified by **filename** (matched to the roster,
-  same as `data/inbox/` today: `Andover.*`, `Blaine.*`, … `Apple Valley.*`).
+- Salon is identified by **filename** (matched to the roster, e.g. `Andover.*`,
+  `Apple Valley.*`, or `FS Salon Dashboard - Apple Valley …`). **Zenoti = 1 file/salon**
+  (the Salon Summary carries both grains); **SU = 2 files/salon** (Dashboard + Provider
+  Tracker — SU splits salon and stylist into separate reports).
 - Report files are **git-ignored** (bulk, carry stylist names). Provided locally.
 
 ### The 12 salons (filename ↔ canonical name ↔ id)
@@ -84,9 +87,9 @@ backfill/weekly/
 
 ## 5. The loader — `scripts/backfill/weekly_run.py`
 
-> **BUILD STATUS (2026-05-29): spec below is the contract; the loader is built next,
-> to this interface, and tested against the first real week. Until then, this section
-> doubles as the build spec.**
+> **BUILD STATUS: BUILT + dry-run tested 2026-05-31.** Validated penny-exact on real
+> samples — Forest Lake (Zenoti: salon + 6 stylists) and Apple Valley (SU: salon + 17
+> stylists), both reconciled clean. Ready to run. `--dry-run` needs NO credentials.
 
 ### Usage
 
@@ -172,10 +175,11 @@ Guest-count is NOT reconciled stylist-vs-salon (expected to differ).
 
 - **All 12 salons come from reports** — the 3 SU salons aren't in Tableau but their
   reports parse fine (Track C/D).
-- **⚠️ SU weekly file format — confirm on the first real SU week.** Track C
-  (`build_su_location_row`) expects the SU **.xls** dashboard export; the monthly
-  backfill used SU **.pdf** (`pdf_salon_ultimate_v2`). The loader dispatches by file
-  extension; verify the first SU week parses and adjust if the format differs.
+- **SU weekly = TWO `.xls` reports per salon (CONFIRMED 2026-05-31):** *FS Salon
+  Dashboard* (salon → Track C `build_su_location_row`) + *Provider Tracker Report*
+  (stylist → Track D `build_su_stylist_rows`). Both parse penny-clean (the `.xls` path
+  needs **LibreOffice** installed). The loader dispatches SU files by filename
+  ("provider tracker" → stylist, else salon); Zenoti's single Salon Summary feeds both.
 - **Dashboard fields NOT in these reports:** salon/stylist **rebook %**, stylist
   **tenure / status**, and possibly **request %**. These are retention/HR metrics
   the weekly performance reports may not carry. The backfill lights up the money +
