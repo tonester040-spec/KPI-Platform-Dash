@@ -1,0 +1,31 @@
+# Minimal dependencies for the WEEKLY BACKFILL loader (scripts/backfill/weekly_run.py).
+#
+# WHY a separate file: the main requirements.txt pins PyMuPDF==1.23.26, which has no
+# prebuilt wheel for Python 3.14 and tries to compile from source (needs Visual Studio).
+# The weekly backfill does ZERO PDF parsing — every report is an .xls — so PyMuPDF is
+# not needed here. This list installs cleanly on Python 3.14 with no build tools.
+#
+# Install:  python -m pip install -r requirements-backfill.txt
+#   (use `python -m pip`, not bare `pip`, so packages land in the SAME interpreter
+#    that runs `python -m scripts.backfill.weekly_run`.)
+#
+# PLUS one system dependency NOT installable via pip:
+#   LibreOffice — required to read the Salon Ultimate binary .xls (converts .xls ->
+#   .xlsx; the parser auto-finds C:\Program Files\LibreOffice\program\soffice.exe).
+#   Download: https://www.libreoffice.org/download
+#   (Zenoti .xls are HTML tables read with BeautifulSoup — they do NOT need LibreOffice.)
+
+# Report parsing — Zenoti HTML .xls (bs4) + SU/Zenoti .xlsx (openpyxl) + legacy .xls (xlrd)
+openpyxl>=3.1.2
+beautifulsoup4>=4.12.0
+xlrd>=2.0.1
+
+# Google Sheets read/write — needed for --status and --write (dry-run does NOT need these)
+gspread>=6.0.0
+google-auth>=2.27.0
+google-api-python-client>=2.116.0
+
+# Config + dates
+python-dotenv>=1.2.0
+python-dateutil>=2.9.0
+pytz>=2024.1
