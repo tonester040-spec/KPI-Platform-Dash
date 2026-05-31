@@ -7,6 +7,48 @@ goal of this session: get `scripts/backfill/weekly_run.py` running locally and l
 
 ---
 
+## ⚡ STATUS (2026-05-31 evening) — env FIXED, loader RUNNING, now VERIFYING
+
+The §2 blocker is resolved: `python -m pip install -r requirements-backfill.txt` installs
+clean on Python 3.14, LibreOffice is in, and `weekly_run --all --dry-run` now parses the
+real `.xls` reports. Proof the model is right: SU June 2025 accumulates correctly across the
+month (week totals `51,681 → 91,899 → 131,051 → 171,320`). **SU (all 3 salons) and 8 of 10
+Zenoti salons reconcile penny-clean.**
+
+**TWO real reconcile anomalies to resolve — this is the main task.** At the `2025-06-30`
+Zenoti month-end, `Elk River.xls` and `Roseville.xls` fail the stylist reconcile (per-stylist
+SUMS ≠ salon totals):
+- Elk River FS: SERVICE 28,023.62 vs 27,622.22 (−401.40); PRODUCT −53.80; TIPS −105.00
+- Roseville: SERVICE 39,598.40 vs 39,458.40 (−140.00)
+
+**This is almost certainly the Karissa Q9 phenomenon** (KARISSA_GOLDEN_RULES "Report Time
+Model" + CLAUDE.md): *a salon-level correction doesn't always reach the per-stylist totals*,
+so a stylist-sum ≠ salon-total mismatch is EXPECTED and should be a WARNING, never fatal. But
+the stylist parser is fail-loud (`strict=True`), so the loader catches the raise and DROPS
+those two salons entirely (note they're absent from the 2025-06-30 table). The other 8 Zenoti
+reconciling clean is strong evidence this is Q9, not a parser bug.
+
+### Verification tasks (this session)
+1. **Eyeball the real Elk River + Roseville `2025-06-30` Salon Summaries** — confirm the gap is
+   a salon-vs-stylist correction drift (Q9), not a dropped/duplicated employee row.
+2. **Make the loader Q9-compliant** (`scripts/backfill/weekly_run.py`):
+   - **Decouple** the Zenoti salon parse from the stylist parse in `parse_file` (separate
+     try/except each). A stylist drift must NOT lose the authoritative salon row
+     (`build_location_row` is independent and reconciles fine for Elk River/Roseville).
+   - Call the stylist builders with **`strict=False`** (CONFIRMED supported:
+     `build_zenoti_stylist_rows(..., strict=False)` / `build_su_stylist_rows(..., strict=False)`
+     downgrade the raise to a flagged `reconciled=False` row) so the per-stylist rows still load,
+     per salon-supremacy. Surface the drift + magnitude in the review.
+   - Don't skip a whole WEEK's write because one salon's stylists drifted — write what
+     reconciled; re-runs are idempotent.
+3. **Spot-check** a few salon totals against the real reports (must be penny-exact).
+4. **Write** when clean: `--write` (needs `GOOGLE_SERVICE_ACCOUNT_JSON`), then `--status`.
+
+Read the FULL `--dry-run` output first (59 weeks, long) — only Elk River + Roseville should be
+flagging. Everything below is the original handoff (env setup + settled facts).
+
+---
+
 ## 0. The one thing that's different about this session
 
 **You are running LOCALLY on Tony's Windows machine** (`C:\Users\tones\OneDrive\
