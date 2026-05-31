@@ -43,3 +43,7 @@ xlrd>=2.0.1
 # Tier 2 PDF parsers — text extraction from Zenoti + Salon Ultimate PDFs
 # PyMuPDF is also importable as 'fitz'
 PyMuPDF==1.23.26
+
+# Zenoti "Salon Summary .xls" exports are actually HTML tables — read with
+# BeautifulSoup (html.parser backend, stdlib; no lxml required).
+beautifulsoup4>=4.12.0
