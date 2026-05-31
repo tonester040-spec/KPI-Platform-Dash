@@ -21,6 +21,21 @@ and the Jess/Jenn coaching + retention view).
   cumulative→weekly differencing).
 - **Stylist grain →** `STYLISTS_CUMULATIVE_MTD` tab (feeds the coaching dashboard).
 
+### Granularity — HYBRID (decided 2026-05-31, to cut download time)
+
+The dashboard trend is month-over-month, so weekly detail only earns its keep for the
+recent months. So the **folders that exist are the ones to fill** (`backfill/weekly/`
+was trimmed to this):
+
+- **SU:** all 59 weeks (already downloaded weekly — left as-is).
+- **Zenoti:** **recent 3 months weekly** (Mar/Apr/May 2026) + **month-end-only** for the
+  older months (Jun 2025–Feb 2026, 9 folders). A month-end folder = that month's full
+  cumulative total; it lands one snapshot instead of five.
+- **Zenoti uses the Salon Summary ONLY** — NOT the Sales Accrual. The Salon Summary
+  already carries salon + stylist (sales/guests/service-mix/hours/employees); the Sales
+  Accrual only adds unique-guest-per-stylist, which Karissa doesn't use (she uses
+  invoice count). So 1 file/Zenoti-salon, not 2 — half the download.
+
 ## 2. Why files, not Tableau (decided 2026-05-29)
 
 The weekly **reports** are the penny-exact source and our parsers already read them
