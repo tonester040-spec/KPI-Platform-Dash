@@ -416,12 +416,19 @@ def main(argv=None):
         grand_salon += len(salon_rows); grand_stylist += len(stylist_rows)
         total_problems += len(problems); total_warnings += len(warnings)
         if args.write:
-            if problems:
-                print(f"  x SKIPPING WRITE for {wk} -- fix the {len(problems)} problem(s) first.")
-                continue
+            # Per-FILE isolation, not per-week: a problem file already contributed
+            # ZERO rows (it raised before its row was appended), so salon_rows /
+            # stylist_rows are exactly the good rows. Write them and report the
+            # skipped files by name. A whole-week skip would needlessly drop the
+            # good salons that merely share a week with a bad file (e.g. the 10
+            # clean salons in a week where 2 SU dashboards fail). Idempotent:
+            # once the skipped file is fixed, a re-run adds only its missing rows.
             write_week(config, service, salon_rows, stylist_rows, salon_only=args.salon_only)
-            note = f" ({len(warnings)} non-blocking warning(s))" if warnings else ""
-            print(f"  + wrote {len(salon_rows)} salon + {len(stylist_rows)} stylist rows to the Sheet{note}")
+            note = f", {len(warnings)} warning(s)" if warnings else ""
+            print(f"  + wrote {len(salon_rows)} salon + {len(stylist_rows)} stylist rows{note}")
+            if problems:
+                skipped = ", ".join(fn for fn, _ in problems)
+                print(f"  ! {len(problems)} file(s) SKIPPED (not in Sheet — fix + re-run): {skipped}")
 
     mode = "WROTE" if args.write else "DRY-RUN (nothing written)"
     print(f"\n=== {mode}: {len(weeks)} week(s), {grand_salon} salon + {grand_stylist} stylist "
