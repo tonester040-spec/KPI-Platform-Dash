@@ -42,6 +42,19 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+
+def _force_utf8_stdout() -> None:
+    """The review tables use box-drawing/check glyphs; the default Windows console
+    is cp1252 and raises UnicodeEncodeError on them (crashing the whole run mid-
+    render). Reconfigure stdout/stderr to UTF-8 with backslash-replace so the loader
+    prints identically on Windows, Linux, and CI without needing PYTHONUTF8=1."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (AttributeError, ValueError):
+            pass  # already UTF-8, or a stream that can't be reconfigured
+
+
 from parsers.locations_grouper import CROSSWALK  # noqa: E402
 
 DEFAULT_ROOT = _REPO_ROOT / "backfill" / "weekly"
@@ -161,38 +174,74 @@ def _stylist_to_cumulative(s: dict, p: dict) -> dict:
 
 
 def parse_file(path: Path, bucket: str, salon: str, p: dict, *, salon_only: bool):
-    """Parse one report file -> ([cumulative salon rows], [cumulative stylist rows]).
-    Raises on parse/reconcile failure (the parsers fail loud); the caller flags it."""
+    """Parse one report file -> (salon_rows, stylist_rows, problems, warnings).
+
+    The two grains are parsed INDEPENDENTLY (salon-supremacy): a stylist-grain
+    failure never costs us the salon row. Stylist parsing runs **strict=False**, so
+    a per-stylist reconcile gap — Karissa Q9, where salon-level corrections don't
+    always reach per-stylist totals (KARISSA_GOLDEN_RULES) — is a non-blocking
+    WARNING that still writes, NOT a fatal drop. A genuine parse CRASH
+    (unreadable / structural) is a PROBLEM that blocks the write for that file.
+
+    `problems` and `warnings` are both lists of (filename, message)."""
     loc_id, _platform = ROSTER[salon]
     rtype = resolve_report_type(path.name, bucket)
     salon_rows: list[dict] = []
     stylist_rows: list[dict] = []
+    problems: list[tuple[str, str]] = []
+    warnings: list[tuple[str, str]] = []
 
-    if bucket == "Zenoti":
-        # One Salon Summary feeds both grains.
-        from parsers.locations_grouper import build_location_row
-        sr = build_location_row(str(path), location_id=loc_id,
-                                period_start=p["period_start"], period_end=p["period_end"],
-                                period_type=p["period_type"], period_label=p["period_label"])
-        salon_rows.append(_salon_to_cumulative(sr, p))
-        if not salon_only:
-            from parsers.zenoti_stylist_parser import build_zenoti_stylist_rows
-            for s in build_zenoti_stylist_rows(str(path), location_id=loc_id,
-                                               year_month=p["year_month"]):
-                stylist_rows.append(_stylist_to_cumulative(s, p))
-    else:  # SU
-        if rtype == "salon":
+    # ── salon grain (its own try — independent of the stylist parse) ──
+    try:
+        if bucket == "Zenoti":
+            from parsers.locations_grouper import build_location_row
+            sr = build_location_row(str(path), location_id=loc_id,
+                                    period_start=p["period_start"], period_end=p["period_end"],
+                                    period_type=p["period_type"], period_label=p["period_label"])
+            salon_rows.append(_salon_to_cumulative(sr, p))
+        elif rtype == "salon":  # SU FS Salon Dashboard
             from parsers.su_dashboard_parser import build_su_location_row
             sr = build_su_location_row(str(path), location_id=loc_id,
                                        period_start=p["period_start"], period_end=p["period_end"],
                                        period_type=p["period_type"], period_label=p["period_label"])
             salon_rows.append(_salon_to_cumulative(sr, p))
-        elif rtype == "stylist" and not salon_only:
-            from parsers.su_provider_tracker_parser import build_su_stylist_rows
-            for s in build_su_stylist_rows(str(path), location_id=loc_id,
-                                           year_month=p["year_month"]):
+    except Exception as e:  # a salon-grain parse failure is serious — block this file
+        problems.append((path.name, f"salon parse: {type(e).__name__}: {e}"))
+
+    # ── stylist grain (independent; strict=False so Q9 drift warns, not drops) ──
+    want_stylist = not salon_only and (bucket == "Zenoti" or rtype == "stylist")
+    if want_stylist:
+        try:
+            if bucket == "Zenoti":
+                from parsers.zenoti_stylist_parser import (
+                    parse_zenoti_salon_summary, _stylist_rows_from_parsed,
+                )
+                parsed = parse_zenoti_salon_summary(str(path), strict=False)
+                rows = _stylist_rows_from_parsed(
+                    parsed, location_id=loc_id, year_month=p["year_month"],
+                    period_start=p["period_start"], period_end=p["period_end"],
+                    source="zenoti_salon_summary")
+            else:  # SU Provider Tracker
+                from parsers.su_provider_tracker_parser import (
+                    parse_su_provider_tracker, _stylist_rows_from_parsed,
+                )
+                parsed = parse_su_provider_tracker(str(path), strict=False)
+                rows = _stylist_rows_from_parsed(
+                    parsed, location_id=loc_id, year_month=p["year_month"],
+                    period_start=p["period_start"], period_end=p["period_end"],
+                    source="su_provider_tracker")
+            for s in rows:
                 stylist_rows.append(_stylist_to_cumulative(s, p))
-    return salon_rows, stylist_rows
+            # Q9 drift: stylist sums don't tie to the salon sections. Read-as-stored
+            # salon row is authoritative; surface the gap but never block the write.
+            if not parsed.get("reconciled", True):
+                for fl in parsed.get("flags", []):
+                    if "unreconciled" in fl:
+                        warnings.append((path.name, f"stylist drift (Q9, non-blocking): {fl}"))
+        except Exception as e:  # a genuine parse crash (not a reconcile gap) DOES block
+            problems.append((path.name, f"stylist parse: {type(e).__name__}: {e}"))
+
+    return salon_rows, stylist_rows, problems, warnings
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,11 +249,14 @@ def parse_file(path: Path, bucket: str, salon: str, p: dict, *, salon_only: bool
 # ─────────────────────────────────────────────────────────────────────────────
 def process_week(root: Path, week_ending: str, *, salon_only: bool):
     """Parse every file in both buckets for one week. Returns
-    (salon_rows, stylist_rows, problems) — problems is a list of (file, error)."""
+    (salon_rows, stylist_rows, problems, warnings). problems BLOCK the write
+    (parse/structural failures); warnings do NOT (Q9 stylist drift). Both are
+    lists of (file, message)."""
     p = derive_period(week_ending)
     salon_rows: list[dict] = []
     stylist_rows: list[dict] = []
     problems: list[tuple[str, str]] = []
+    warnings: list[tuple[str, str]] = []
 
     for bucket in ("Zenoti", "SU"):
         wdir = root / bucket / week_ending
@@ -217,13 +269,17 @@ def process_week(root: Path, week_ending: str, *, salon_only: bool):
             if salon is None:
                 problems.append((f.name, "could not match a salon by filename"))
                 continue
+            # parse_file isolates its own grains; a hard guard still catches anything
+            # truly unexpected so one bad file never aborts the whole week.
             try:
-                sr, st = parse_file(f, bucket, salon, p, salon_only=salon_only)
+                sr, st, probs, warns = parse_file(f, bucket, salon, p, salon_only=salon_only)
                 salon_rows.extend(sr)
                 stylist_rows.extend(st)
-            except Exception as e:  # parsers fail loud on reconcile/parse errors
-                problems.append((f.name, f"{type(e).__name__}: {e}"))
-    return salon_rows, stylist_rows, problems
+                problems.extend(probs)
+                warnings.extend(warns)
+            except Exception as e:  # defensive backstop — should not normally fire
+                problems.append((f.name, f"unexpected: {type(e).__name__}: {e}"))
+    return salon_rows, stylist_rows, problems, warnings
 
 
 def weeks_on_disk(root: Path) -> list[str]:
@@ -252,8 +308,8 @@ def _f(v, money=False):
     return str(v)
 
 
-def render_week(week_ending: str, salon_rows, stylist_rows, problems):
-    print(f"\n── Week ending {week_ending} " + "─" * 40)
+def render_week(week_ending: str, salon_rows, stylist_rows, problems, warnings=()):
+    print(f"\n-- Week ending {week_ending} " + "-" * 40)
     if salon_rows:
         print(f"  {'Salon':<16}{'Guests':>8}{'Total':>13}{'Service':>13}{'Product':>12}")
         tg = tt = tsv = tpr = 0.0
@@ -263,10 +319,13 @@ def render_week(week_ending: str, salon_rows, stylist_rows, problems):
             tg += r["guests"] or 0; tt += r["total_sales"] or 0
             tsv += r["service"] or 0; tpr += r["product"] or 0
         print(f"  {'TOTAL':<16}{tg:>8.0f}{tt:>13,.2f}{tsv:>13,.2f}{tpr:>12,.2f}")
-    print(f"  salon rows: {len(salon_rows)}   stylist rows: {len(stylist_rows)}", end="")
-    print(f"   ⚠ problems: {len(problems)}" if problems else "   ✓ clean")
+    tail = "  clean" if not (problems or warnings) else ""
+    print(f"  salon rows: {len(salon_rows)}   stylist rows: {len(stylist_rows)}"
+          f"   problems: {len(problems)}   warnings: {len(warnings)}{tail}")
     for fn, err in problems:
-        print(f"     ⚠ {fn}: {err}")
+        print(f"     [BLOCK] {fn}: {err}")
+    for fn, warn in warnings:
+        print(f"     [warn]  {fn}: {warn}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -316,6 +375,7 @@ def write_week(config, service, salon_rows, stylist_rows, *, salon_only):
 # CLI.
 # ─────────────────────────────────────────────────────────────────────────────
 def main(argv=None):
+    _force_utf8_stdout()
     ap = argparse.ArgumentParser(description="Weekly backfill loader — see BACKFILL_RUNBOOK.md")
     ap.add_argument("--root", default=str(DEFAULT_ROOT))
     ap.add_argument("--customer", default="karissa_001")
@@ -349,22 +409,24 @@ def main(argv=None):
         config = _load_config(args.customer)
         service = _build_service(config)
 
-    grand_salon = grand_stylist = total_problems = 0
+    grand_salon = grand_stylist = total_problems = total_warnings = 0
     for wk in weeks:
-        salon_rows, stylist_rows, problems = process_week(root, wk, salon_only=args.salon_only)
-        render_week(wk, salon_rows, stylist_rows, problems)
+        salon_rows, stylist_rows, problems, warnings = process_week(root, wk, salon_only=args.salon_only)
+        render_week(wk, salon_rows, stylist_rows, problems, warnings)
         grand_salon += len(salon_rows); grand_stylist += len(stylist_rows)
-        total_problems += len(problems)
+        total_problems += len(problems); total_warnings += len(warnings)
         if args.write:
             if problems:
-                print(f"  ✗ SKIPPING WRITE for {wk} — fix the {len(problems)} problem(s) first.")
+                print(f"  x SKIPPING WRITE for {wk} -- fix the {len(problems)} problem(s) first.")
                 continue
             write_week(config, service, salon_rows, stylist_rows, salon_only=args.salon_only)
-            print(f"  ✓ wrote {len(salon_rows)} salon + {len(stylist_rows)} stylist rows to the Sheet")
+            note = f" ({len(warnings)} non-blocking warning(s))" if warnings else ""
+            print(f"  + wrote {len(salon_rows)} salon + {len(stylist_rows)} stylist rows to the Sheet{note}")
 
     mode = "WROTE" if args.write else "DRY-RUN (nothing written)"
     print(f"\n=== {mode}: {len(weeks)} week(s), {grand_salon} salon + {grand_stylist} stylist "
-          f"rows, {total_problems} problem(s) ===")
+          f"rows, {total_problems} problem(s), {total_warnings} warning(s) ===")
+    # Warnings (Q9 drift) never fail the run; only true problems do, on a dry-run.
     return 1 if (total_problems and not args.write) else 0
 
 

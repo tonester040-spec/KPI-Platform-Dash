@@ -106,6 +106,7 @@ from parsers.pdf_hours_parser import (  # noqa: F401
     _extract_text,
     _parse_sales_from_text,
     parse_production_hours,
+    is_role_label,
     ROLE_LABELS,
     ARTIFACT_NAMES,
     NUM,
@@ -256,8 +257,7 @@ def _walk_employee_sales(text):
             nums.append(tokens[p])
             p += 1
 
-        nl = name.lower()
-        is_role = nl in ROLE_LABELS or any(w.upper() == w and len(w) > 3 for w in name_words)
+        is_role = is_role_label(name)
         looks_person = len(name_words) >= 2 and name[0].isupper()
         if looks_person and not is_role and len(nums) >= _SALE_MIN_NUMS:
             net_product = _num(nums[_SALE_NET_PRODUCT])

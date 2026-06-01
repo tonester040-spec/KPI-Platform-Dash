@@ -13,11 +13,37 @@ VALIDATED: Forest Lake 4/1-4/5 -> 115.50 (Phipps 29.10); 4/1-4/12 -> 267.37.
 """
 import re
 
-ROLE_LABELS={"manager","shift leader","stylist","total","trainer","front desk","assistant","grand total"}
+ROLE_LABELS={"manager","shift leader","stylist","total","trainer","front desk",
+             "assistant","grand total","receptionist","coach","owner",
+             "business coach","franchise owner"}
 # Artifact rows that must NEVER count as a stylist (Tableau history surfaced these — bake the guard here too).
 ARTIFACT_NAMES={"house sale","unknown","all"}
+# Zenoti groups the Employee tables by job role; each group opens with a SUMMARY
+# ROLLUP header row whose value equals the SUM of the members beneath it. Including
+# a rollup double-counts those members. Rollups are NOT always ALL-CAPS — Title-Case
+# roles ("Business Coach", "Franchise Owner") leaked past the old all-caps check and
+# inflated the stylist sum by exactly one member (Business Coach==Jen Watson;
+# Franchise Owner==Stephen Mccloskey), and double-counted hours into the salon total.
+# Treat any row whose final word is a role noun as a rollup. WHOLE-WORD match only, so
+# a real surname like "Owens" (!= "owner") is never mis-flagged.
+_ROLE_TRAILING={"coach","owner","manager","stylist","leader","trainer"}
 NUM=re.compile(r"^-?[\d,]+\.?\d*$")
 PCT_PREFIX=re.compile(r"^\(\d+\.?\d*\)$")  # like (34.23)
+
+
+def is_role_label(name) -> bool:
+    """True if `name` is a Zenoti job-role rollup header (skip it), not a real stylist.
+    Catches the ALL-CAPS rollups (MANAGER/STYLIST), the lowercase labels (shift
+    leader/total/grand total), and the Title-Case role groups that previously leaked
+    (Business Coach / Franchise Owner). The reconciliation in the stylist parsers is
+    the backstop: any unknown future role title that slips through fails loud."""
+    words=str(name).split()
+    nl=" ".join(words).lower()
+    if nl in ROLE_LABELS:
+        return True
+    if words and words[-1].lower() in _ROLE_TRAILING:
+        return True
+    return any(w.upper()==w and len(w)>3 for w in words)
 
 def _extract_text(path):
     if path.lower().endswith(".pdf"):
@@ -49,7 +75,7 @@ def parse_production_hours(path=None, known_last_names=None, text=None):
         nums=[]; p=m
         while p<len(tokens) and NUM.match(tokens[p]) and len(nums)<6:
             nums.append(tokens[p]); p+=1
-        is_role = name.lower() in ROLE_LABELS or any(w.upper()==w and len(w)>3 for w in name_words)
+        is_role = is_role_label(name)
         nl = name.lower()
         is_artifact = nl in ARTIFACT_NAMES or "unknown" in nl or "house sale" in nl
         looks_person = len(name_words)>=2 and name[0].isupper()
